@@ -8,7 +8,7 @@ pipelines:
         script:
           - mvn -s ci/settings.xml clean test
   custom:
-    prepare-release:
+    release:
       - step:
           caches:
             - maven
@@ -16,4 +16,4 @@ pipelines:
             - git config --global user.email "nobody@atlassian.com"
             - git config --global user.name "Release"
             - mvn -s ci/settings.xml -B release:prepare -Dusername=$BITBUCKET_USERNAME -Dpassword=$BITBUCKET_PASSWORD -DscmCommentPrefix="[skip ci]"
-            - mvn -s ci/settings.xml -B release:perform -Dgoals=install
+            - mvn -s ci/settings.xml -B release:perform -Dgoals=install -Darguments="-Dmaven.deploy.skip=true
