@@ -9,7 +9,7 @@
 
     <groupId>com.atlassian.braid</groupId>
     <artifactId>graphql-braid</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>0.1-SNAPSHOT</version>
     <name>GraphQL Braid</name>
 
     <issueManagement>
