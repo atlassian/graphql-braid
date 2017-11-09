@@ -9,7 +9,7 @@
 
     <groupId>com.atlassian.braid</groupId>
     <artifactId>graphql-braid</artifactId>
-    <version>0.2-SNAPSHOT</version>
+    <version>0.2.0-SNAPSHOT</version>
     <name>GraphQL Braid</name>
 
     <issueManagement>
@@ -98,6 +98,7 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
+                        <version>1.6.0</version>
                         <executions>
                             <execution>
                                 <id>python-build</id>
@@ -118,7 +119,7 @@
             </build>
         </profile>
     </profiles>
-    
+
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>

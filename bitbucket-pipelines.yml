@@ -16,7 +16,7 @@ pipelines:
             - git config --global user.email "nobody@atlassian.com"
             - git config --global user.name "Release"
             - git checkout -b release_branch
-            - mvn -s ci/settings.xml -B release:prepare -DscmCommentPrefix="[skip ci]"
+            - mvn -s ci/settings.xml -B release:prepare -DscmCommentPrefix="[skip ci]" -Prelease
             - mvn -s ci/settings.xml -B release:perform -Dgoals=install -Darguments="-Dmaven.deploy.skip=true"
             - git checkout master
             - git pull origin master
