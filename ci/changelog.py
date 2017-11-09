@@ -2,6 +2,29 @@ import fileinput
 import os
 
 import datetime
+from xml.etree import ElementTree as et
+
+
+def get_release_version(path):
+    ns = "http://maven.apache.org/POM/4.0.0"
+
+    version = ""
+
+    tree = et.ElementTree()
+    tree.parse(path)
+
+    p = tree.getroot().find("{%s}parent" % ns)
+
+    if p is not None:
+        if p.find("{%s}version" % ns) is not None:
+            version = p.find("{%s}version" % ns).text
+
+    if tree.getroot().find("{%s}version" % ns) is not None:
+        version = tree.getroot().find("{%s}version" % ns).text
+
+    if "-SNAPSHOT" in version:
+        version = version[0:len("-SNAPSHOT")]
+    return version
 
 
 class Changelog(object):
@@ -36,18 +59,11 @@ class Changelog(object):
 
 if __name__ == "__main__":
     root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    release_version = get_release_version(os.path.join(root_dir, 'pom.xml'))
 
-    next_version = None
-    release_props_path = os.path.join(root_dir, 'release.properties')
-    with open(release_props_path, 'r') as f:
-        for line in f:
-            # print("line: {}".format(line))
-            if line.startswith("project.rel.com.atlassian.braid\:graphql-braid"):
-                _, next_version = line.split('=')
-
-    if next_version:
+    if release_version:
         cl = Changelog(os.path.join(root_dir, 'CHANGES.md'))
-        cl.release(next_version.strip())
+        cl.release(release_version)
     else:
-        print("Couldn't find the next version")
+        print("Couldn't find the release version")
         exit(1)
