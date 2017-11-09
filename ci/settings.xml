@@ -6,4 +6,42 @@
             <password>${env.MAVEN_PASSWORD}</password>
         </server>
     </servers>
+    <profiles>
+        <profile>
+            <id>defaultProfile</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+
+            <repositories>
+                <repository>
+                    <id>maven-atlassian-com</id>
+                    <url>https://packages.atlassian.com/maven/repository/public</url>
+                    <snapshots>
+                        <enabled>true</enabled>
+                        <updatePolicy>never</updatePolicy>
+                        <checksumPolicy>fail</checksumPolicy>
+                    </snapshots>
+                    <releases>
+                        <enabled>true</enabled>
+                        <checksumPolicy>fail</checksumPolicy>
+                    </releases>
+                </repository>
+            </repositories>
+
+            <pluginRepositories>
+                <pluginRepository>
+                    <id>maven-atlassian-com</id>
+                    <url>https://packages.atlassian.com/maven/repository/public</url>
+                    <releases>
+                        <checksumPolicy>fail</checksumPolicy>
+                        <enabled>true</enabled>
+                    </releases>
+                    <snapshots>
+                        <checksumPolicy>fail</checksumPolicy>
+                    </snapshots>
+                </pluginRepository>
+            </pluginRepositories>
+        </profile>
+    </profiles>
 </settings>
