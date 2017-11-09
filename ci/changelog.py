@@ -23,7 +23,7 @@ def get_release_version(path):
         version = tree.getroot().find("{%s}version" % ns).text
 
     if "-SNAPSHOT" in version:
-        version = version[0:len("-SNAPSHOT")]
+        version = version[0:-1 * len("-SNAPSHOT")]
     return version
 
 
