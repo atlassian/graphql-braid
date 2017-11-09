@@ -18,3 +18,8 @@ pipelines:
             - git checkout -b release_branch
             - mvn -s ci/settings.xml -B release:prepare -DscmCommentPrefix="[skip ci]"
             - mvn -s ci/settings.xml -B release:perform -Dgoals=install -Darguments="-Dmaven.deploy.skip=true"
+            - git checkout master
+            - git pull origin master
+            - git merge --no-edit release_branch
+            - git push origin master
+            - git push origin ":release_branch"
