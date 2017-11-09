@@ -18,11 +18,12 @@
     </issueManagement>
 
     <scm>
+        <url>https://bitbucket.org/atlassian/graphql-braid</url>
         <connection>scm:git:https://bitbucket.org/atlassian/graphql-braid.git</connection>
         <developerConnection>scm:git:https://bitbucket.org/atlassian/graphql-braid.git</developerConnection>
-        <url>https://bitbucket.org/atlassian/graphql-braid</url>
         <tag>HEAD</tag>
     </scm>
+
     <licenses>
         <license>
             <name>BSD License</name>

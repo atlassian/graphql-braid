@@ -15,6 +15,7 @@ pipelines:
           script:
             - git config --global user.email "nobody@atlassian.com"
             - git config --global user.name "Release"
+            - git remote set-url origin https://bitbucket.org/atlassian/graphql-braid.git
             - git checkout -b release_branch
             - mvn -s ci/settings.xml -B release:prepare -Dusername=$BITBUCKET_USERNAME -Dpassword=$BITBUCKET_PASSWORD -DscmCommentPrefix="[skip ci]"
             - mvn -s ci/settings.xml -B release:perform -Dgoals=install -Darguments="-Dmaven.deploy.skip=true
