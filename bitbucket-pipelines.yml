@@ -1,12 +1,15 @@
-# This is a sample build configuration for Other.
-# Check our guides at https://confluence.atlassian.com/x/5Q4SMw for more examples.
-# Only use spaces to indent your .yml configuration.
-# -----
-# You can specify a custom docker image from Docker Hub as your build environment.
-# image: atlassian/default-image:latest
+image: maven:3
 
 pipelines:
   default:
     - step:
         script:
-          - echo "Everything is awesome!"
+          - mvn -s ci/settings.xml clean test
+  custom:
+    prepare-release:
+      - step:
+          script:
+            - git config --global user.email "nobody@atlassian.com"
+            - git config --global user.name "Release"
+            - mvn -s ci/settings.xml -B release:prepare -Dusername=$BITBUCKET_USERNAME -Dpassword=$BITBUCKET_PASSWORD -DscmCommentPrefix="[skip ci]"
+            - mvn -s ci/settings.xml -B release:perform -Dgoals=install

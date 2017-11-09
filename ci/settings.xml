@@ -1,0 +1,7 @@
+<settings>
+    <server>
+        <id>maven-atlassian-com</id>
+        <username>${env.MAVEN_USER}</username>
+        <password>${env.MAVEN_PASSWORD}</password>
+    </server>
+</settings>

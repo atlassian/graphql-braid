@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.atlassian.pom</groupId>
+        <artifactId>public-pom</artifactId>
+        <version>5.0.7</version>
+    </parent>
+
+    <groupId>com.atlassian.braid</groupId>
+    <artifactId>graphql-braid</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <name>GraphQL Braid</name>
+
+    <issueManagement>
+        <system>Bitbucket</system>
+        <url>https://bitbucket.org/atlassian/graphql-braid/issues</url>
+    </issueManagement>
+
+    <scm>
+        <connection>scm:git:ssh://git@bitbucket.org/atlassian/graphql-braid.git</connection>
+        <developerConnection>scm:git:ssh://git@bitbucket.org/atlassian/graphql-braid.git</developerConnection>
+        <url>https://bitbucket.org/atlassian/graphql-braid</url>
+        <tag>HEAD</tag>
+    </scm>
+    <licenses>
+        <license>
+            <name>BSD License</name>
+            <url>http://opensource.org/licenses/BSD-3-Clause</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <dependencies>
+
+        <!--<dependency>-->
+            <!--<groupId>com.fasterxml.jackson.core</groupId>-->
+            <!--<artifactId>jackson-annotations</artifactId>-->
+            <!--<version>${fasterxml.jackson.version}</version>-->
+        <!--</dependency>-->
+        <!--<dependency>-->
+            <!--<groupId>com.fasterxml.jackson.core</groupId>-->
+            <!--<artifactId>jackson-databind</artifactId>-->
+            <!--<version>${fasterxml.jackson.version}</version>-->
+        <!--</dependency>-->
+        <dependency>
+            <groupId>com.graphql-java</groupId>
+            <artifactId>graphql-java</artifactId>
+            <version>${graphql.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.4.1</version>
+            <scope>test</scope>
+        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>joda-time</groupId>-->
+            <!--<artifactId>joda-time</artifactId>-->
+            <!--<version>${joda.time.version}</version>-->
+        <!--</dependency>-->
+        <!--<dependency>-->
+            <!--<groupId>javax.inject</groupId>-->
+            <!--<artifactId>javax.inject</artifactId>-->
+            <!--<version>1</version>-->
+        <!--</dependency>-->
+
+        <!--&lt;!&ndash; Platform modules &ndash;&gt;-->
+        <!--<dependency>-->
+            <!--<groupId>com.atlassian.platform</groupId>-->
+            <!--<artifactId>platform</artifactId>-->
+            <!--<version>${platform.version}</version>-->
+            <!--<type>pom</type>-->
+            <!--<scope>import</scope>-->
+        <!--</dependency>-->
+        <!--<dependency>-->
+            <!--<groupId>com.atlassian.platform</groupId>-->
+            <!--<artifactId>third-party</artifactId>-->
+            <!--<version>${platform.version}</version>-->
+            <!--<type>pom</type>-->
+            <!--<scope>import</scope>-->
+        <!--</dependency>-->
+    </dependencies>
+
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+
+        <!--<platform.version>3.2.11</platform.version>-->
+        <!--<platform.spring-scanner.version>2.1.3</platform.spring-scanner.version>-->
+        <!--<maven-bundle-plugin.version>3.2.0</maven-bundle-plugin.version>-->
+        <!--<fasterxml.jackson.version>2.8.8</fasterxml.jackson.version>-->
+        <!--<codehaus.jackson.version>1.9.13-atlassian-1</codehaus.jackson.version>-->
+        <!--<joda.time.version>2.8.2</joda.time.version>-->
+        <graphql.version>6.0</graphql.version>
+    </properties>
+
+    <distributionManagement>
+        <repository>
+            <id>maven-atlassian-com</id>
+            <name>Atlassian Public Repository</name>
+            <url>https://packages.atlassian.com/maven/public</url>
+        </repository>
+        <snapshotRepository>
+            <id>maven-atlassian-com</id>
+            <name>Atlassian Public Snapshot Repository</name>
+            <url>https://packages.atlassian.com/maven/public-snapshot</url>
+        </snapshotRepository>
+    </distributionManagement>
+</project>
