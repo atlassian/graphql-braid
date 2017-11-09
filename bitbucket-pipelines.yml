@@ -3,11 +3,15 @@ image: maven:3
 pipelines:
   default:
     - step:
+        caches:
+          - maven
         script:
           - mvn -s ci/settings.xml clean test
   custom:
     prepare-release:
       - step:
+          caches:
+            - maven
           script:
             - git config --global user.email "nobody@atlassian.com"
             - git config --global user.name "Release"
