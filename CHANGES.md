@@ -6,4 +6,9 @@ Changelog for graphql-braid
 
 - 
 
+0.2.1-SNA (2017-11-09)
+-------------------
+
+- 
+
 
