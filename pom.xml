@@ -92,7 +92,7 @@
 
     <profiles>
         <profile>
-            <id>release</id>
+            <id>update-changelog</id>
             <build>
                 <plugins>
                     <plugin>
