@@ -17,4 +17,4 @@ pipelines:
             - git config --global user.name "Release"
             - git checkout -b release_branch
             - mvn -s ci/settings.xml -B release:prepare -DscmCommentPrefix="[skip ci]"
-            - mvn -s ci/settings.xml -B release:perform -Dgoals=install -Darguments="-Dmaven.deploy.skip=true
+            - mvn -s ci/settings.xml -B release:perform -Dgoals=install -Darguments="-Dmaven.deploy.skip=true"
