@@ -1,0 +1,15 @@
+schema {
+    query: Query
+}
+
+
+type Query {
+    topbar(id: String) : Bar
+
+}
+
+type Bar {
+    id: String
+    title: String
+}
+
