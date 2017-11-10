@@ -27,24 +27,19 @@ dependencies {
 </dependency>
 ```
 
+See CHANGES.md for the changes in each release.
 
 ## Developing
 
 Run a build and test:
 
 ```bash
-./gradlew build test
+maven install
 ```
 
-To release, tag and re-run the latest master build:
-
-```bash
-git tag x.y.z
-git push origin x.y.z
-```
-
+To release, run the 'release' pipeline on the master branch in Bitbucket pipelines.
 
 ### Discussing
 
-Meet us in the "team-b" on HipChat.
+Meet us in the "Team B" on Stride.
 
