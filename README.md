@@ -41,5 +41,5 @@ To release, run the 'release' pipeline on the master branch in Bitbucket pipelin
 
 ### Discussing
 
-Meet us in the "Team B" on Stride.
+Meet us in the "CC Team B" on Stride.
 
