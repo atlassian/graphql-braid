@@ -27,7 +27,7 @@ dependencies {
 </dependency>
 ```
 
-See CHANGES.md for the changes in each release.
+See [the changelog](CHANGES.md) for the changes in each release.
 
 ## Developing
 
