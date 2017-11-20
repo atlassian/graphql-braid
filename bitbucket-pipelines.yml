@@ -21,7 +21,7 @@ pipelines:
             - git add CHANGES.md
             - git commit CHANGES.md -m "[skip ci] Update changelog"
             - mvn -s ci/settings.xml -B release:prepare -DscmCommentPrefix="[skip ci]"
-            - mvn -s ci/settings.xml -B release:perform -Dgoals=install -Darguments="-Dmaven.deploy.skip=true"
+            - mvn -s ci/settings.xml -B release:perform -Dgoals=install 
             - git checkout master
             - git pull origin master
             - git merge --no-edit release_branch
