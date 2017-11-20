@@ -1,0 +1,15 @@
+schema {
+    query: Query
+}
+
+
+type Query {
+    baz(id: String) : Baz
+
+}
+
+type Baz {
+    id: String
+    rating: Int
+}
+

@@ -1,26 +1,32 @@
 package com.atlassian.braid;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import graphql.language.Document;
-import graphql.parser.Parser;
+import graphql.schema.idl.SchemaParser;
+import graphql.schema.idl.TypeDefinitionRegistry;
 import org.antlr.v4.runtime.misc.ParseCancellationException;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
+import java.util.Map;
 
-/**
- */
-public class Util {
 
-    public static Document parseDocument(String schemaPath) {
+class Util {
+
+    static TypeDefinitionRegistry parseRegistry(String schemaPath) {
         try {
-            Parser parser = new Parser();
-            String docString = read(new InputStreamReader(Util.class.getResourceAsStream(schemaPath)));
-            return parser.parseDocument(docString);
+            SchemaParser schemaParser = new SchemaParser();
+            String docString = read(schemaPath);
+            return schemaParser.parse(docString);
         } catch (ParseCancellationException | IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    static String read(String schemaPath) throws IOException {
+        return read(new InputStreamReader(Util.class.getResourceAsStream(schemaPath)));
     }
 
     private static String read(Reader reader) throws IOException {

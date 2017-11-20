@@ -1,0 +1,22 @@
+schema {
+    query: Blah
+}
+
+
+type Blah {
+    foo(id: String) : Bar
+    bar(id: String) : Bar
+
+}
+
+type Bar {
+    id: String
+    title: String!
+    mylist: [Baz]!
+    baz: String
+}
+
+type Baz {
+    name: String
+}
+

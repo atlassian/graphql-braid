@@ -1,0 +1,23 @@
+{
+  "errors": [
+    {
+      "message": "No Baz",
+      "locations": [
+        {
+          "line": 2,
+          "column": 12
+        }
+      ],
+      "path": [
+        "baz"
+      ]
+    }
+  ],
+  "data": {
+    "bar": {
+      "id": "barid",
+      "title": "Bar",
+      "baz": null
+    }
+  }
+}

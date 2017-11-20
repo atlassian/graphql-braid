@@ -1,5 +1,7 @@
 package com.atlassian.braid;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Links a field on a type to another data source
  */
@@ -13,8 +15,8 @@ public class Link {
     private String targetField;
 
     private Link(String sourceType, String sourceField) {
-        this.sourceType = sourceType;
-        this.sourceField = sourceField;
+        this.sourceType = requireNonNull(sourceType);
+        this.sourceField = requireNonNull(sourceField);
         this.targetField = sourceField;
     }
 
@@ -23,18 +25,18 @@ public class Link {
     }
 
     public Link to(String targetNamespace, String targetType) {
-        this.targetNamespace = targetNamespace;
-        this.targetType = targetType;
+        this.targetNamespace = requireNonNull(targetNamespace);
+        this.targetType = requireNonNull(targetType);
         return this;
     }
 
     public Link targetArgument(String argumentName) {
-        this.argumentName = argumentName;
+        this.argumentName = requireNonNull(argumentName);
         return this;
     }
 
     public Link targetField(String targetField) {
-        this.targetField = targetField;
+        this.targetField = requireNonNull(targetField);
         return this;
     }
 

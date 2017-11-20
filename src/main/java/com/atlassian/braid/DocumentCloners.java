@@ -26,7 +26,9 @@ import java.util.stream.Collectors;
  * Clones schema elements for the purposes of creating subgraph requests
  */
 @SuppressWarnings("WeakerAccess")
-class DocumentCloner {
+class DocumentCloners {
+
+    private DocumentCloners() {}
 
     static Field clone(Field original) {
         if (original == null) {
@@ -34,8 +36,8 @@ class DocumentCloner {
         }
         Field cloned = new Field(original.getName());
         cloned.setAlias(original.getAlias());
-        cloned.setArguments(cloneList(original.getArguments(), DocumentCloner::clone));
-        cloned.setDirectives(cloneList(original.getDirectives(), DocumentCloner::clone));
+        cloned.setArguments(cloneList(original.getArguments(), DocumentCloners::clone));
+        cloned.setDirectives(cloneList(original.getDirectives(), DocumentCloners::clone));
         cloned.setSelectionSet(clone(original.getSelectionSet()));
         return cloned;
     }
@@ -44,7 +46,7 @@ class DocumentCloner {
         if (original == null) {
             return null;
         }
-        return new SelectionSet(cloneList(original.getSelections(), DocumentCloner::clone));
+        return new SelectionSet(cloneList(original.getSelections(), DocumentCloners::clone));
     }
 
     static Selection clone(Selection original) {
@@ -64,7 +66,7 @@ class DocumentCloner {
             return null;
         }
         FragmentSpread spread = new FragmentSpread(original.getName());
-        spread.setDirectives(cloneList(original.getDirectives(), DocumentCloner::clone));
+        spread.setDirectives(cloneList(original.getDirectives(), DocumentCloners::clone));
         return spread;
     }
 
@@ -74,7 +76,7 @@ class DocumentCloner {
         }
         return new Directive(
                 original.getName(),
-                cloneList(original.getArguments(), DocumentCloner::clone)
+                cloneList(original.getArguments(), DocumentCloners::clone)
         );
     }
 
@@ -96,7 +98,7 @@ class DocumentCloner {
         } else if (original instanceof IntValue) {
             return new IntValue(((IntValue) original).getValue());
         } else if (original instanceof ArrayValue) {
-            return new ArrayValue(cloneList(((ArrayValue) original).getValues(), DocumentCloner::clone));
+            return new ArrayValue(cloneList(((ArrayValue) original).getValues(), DocumentCloners::clone));
         } else if (original instanceof BooleanValue) {
             return new BooleanValue(((BooleanValue) original).isValue());
         } else if (original instanceof EnumValue) {
@@ -106,7 +108,7 @@ class DocumentCloner {
         } else if (original instanceof NullValue) {
             return original;
         } else if (original instanceof ObjectValue) {
-            return new ObjectValue(cloneList(((ObjectValue) original).getObjectFields(), DocumentCloner::clone));
+            return new ObjectValue(cloneList(((ObjectValue) original).getObjectFields(), DocumentCloners::clone));
         } else if (original instanceof VariableReference) {
             return new VariableReference(((VariableReference) original).getName());
         }
@@ -121,9 +123,10 @@ class DocumentCloner {
     }
 
     private static <T> List<T> cloneList(List<T> original, Function<T, T> cloner) {
-        if (original != null) {
+        if (original == null) {
+            return null;
+        } else {
             return original.stream().map(cloner).collect(Collectors.toList());
         }
-        return null;
     }
 }

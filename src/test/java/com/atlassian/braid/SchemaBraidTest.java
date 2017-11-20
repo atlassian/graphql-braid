@@ -1,89 +1,267 @@
 package com.atlassian.braid;
 
+import com.atlassian.braid.source.LocalSchemaSource;
 import com.google.common.collect.ImmutableMap;
+import graphql.ErrorType;
 import graphql.ExecutionInput;
 import graphql.ExecutionResult;
 import graphql.GraphQL;
+import graphql.GraphQLError;
+import graphql.execution.DataFetcherResult;
+import graphql.execution.batched.BatchedExecutionStrategy;
+import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation;
 import graphql.schema.GraphQLSchema;
+import graphql.schema.idl.RuntimeWiring;
+import graphql.schema.idl.TypeDefinitionRegistry;
+import graphql.schema.idl.TypeRuntimeWiring;
+import org.dataloader.DataLoaderRegistry;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-import static com.atlassian.braid.Util.parseDocument;
+import static com.atlassian.braid.Util.parseRegistry;
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- */
+
 public class SchemaBraidTest {
 
     private Function<ExecutionInput, Object> barQueryExecutor;
     private ExecutionInput barInput;
     private Function<ExecutionInput, Object> fooQueryExecutor;
     private ExecutionInput fooInput;
-    private GraphQLSchema schema;
+    private Function<ExecutionInput, Object> bazQueryExecutor;
+    private Braid braid;
+    private DataLoaderRegistry dataLoaderRegistry;
 
     @Before
     public void setUp() {
         barQueryExecutor = mock(Function.class);
         barInput = ExecutionInput.newExecutionInput()
-                .query("query Foobar($id: String) {\n" +
-                        "    topbar(id: $id) {\n" +
+                .query("query ($id1: String) {\n" +
+                        "    bar1: topbar(id: $id1) {\n" +
                         "        id\n" +
                         "        title\n" +
                         "    }\n" +
-                        "}\n\n\n")
-                .operationName("Foo.bar")
-                .variables(singletonMap("id", "barid"))
+                        "}\n" +
+                        "\n\n")
+                .operationName("Batch")
+                .variables(singletonMap("id1", "barid"))
                 .build();
         when(barQueryExecutor.apply(argThat(matchesInput(barInput)))).thenReturn(
-                ImmutableMap.of("id", "barid", "title", "Bar")
+                singletonMap("bar1", ImmutableMap.of("id", "barid", "title", "Bar"))
         );
         fooQueryExecutor = mock(Function.class);
         fooInput = ExecutionInput.newExecutionInput()
-                .query("query Queryfoo($id: String) {\n" +
-                        "    foo(id: $id) {\n" +
+                .query("query ($id1: String) {\n" +
+                        "    foo1: foo(id: $id1) {\n" +
                         "        id\n" +
                         "        name\n" +
                         "        bar\n" +
                         "    }\n" +
                         "}\n\n\n")
-                .operationName("Query.foo")
-                .variables(singletonMap("id", "fooid"))
+                .operationName("Batch")
+                .variables(singletonMap("id1", "fooid"))
                 .build();
         when(fooQueryExecutor.apply(argThat(matchesInput(fooInput)))).thenReturn(
-                ImmutableMap.of("id", "fooid", "name", "Foo", "bar", "barid")
+                singletonMap("foo1", ImmutableMap.of("id", "fooid", "name", "Foo", "bar", "barid"))
         );
 
-        SchemaBraid weaver = new SchemaBraid();
-        schema = weaver.braid(
-                new LocalDataSource("bar", parseDocument("/com/atlassian/braid/bar.graphql"), barQueryExecutor),
+        bazQueryExecutor = mock(Function.class);
+        when(bazQueryExecutor.apply(any())).thenReturn(
+                singletonMap("baz1", ImmutableMap.of("id", "bazid", "rating", 5)));
 
-                new LocalDataSource("foo", parseDocument("/com/atlassian/braid/foo.graphql"), singletonList(
+        SchemaBraid schemaBraid = new SchemaBraid();
+        braid = schemaBraid.braid(
+                new LocalSchemaSource("bar", parseRegistry("/com/atlassian/braid/bar.graphql"), singletonList(
+                        Link
+                                .from("Bar", "baz")
+                                .to("baz", "Baz")
+                ), barQueryExecutor),
+
+                new LocalSchemaSource("foo", parseRegistry("/com/atlassian/braid/foo.graphql"), singletonList(
                         Link
                                 .from("Foo", "bar")
                                 .to("bar", "Bar")
                                 .targetField("topbar")
                                 .targetArgument("id")
-                ), fooQueryExecutor));
+                ), fooQueryExecutor),
+                new LocalSchemaSource("baz", parseRegistry("/com/atlassian/braid/baz.graphql"), bazQueryExecutor));
+        dataLoaderRegistry = braid.newDataLoaderRegistry();
     }
 
     @Test
-    public void testWeaver() {
-        GraphQL graphql = new GraphQL.Builder(schema).build();
+    public void testBraid() {
+        GraphQL graphql = newGraphQL();
         ExecutionResult result = graphql.execute(ExecutionInput.newExecutionInput()
                 .query("query($id: String!) { foo(id: $id) { id, name, bar { id, title } } }")
-                .variables(singletonMap("id", "fooid")));
+                .variables(singletonMap("id", "fooid")).context(new DefaultBraidContext(dataLoaderRegistry)));
+        Map<String, Map<String, Object>> data = result.getData();
+
+        verify(fooQueryExecutor, times(1)).apply(argThat(matchesInput(fooInput)));
+        verify(barQueryExecutor, times(1)).apply(argThat(matchesInput(barInput)));
+
+        assertEquals(emptyList(), result.getErrors());
+
+        assertEquals(data.get("foo").get("name"), "Foo");
+        assertEquals(((Map<String, String>) data.get("foo").get("bar")).get("title"), "Bar");
+        assertEquals(((Map<String, String>) data.get("foo").get("bar")).get("id"), "barid");
+    }
+
+    private GraphQL newGraphQL() {
+        return new GraphQL.Builder(braid.getSchema())
+                .instrumentation(new DataLoaderDispatcherInstrumentation(dataLoaderRegistry))
+                .build();
+    }
+
+    @Test
+    public void testBraidWithSchemaSourceError() {
+        reset(fooQueryExecutor, barQueryExecutor, bazQueryExecutor);
+        fooInput = ExecutionInput.newExecutionInput()
+                .query("query  {\n" +
+                        "    foo1: foo(id: \"fooid\") {\n" +
+                        "        id\n" +
+                        "        name\n" +
+                        "        bar\n" +
+                        "    }\n" +
+                        "}\n\n\n")
+                .operationName("Batch")
+                .build();
+        when(fooQueryExecutor.apply(argThat(matchesInput(fooInput)))).thenReturn(
+                singletonMap("foo1", ImmutableMap.of("id", "fooid", "name", "Foo", "bar", "barid"))
+        );
+
+        barInput = ExecutionInput.newExecutionInput()
+                .query("query ($id1: String) {\n" +
+                        "    bar1: topbar(id: $id1) {\n" +
+                        "        id\n" +
+                        "        title\n" +
+                        "        baz\n" +
+                        "    }\n" +
+                        "}\n\n\n")
+                .operationName("Batch")
+                .variables(singletonMap("id1", "barid"))
+                .build();
+        when(barQueryExecutor.apply(argThat(matchesInput(barInput)))).thenReturn(
+                singletonMap("bar1", ImmutableMap.of("id", "barid", "title", "Bar", "baz", "bazid"))
+        );
+        when(bazQueryExecutor.apply(any())).thenReturn(new DataFetcherResult<Map>(
+                singletonMap("baz1", new HashMap<String, String>() {{
+                    put("id", "bazid");
+                    put("rating", null);
+                }}),
+                singletonList(new StaticGraphQLError("bad rating", asList("baz1", "rating")))
+        ));
+
+        GraphQL graphql = newGraphQL();
+        ExecutionResult result = graphql.execute(ExecutionInput.newExecutionInput()
+                .query("{ foo(id: \"fooid\") { id, name, bar { id, title, baz { id, rating } } } }")
+                .context(new DefaultBraidContext(dataLoaderRegistry)));
+        verify(fooQueryExecutor, times(1)).apply(argThat(matchesInput(fooInput)));
+        verify(barQueryExecutor, times(1)).apply(argThat(matchesInput(barInput)));
+
+        GraphQLError error = result.getErrors().get(0);
+        assertThat(error.getMessage()).isEqualTo("bad rating");
+        assertThat(error.getPath()).isEqualTo(asList("foo", "bar", "baz", "rating"));
+        assertThat(error.getErrorType()).isEqualTo(ErrorType.DataFetchingException);
+
+        Map<String, Map<String, Map<String, Map<String, Object>>>> data = result.getData();
+
+        assertEquals(data.get("foo").get("name"), "Foo");
+
+        assertEquals(data.get("foo").get("bar").get("baz").get("rating"), null);
+        assertEquals(data.get("foo").get("bar").get("baz").get("id"), "bazid");
+    }
+
+    @Test
+    public void testBraidWithInlineArgument() {
+        reset(fooQueryExecutor);
+        fooInput = ExecutionInput.newExecutionInput()
+                .query("query  {\n" +
+                        "    foo1: foo(id: \"fooid\") {\n" +
+                        "        id\n" +
+                        "        name\n" +
+                        "        bar\n" +
+                        "    }\n" +
+                        "}\n" +
+                        "\n" +
+                        "\n")
+                .operationName("Batch")
+                .build();
+        when(fooQueryExecutor.apply(argThat(matchesInput(fooInput)))).thenReturn(
+                singletonMap("foo1", ImmutableMap.of("id", "fooid", "name", "Foo", "bar", "barid"))
+        );
+
+        GraphQL graphql = newGraphQL();
+        ExecutionResult result = graphql.execute(ExecutionInput.newExecutionInput()
+                .query("{ foo2: foo(id: \"fooid\") { id, name, bar { id, title } } }").context(new DefaultBraidContext(dataLoaderRegistry)));
+        Map<String, Map<String, Object>> data = result.getData();
+
+        verify(fooQueryExecutor, times(1)).apply(argThat(matchesInput(fooInput)));
+        verify(barQueryExecutor, times(1)).apply(argThat(matchesInput(barInput)));
+
+        assertEquals(emptyList(), result.getErrors());
+
+        assertEquals(data.get("foo2").get("name"), "Foo");
+        assertEquals(((Map<String, String>) data.get("foo2").get("bar")).get("title"), "Bar");
+        assertEquals(((Map<String, String>) data.get("foo2").get("bar")).get("id"), "barid");
+    }
+
+    @Test
+    public void testBraidWithExistingTypes() {
+        reset(fooQueryExecutor);
+        fooInput = ExecutionInput.newExecutionInput()
+                .query("query  {\n" +
+                        "    foo1: foo(id: \"fooid\") {\n" +
+                        "        id\n" +
+                        "        name\n" +
+                        "        bar\n" +
+                        "    }\n" +
+                        "}\n\n\n")
+                .operationName("Batch")
+                .build();
+        when(fooQueryExecutor.apply(argThat(matchesInput(fooInput)))).thenReturn(
+                singletonMap("foo1", ImmutableMap.of("id", "fooid", "name", "Foo", "bar", "barid"))
+        );
+
+        TypeDefinitionRegistry registry = parseRegistry("/com/atlassian/braid/existing.graphql");
+        SchemaBraid schemaBraid = new SchemaBraid();
+        braid = schemaBraid.braid(registry, RuntimeWiring.newRuntimeWiring(),
+                new LocalSchemaSource("bar", parseRegistry("/com/atlassian/braid/bar.graphql"), singletonList(
+                        Link
+                                .from("Bar", "baz")
+                                .to("baz", "Baz")
+                ), barQueryExecutor),
+
+                new LocalSchemaSource("foo", parseRegistry("/com/atlassian/braid/foo.graphql"), singletonList(
+                        Link
+                                .from("Foo", "bar")
+                                .to("bar", "Bar")
+                                .targetField("topbar")
+                                .targetArgument("id")
+                ), fooQueryExecutor),
+                new LocalSchemaSource("baz", parseRegistry("/com/atlassian/braid/baz.graphql"), bazQueryExecutor));
+        dataLoaderRegistry = braid.newDataLoaderRegistry();
+
+        GraphQL graphql = newGraphQL();
+        ExecutionResult result = graphql.execute(ExecutionInput.newExecutionInput()
+                .query("{ foo(id: \"fooid\") { id, name, bar { id, title } } }")
+                .context(new DefaultBraidContext(dataLoaderRegistry)));
         assertEquals(emptyList(), result.getErrors());
         Map<String, Map<String, Object>> data = result.getData();
 
@@ -96,11 +274,11 @@ public class SchemaBraidTest {
     }
 
     @Test
-    public void testWeaverWithFragment() {
+    public void testBraidWithFragment() {
         barQueryExecutor = mock(Function.class);
         barInput = ExecutionInput.newExecutionInput()
-                .query("query Foobar($id: String) {\n" +
-                        "    topbar(id: $id) {\n" +
+                .query("query ($id1: String) {\n" +
+                        "    bar1: topbar(id: $id1) {\n" +
                         "        ...barFields\n" +
                         "    }\n" +
                         "}\n" +
@@ -111,36 +289,38 @@ public class SchemaBraidTest {
                         "}\n" +
                         "\n" +
                         "\n")
-                .operationName("Foo.bar")
-                .variables(singletonMap("id", "barid"))
+                .operationName("Batch")
+                .variables(singletonMap("id1", "barid"))
                 .build();
         when(barQueryExecutor.apply(argThat(matchesInput(barInput)))).thenReturn(
-                ImmutableMap.of("id", "barid", "title", "Bar")
+                singletonMap("bar1", ImmutableMap.of("id", "barid", "title", "Bar"))
         );
-        schema = new SchemaBraid().braid(
-                new LocalDataSource("bar", parseDocument("/com/atlassian/braid/bar.graphql"), barQueryExecutor),
+        braid = new SchemaBraid().braid(
+                new LocalSchemaSource("bar", parseRegistry("/com/atlassian/braid/bar.graphql"), barQueryExecutor),
 
-                new LocalDataSource("foo", parseDocument("/com/atlassian/braid/foo.graphql"), singletonList(
+                new LocalSchemaSource("foo", parseRegistry("/com/atlassian/braid/foo.graphql"), singletonList(
                         Link
                                 .from("Foo", "bar")
                                 .to("bar", "Bar")
                                 .targetField("topbar")
                                 .targetArgument("id")
                 ), fooQueryExecutor));
+        dataLoaderRegistry = braid.newDataLoaderRegistry();
 
-        GraphQL graphql = new GraphQL.Builder(schema).build();
+        GraphQL graphql = newGraphQL();
         ExecutionResult result = graphql.execute(ExecutionInput.newExecutionInput()
                 .query("query($id: String!) { foo(id: $id) { id, name, bar { ...barFields } } }\n" +
                         "fragment barFields on Bar {\n" +
                         "  id\n" +
                         "  title\n" +
                         "}")
-                .variables(singletonMap("id", "fooid")));
-        assertEquals(emptyList(), result.getErrors());
+                .variables(singletonMap("id", "fooid"))
+                .context(new DefaultBraidContext(dataLoaderRegistry)));
         Map<String, Map<String, Object>> data = result.getData();
 
         verify(fooQueryExecutor, times(1)).apply(argThat(matchesInput(fooInput)));
         verify(barQueryExecutor, times(1)).apply(argThat(matchesInput(barInput)));
+        assertEquals(emptyList(), result.getErrors());
 
         assertEquals(data.get("foo").get("name"), "Foo");
         assertEquals(((Map<String, String>) data.get("foo").get("bar")).get("title"), "Bar");
@@ -162,6 +342,11 @@ public class SchemaBraidTest {
         @Override
         public boolean matches(ExecutionInput arg) {
             return arg.toString().equals(input.toString());
+        }
+
+        @Override
+        public String toString() {
+            return input.toString();
         }
     }
 }

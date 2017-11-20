@@ -1,0 +1,13 @@
+{
+  "errors": [],
+  "data": {
+    "bar": {
+      "id": "barid",
+      "title": "Bar",
+      "baz": {
+        "id": "bazid",
+        "rating": 5
+      }
+    }
+  }
+}

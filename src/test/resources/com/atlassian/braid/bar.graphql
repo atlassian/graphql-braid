@@ -11,5 +11,6 @@ type Query {
 type Bar {
     id: String
     title: String
+    baz: String
 }
 
