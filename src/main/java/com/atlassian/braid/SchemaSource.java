@@ -23,7 +23,7 @@ public interface SchemaSource<C> {
 
     /**
      * @return the data source identifier to be used in links targeting this data source.
-     * {@see Link#getTargetNamespace()}
+     * @see Link#getTargetNamespace()
      */
     String getNamespace();
 

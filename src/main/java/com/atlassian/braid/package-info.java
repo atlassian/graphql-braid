@@ -1,11 +1,10 @@
 /**
  * Package that implements schema weaving much like
  * <a href="https://github.com/AEB-labs/graphql-weaver">graphql-weaver</a>.  This feature differs from
- * {@link com.atlassian.graphql.router} by support merged schemas at any depth, not just root nodes.  Also, graphql-braid
+ * atlassian-graphql-java's router by support merged schemas at any depth, not just root nodes.  Also, graphql-braid
  * operates within a single {@link graphql.GraphQL} instance instead of being a layer on top.
  * <p>
  * Supported features:<ul>
- * <p>
  * <li>Ability to present a single schema to consumers and have it be executed through multiple GraphQL service
  * calls behind the scenes</li>
  * <li>Ability to link a field in a type to resolve against another data source anywhere in the graph</li>

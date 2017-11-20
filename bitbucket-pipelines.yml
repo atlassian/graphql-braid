@@ -16,6 +16,7 @@ pipelines:
             - git config --global user.email "nobody@atlassian.com"
             - git config --global user.name "Release"
             - git checkout -b release_branch
+            - mvn -s ci/settings.xml -B javadoc:javadoc
             - python ci/changelog.py
             - git add CHANGES.md
             - git commit CHANGES.md -m "[skip ci] Update changelog"
