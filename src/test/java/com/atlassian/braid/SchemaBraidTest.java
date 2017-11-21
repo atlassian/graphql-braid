@@ -90,17 +90,15 @@ public class SchemaBraidTest {
         SchemaBraid schemaBraid = new SchemaBraid();
         braid = schemaBraid.braid(
                 new LocalSchemaSource(BAR, parseRegistry("/com/atlassian/braid/bar.graphql"), singletonList(
-                        Link
-                                .from("Bar", "baz")
+                        Link.from(BAR, "Bar", "baz")
                                 .to(BAZ, "Baz")
+                                .build()
                 ), barQueryExecutor),
 
                 new LocalSchemaSource(FOO, parseRegistry("/com/atlassian/braid/foo.graphql"), singletonList(
-                        Link
-                                .from("Foo", "bar")
-                                .to(BAR, "Bar")
-                                .targetField("topbar")
-                                .targetArgument("id")
+                        Link.from(FOO, "Foo", "bar")
+                                .to(BAR, "Bar", "topbar")
+                                .build()
                 ), fooQueryExecutor),
                 new LocalSchemaSource(BAZ, parseRegistry("/com/atlassian/braid/baz.graphql"), bazQueryExecutor));
         dataLoaderRegistry = braid.newDataLoaderRegistry();
@@ -244,17 +242,16 @@ public class SchemaBraidTest {
         SchemaBraid schemaBraid = new SchemaBraid();
         braid = schemaBraid.braid(registry, RuntimeWiring.newRuntimeWiring(),
                 new LocalSchemaSource(BAR, parseRegistry("/com/atlassian/braid/bar.graphql"), singletonList(
-                        Link
-                                .from("Bar", "baz")
+                        Link.from(BAR, "Bar", "baz")
                                 .to(BAZ, "Baz")
+                                .build()
                 ), barQueryExecutor),
 
                 new LocalSchemaSource(FOO, parseRegistry("/com/atlassian/braid/foo.graphql"), singletonList(
-                        Link
-                                .from("Foo", "bar")
-                                .to(BAR, "Bar")
-                                .targetField("topbar")
-                                .targetArgument("id")
+                        Link.from(FOO, "Foo", "bar")
+                                .to(BAR, "Bar", "topbar")
+                                .argument("id")
+                                .build()
                 ), fooQueryExecutor),
                 new LocalSchemaSource(BAZ, parseRegistry("/com/atlassian/braid/baz.graphql"), bazQueryExecutor));
         dataLoaderRegistry = braid.newDataLoaderRegistry();
@@ -300,11 +297,10 @@ public class SchemaBraidTest {
                 new LocalSchemaSource(BAR, parseRegistry("/com/atlassian/braid/bar.graphql"), barQueryExecutor),
 
                 new LocalSchemaSource(FOO, parseRegistry("/com/atlassian/braid/foo.graphql"), singletonList(
-                        Link
-                                .from("Foo", "bar")
-                                .to(BAR, "Bar")
-                                .targetField("topbar")
-                                .targetArgument("id")
+                        Link.from(FOO, "Foo", "bar")
+                                .to(BAR, "Bar", "topbar")
+                                .argument("id")
+                                .build()
                 ), fooQueryExecutor));
         dataLoaderRegistry = braid.newDataLoaderRegistry();
 
