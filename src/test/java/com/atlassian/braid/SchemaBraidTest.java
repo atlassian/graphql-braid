@@ -8,12 +8,9 @@ import graphql.ExecutionResult;
 import graphql.GraphQL;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
-import graphql.execution.batched.BatchedExecutionStrategy;
 import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation;
-import graphql.schema.GraphQLSchema;
 import graphql.schema.idl.RuntimeWiring;
 import graphql.schema.idl.TypeDefinitionRegistry;
-import graphql.schema.idl.TypeRuntimeWiring;
 import org.dataloader.DataLoaderRegistry;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,6 +37,10 @@ import static org.mockito.Mockito.when;
 
 
 public class SchemaBraidTest {
+
+    private static final SchemaNamespace FOO = SchemaNamespace.of("foo");
+    private static final SchemaNamespace BAR = SchemaNamespace.of("bar");
+    private static final SchemaNamespace BAZ = SchemaNamespace.of("baz");
 
     private Function<ExecutionInput, Object> barQueryExecutor;
     private ExecutionInput barInput;
@@ -88,20 +89,20 @@ public class SchemaBraidTest {
 
         SchemaBraid schemaBraid = new SchemaBraid();
         braid = schemaBraid.braid(
-                new LocalSchemaSource("bar", parseRegistry("/com/atlassian/braid/bar.graphql"), singletonList(
+                new LocalSchemaSource(BAR, parseRegistry("/com/atlassian/braid/bar.graphql"), singletonList(
                         Link
                                 .from("Bar", "baz")
-                                .to("baz", "Baz")
+                                .to(BAZ, "Baz")
                 ), barQueryExecutor),
 
-                new LocalSchemaSource("foo", parseRegistry("/com/atlassian/braid/foo.graphql"), singletonList(
+                new LocalSchemaSource(FOO, parseRegistry("/com/atlassian/braid/foo.graphql"), singletonList(
                         Link
                                 .from("Foo", "bar")
-                                .to("bar", "Bar")
+                                .to(BAR, "Bar")
                                 .targetField("topbar")
                                 .targetArgument("id")
                 ), fooQueryExecutor),
-                new LocalSchemaSource("baz", parseRegistry("/com/atlassian/braid/baz.graphql"), bazQueryExecutor));
+                new LocalSchemaSource(BAZ, parseRegistry("/com/atlassian/braid/baz.graphql"), bazQueryExecutor));
         dataLoaderRegistry = braid.newDataLoaderRegistry();
     }
 
@@ -242,20 +243,20 @@ public class SchemaBraidTest {
         TypeDefinitionRegistry registry = parseRegistry("/com/atlassian/braid/existing.graphql");
         SchemaBraid schemaBraid = new SchemaBraid();
         braid = schemaBraid.braid(registry, RuntimeWiring.newRuntimeWiring(),
-                new LocalSchemaSource("bar", parseRegistry("/com/atlassian/braid/bar.graphql"), singletonList(
+                new LocalSchemaSource(BAR, parseRegistry("/com/atlassian/braid/bar.graphql"), singletonList(
                         Link
                                 .from("Bar", "baz")
-                                .to("baz", "Baz")
+                                .to(BAZ, "Baz")
                 ), barQueryExecutor),
 
-                new LocalSchemaSource("foo", parseRegistry("/com/atlassian/braid/foo.graphql"), singletonList(
+                new LocalSchemaSource(FOO, parseRegistry("/com/atlassian/braid/foo.graphql"), singletonList(
                         Link
                                 .from("Foo", "bar")
-                                .to("bar", "Bar")
+                                .to(BAR, "Bar")
                                 .targetField("topbar")
                                 .targetArgument("id")
                 ), fooQueryExecutor),
-                new LocalSchemaSource("baz", parseRegistry("/com/atlassian/braid/baz.graphql"), bazQueryExecutor));
+                new LocalSchemaSource(BAZ, parseRegistry("/com/atlassian/braid/baz.graphql"), bazQueryExecutor));
         dataLoaderRegistry = braid.newDataLoaderRegistry();
 
         GraphQL graphql = newGraphQL();
@@ -296,12 +297,12 @@ public class SchemaBraidTest {
                 singletonMap("bar1", ImmutableMap.of("id", "barid", "title", "Bar"))
         );
         braid = new SchemaBraid().braid(
-                new LocalSchemaSource("bar", parseRegistry("/com/atlassian/braid/bar.graphql"), barQueryExecutor),
+                new LocalSchemaSource(BAR, parseRegistry("/com/atlassian/braid/bar.graphql"), barQueryExecutor),
 
-                new LocalSchemaSource("foo", parseRegistry("/com/atlassian/braid/foo.graphql"), singletonList(
+                new LocalSchemaSource(FOO, parseRegistry("/com/atlassian/braid/foo.graphql"), singletonList(
                         Link
                                 .from("Foo", "bar")
-                                .to("bar", "Bar")
+                                .to(BAR, "Bar")
                                 .targetField("topbar")
                                 .targetArgument("id")
                 ), fooQueryExecutor));

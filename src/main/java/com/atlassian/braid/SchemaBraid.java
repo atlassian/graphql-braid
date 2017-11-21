@@ -56,7 +56,7 @@ public class SchemaBraid<C> {
     }
 
     public Braid braid(TypeDefinitionRegistry allTypes, RuntimeWiring.Builder wiringBuilder, SchemaSource<C>... dataSources) {
-        Map<String, Source<C>> dataSourceTypes = stream(dataSources).collect(toMap(SchemaSource::getNamespace, Source::new));
+        Map<SchemaNamespace, Source<C>> dataSourceTypes = stream(dataSources).collect(toMap(SchemaSource::getNamespace, Source::new));
 
         SchemaDefinition schema = allTypes.schemaDefinition().orElseGet(() -> {
             SchemaDefinition s = new SchemaDefinition();
@@ -88,7 +88,7 @@ public class SchemaBraid<C> {
 
     private List<BatchLoader> addSchemaSourceTopLevelFieldsToQuery(
             ObjectTypeDefinition query,
-            Map<String, Source<C>> sources,
+            Map<SchemaNamespace, Source<C>> sources,
             RuntimeWiring.Builder wiringBuilder) {
         List<BatchLoader> result = new ArrayList<>();
         for (Source<C> source : sources.values()) {
@@ -129,7 +129,7 @@ public class SchemaBraid<C> {
                 DataFetchingEnvironmentBuilder.newDataFetchingEnvironment(environment).source(source).build()).collect(Collectors.toList());
     }
 
-    private List<BatchLoader> linkTypes(TypeDefinitionRegistry allTypes, Map<String, Source<C>> sources, RuntimeWiring.Builder wiringBuilder) {
+    private List<BatchLoader> linkTypes(TypeDefinitionRegistry allTypes, Map<SchemaNamespace, Source<C>> sources, RuntimeWiring.Builder wiringBuilder) {
 
         List<Definition> definitionsToAdd = new ArrayList<>();
         List<BatchLoader> batchLoaders = new ArrayList<>();

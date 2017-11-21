@@ -1,6 +1,7 @@
 package com.atlassian.braid.source;
 
 import com.atlassian.braid.Link;
+import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
 import graphql.ExecutionInput;
 import graphql.GraphQLError;
@@ -33,12 +34,12 @@ public class RemoteSchemaSource<C> implements SchemaSource<C> {
 
     private static final Logger log = LoggerFactory.getLogger(RemoteSchemaSource.class);
 
-    private final String namespace;
+    private final SchemaNamespace namespace;
     private final RemoteRetriever<C> remoteRetriever;
     private final List<Link> links;
     private final TypeDefinitionRegistry schema;
 
-    public RemoteSchemaSource(String namespace, RemoteRetriever<C> remoteRetriever, List<Link> links, String... topLevelFields) {
+    public RemoteSchemaSource(SchemaNamespace namespace, RemoteRetriever<C> remoteRetriever, List<Link> links, String... topLevelFields) {
         this.namespace = namespace;
         this.remoteRetriever = remoteRetriever;
         this.links = links;
@@ -58,7 +59,7 @@ public class RemoteSchemaSource<C> implements SchemaSource<C> {
     }
 
     @Override
-    public String getNamespace() {
+    public SchemaNamespace getNamespace() {
         return namespace;
     }
 
