@@ -41,7 +41,7 @@ public class RemoteHttpSchemaSourceTest {
         server.enqueue(new MockResponse().setBody(read("/com/atlassian/braid/http-success.json")));
         server.start();
 
-        RemoteSchemaSource source = new RemoteSchemaSource<Object>("bar", new HttpRemoteRetriever(server.url("/").url()), Collections.emptyList());
+        RemoteSchemaSource source = new RemoteSchemaSource<Object>(SchemaNamespace.of("bar"), new HttpRemoteRetriever(server.url("/").url()), Collections.emptyList());
 
         DataFetcherResult<Map> result = (DataFetcherResult<Map>) source.query(
                 new ExecutionInput("blah", "op", null, null, Collections.emptyMap()), null).get();
@@ -64,7 +64,7 @@ public class RemoteHttpSchemaSourceTest {
         server.enqueue(new MockResponse().setBody(read("/com/atlassian/braid/http-some-errors.json")));
         server.start();
 
-        RemoteSchemaSource source = new RemoteSchemaSource("bar", new HttpRemoteRetriever(server.url("/").url()), Collections.emptyList());
+        RemoteSchemaSource source = new RemoteSchemaSource(SchemaNamespace.of("bar"), new HttpRemoteRetriever(server.url("/").url()), Collections.emptyList());
 
         DataFetcherResult<Map> result = (DataFetcherResult<Map>) source.query(
                 new ExecutionInput("blah", "op", null, null, Collections.emptyMap()), null).get();

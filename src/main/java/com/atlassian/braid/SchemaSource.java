@@ -2,11 +2,8 @@ package com.atlassian.braid;
 
 import graphql.ExecutionInput;
 import graphql.execution.DataFetcherResult;
-import graphql.language.Document;
-import graphql.schema.DataFetcher;
 import graphql.schema.idl.TypeDefinitionRegistry;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -23,9 +20,9 @@ public interface SchemaSource<C> {
 
     /**
      * @return the data source identifier to be used in links targeting this data source.
-     * @see Link#getTargetNamespace()
+     * @see com.atlassian.braid.Link#getTargetNamespace()
      */
-    String getNamespace();
+    SchemaNamespace getNamespace();
 
     /**
      * @return a list of links that connect fields in this data source to other data sources

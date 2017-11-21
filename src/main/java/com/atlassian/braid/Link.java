@@ -6,10 +6,10 @@ import static java.util.Objects.requireNonNull;
  * Links a field on a type to another data source
  */
 @SuppressWarnings("WeakerAccess")
-public class Link {
+public final class Link {
     private final String sourceType;
     private final String sourceField;
-    private String targetNamespace;
+    private SchemaNamespace targetNamespace;
     private String targetType;
     private String argumentName = "id";
     private String targetField;
@@ -24,7 +24,7 @@ public class Link {
         return new Link(sourceType, sourceField);
     }
 
-    public Link to(String targetNamespace, String targetType) {
+    public Link to(SchemaNamespace targetNamespace, String targetType) {
         this.targetNamespace = requireNonNull(targetNamespace);
         this.targetType = requireNonNull(targetType);
         return this;
@@ -48,7 +48,7 @@ public class Link {
         return sourceField;
     }
 
-    public String getTargetNamespace() {
+    public SchemaNamespace getTargetNamespace() {
         return targetNamespace;
     }
 
