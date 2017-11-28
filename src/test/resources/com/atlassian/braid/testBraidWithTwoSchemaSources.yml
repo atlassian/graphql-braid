@@ -48,7 +48,7 @@ schemaSources:
           argument: id
     expected:
       query: |
-        query ($id100: String!) {
+        query Bulk_Foo($id100: String!) {
             foo100: foo(id: $id100) {
                 id
                 name
@@ -80,7 +80,7 @@ schemaSources:
       }
     expected:
       query: |
-        query ($id100: String) {
+        query Bulk_Bar($id100: String) {
             bar100: topbar(id: $id100) {
                 id
                 title

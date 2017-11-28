@@ -35,13 +35,13 @@ public class SchemaBraidConsumerTest {
     public void testBraidWithExistingTypes() {
         Function<ExecutionInput, Object> fooQueryExecutor = mock(Function.class);
         ExecutionInput fooInput = ExecutionInput.newExecutionInput()
-                .query("query  {\n" +
+                .query("query Bulk_Foo {\n" +
                         "    foo100: foo(id: \"fooid\") {\n" +
                         "        id\n" +
                         "        name\n" +
                         "    }\n" +
                         "}\n\n\n")
-                .operationName("Batch")
+                .operationName("Bulk_Foo")
                 .build();
         when(fooQueryExecutor.apply(argThat(matchesInput(fooInput)))).thenReturn(
                 singletonMap("foo100", ImmutableMap.of("id", "fooid", "name", "Foo"))
@@ -60,10 +60,10 @@ public class SchemaBraidConsumerTest {
         ExecutionResult result = graphql.execute(ExecutionInput.newExecutionInput()
                 .query(query)
                 .context(new DefaultBraidContext(dataLoaderRegistry, emptyMap(), query)));
-        assertEquals(emptyList(), result.getErrors());
         Map<String, Map<String, Object>> data = result.getData();
 
         verify(fooQueryExecutor, times(1)).apply(argThat(matchesInput(fooInput)));
+        assertEquals(emptyList(), result.getErrors());
 
         assertEquals(data.get("foo").get("name"), "Foo");
     }

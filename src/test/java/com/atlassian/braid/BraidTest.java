@@ -36,4 +36,8 @@ public class BraidTest {
     @Test
     public void testBraidWithMultipleNodesUsingFragment() {
     }
+
+    @Test
+    public void testBraidWithNamedOperation() {
+    }
 }

@@ -51,6 +51,10 @@ class QueryExecutor {
         OperationDefinition queryOp = new OperationDefinition(
                 "",
                 OperationDefinition.Operation.QUERY, new SelectionSet());
+        queryOp.setName("Bulk_" + environments.stream()
+                .findFirst()
+                .map(e -> e.getFieldDefinition().getType().getName())
+                .orElse(""));
         doc.getDefinitions().add(queryOp);
 
         Map<String, Object> variables = new HashMap<>();
@@ -61,6 +65,7 @@ class QueryExecutor {
         // build batch query
         for (DataFetchingEnvironment environment : environments) {
             Field field = cloneCurrentField(environment);
+
             field.setAlias(field.getName() + ++counter);
             clonedFields.put(environment, field);
 
@@ -121,7 +126,7 @@ class QueryExecutor {
             }.visit(doc);
         }
 
-        ExecutionInput input = executeBatchQuery(doc, variables);
+        ExecutionInput input = executeBatchQuery(doc, queryOp.getName(), variables);
 
         return schemaSource.query(input, environments.get(0).getContext())
                 .thenApply(result -> transformBatchResultIntoResultList(environments, clonedFields, result)
@@ -133,12 +138,12 @@ class QueryExecutor {
         return DocumentCloners.clone(original);
     }
 
-    private ExecutionInput executeBatchQuery(Document doc, Map<String, Object> variables) {
+    private ExecutionInput executeBatchQuery(Document doc, String operationName, Map<String, Object> variables) {
         GraphQLQueryPrinter printer = new GraphQLQueryPrinter();
         String query = printer.print(doc);
         return ExecutionInput.newExecutionInput()
                 .query(query)
-                .operationName("Batch")
+                .operationName(operationName)
                 .variables(variables)
                 .build();
     }

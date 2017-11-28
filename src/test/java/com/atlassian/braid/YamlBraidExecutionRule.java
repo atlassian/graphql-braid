@@ -54,10 +54,14 @@ public class YamlBraidExecutionRule implements MethodRule {
                             .build();
 
                     Map<String, Object> req = (Map<String, Object>) config.get("request");
-                    executionResult = graphql.execute(ExecutionInput.newExecutionInput()
+                    ExecutionInput.Builder executionInputBuilder = ExecutionInput.newExecutionInput()
                             .query((String) req.get("query"))
                             .variables((Map<String, Object>) req.get("variables"))
-                            .context(new DefaultBraidContext(dataLoaderRegistry, (Map<String, Object>) req.get("variables"), (String) req.get("query"))));
+                            .context(new DefaultBraidContext(dataLoaderRegistry, (Map<String, Object>) req.get("variables"), (String) req.get("query")));
+                    if (req.containsKey("operation")) {
+                        executionInputBuilder.operationName((String) req.get("operation"));
+                    }
+                    executionResult = graphql.execute(executionInputBuilder);
 
                     Map<String, Object> data = executionResult.getData();
                     Map<String, Object> response = (Map<String, Object>) config.get("response");
@@ -105,6 +109,10 @@ public class YamlBraidExecutionRule implements MethodRule {
             assertEquals(printer.print(new Parser().parseDocument((String) expected.get("query"))),
                     printer.print(new Parser().parseDocument(input.getQuery())));
             assertEquals(expected.get("variables"), input.getVariables());
+            String operation = (String) expected.get("operation");
+            if (operation != null) {
+                assertEquals(operation, input.getOperationName());
+            }
             Map<String, Object> response = (Map<String, Object>) m.get("response");
             return new DataFetcherResult(response.get("data"),
                     ((List<Map<String, Object>>) response.get("errors")).stream()

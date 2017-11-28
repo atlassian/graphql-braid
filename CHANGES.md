@@ -4,7 +4,7 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Fix incorrect/missing query operation name
 
 0.4.4 (2017-11-28)
 -------------------

@@ -1,18 +1,14 @@
 request:
   query: |
-    query($myid: String, $barid: String) {
+    query FooGet($myid: String) {
       foo(id: $myid) {
         id
         name
-        bar(id: $barid) {
-          id
-          title
-        }
       }
     }
   variables:
     myid: FooId
-    barid: BarId
+  operation: FooGet
 
 response:
   errors: []
@@ -20,9 +16,6 @@ response:
     foo:
       id: FooId
       name: Foo
-      bar:
-        id: BarId
-        title: Bar
 
 schemaSources:
   - name: foo
@@ -38,36 +31,23 @@ schemaSources:
       type Foo {
         id: String
         name: String
-        bar(id: String) : Bar
-      }
-
-      type Bar {
-          id: String
-          title: String
       }
     expected:
       query: |
-        query Bulk_Foo($myid100: String, $barid100: String) {
+        query Bulk_Foo($myid100: String) {
           foo100: foo(id: $myid100) {
             id
             name
-            bar(id: $barid100) {
-              id
-              title
-            }
           }
         }
       variables:
         myid100: FooId
-        barid100: BarId
+      operation: Bulk_Foo
     response:
       data:
         foo100:
           id: FooId
           name: Foo
-          bar:
-            id: BarId
-            title: Bar
       errors: []
 
 
