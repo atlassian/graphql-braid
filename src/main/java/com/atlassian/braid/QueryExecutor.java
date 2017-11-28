@@ -263,13 +263,13 @@ class QueryExecutor {
     /**
      * Ensures any referenced fragments are included in the query
      */
-    private Collection<Definition> processForFragments(DataFetchingEnvironment environment, Field field) {
+    Collection<Definition> processForFragments(DataFetchingEnvironment environment, Field field) {
         Map<String, Definition> result = new HashMap<>();
         new GraphQLQueryVisitor() {
             @Override
             protected void visitFragmentSpread(FragmentSpread node) {
                 FragmentDefinition fragmentDefinition = environment.getFragmentsByName().get(node.getName());
-                result.put(node.getName(), fragmentDefinition);
+                result.put(node.getName(), fragmentDefinition.deepCopy());
                 super.visitFragmentSpread(node);
             }
         }.visit(field);
