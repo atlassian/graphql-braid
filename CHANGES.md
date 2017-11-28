@@ -4,6 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- 
+
+0.4.0 (2017-11-28)
+-------------------
+
 - Support multiple use of fragments
 - Support multiple variables in different areas of a query
 - New config builder
