@@ -1,0 +1,74 @@
+request:
+  query: |
+    query($myid: String, $barid: String) {
+      foo(id: $myid) {
+        id
+        name
+        bar(id: $barid) {
+          id
+          title
+        }
+      }
+    }
+  variables:
+    myid: FooId
+    barid: BarId
+
+response:
+  errors: []
+  data:
+    foo:
+      id: FooId
+      name: Foo
+      bar:
+        id: BarId
+        title: Bar
+
+schemaSources:
+  - name: foo
+    schema: |
+      schema {
+        query: Query
+      }
+
+      type Query {
+        foo(id: String) : Foo
+      }
+
+      type Foo {
+        id: String
+        name: String
+        bar(id: String) : Bar
+      }
+
+      type Bar {
+          id: String
+          title: String
+      }
+    expected:
+      query: |
+        query($myid100: String, $barid100: String) {
+          foo100: foo(id: $myid100) {
+            id
+            name
+            bar(id: $barid100) {
+              id
+              title
+            }
+          }
+        }
+      variables:
+        myid100: FooId
+        barid100: BarId
+    response:
+      data:
+        foo100:
+          id: FooId
+          name: Foo
+          bar:
+            id: BarId
+            title: Bar
+      errors: []
+
+
+

@@ -15,7 +15,9 @@ import graphql.language.VariableDefinition;
 /**
  * A visitor for GraphQL query {@link Document} related objects.
  */
-class GraphQLQueryVisitor {
+@SuppressWarnings("WeakerAccess")
+public class GraphQLQueryVisitor {
+    @SuppressWarnings("StatementWithEmptyBody")
     void visit(final Node node) {
         if (node instanceof Document) {
             visitDocument((Document) node);
@@ -34,7 +36,9 @@ class GraphQLQueryVisitor {
         } else if (node instanceof FragmentSpread) {
             visitFragmentSpread((FragmentSpread) node);
         } else if (node != null) {
-            throw new RuntimeException("Unknown type of node at: " + node.getSourceLocation());
+            throw new RuntimeException("Unknown type of node " + node + " at: " + node.getSourceLocation());
+        } else {
+            // node is null, ignore
         }
     }
 
@@ -58,8 +62,7 @@ class GraphQLQueryVisitor {
         }
     }
 
-    protected void visitVariableDefinition(final VariableDefinition node) {
-        visit(node.getType());
+    protected void visitVariableDefinition(@SuppressWarnings("unused") final VariableDefinition node) {
     }
 
     protected void visitSelectionSet(final SelectionSet node) {

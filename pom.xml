@@ -9,7 +9,7 @@
 
     <groupId>com.atlassian.braid</groupId>
     <artifactId>graphql-braid</artifactId>
-    <version>0.3.2-SNAPSHOT</version>
+    <version>0.4.0-SNAPSHOT</version>
     <name>GraphQL Braid</name>
 
     <issueManagement>
@@ -96,6 +96,13 @@
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>mockwebserver</artifactId>
             <version>3.9.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>1.18</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -26,7 +26,11 @@ class Util {
     }
 
     static String read(String schemaPath) throws IOException {
-        return read(new InputStreamReader(Util.class.getResourceAsStream(schemaPath)));
+        try {
+            return read(new InputStreamReader(Util.class.getResourceAsStream(schemaPath)));
+        } catch (IOException ex) {
+            throw new RuntimeException("Can't find " + schemaPath, ex);
+        }
     }
 
     private static String read(Reader reader) throws IOException {

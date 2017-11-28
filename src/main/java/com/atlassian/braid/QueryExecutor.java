@@ -13,10 +13,10 @@ import graphql.language.Node;
 import graphql.language.OperationDefinition;
 import graphql.language.SelectionSet;
 import graphql.language.Type;
-import graphql.language.TypeName;
 import graphql.language.Value;
 import graphql.language.VariableDefinition;
 import graphql.language.VariableReference;
+import graphql.parser.Parser;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.GraphQLModifiedType;
 import graphql.schema.GraphQLObjectType;
@@ -26,7 +26,6 @@ import org.dataloader.BatchLoader;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import static com.atlassian.braid.TypeUtils.findQueryType;
 import static java.util.Collections.singletonList;
 
 /**
@@ -42,61 +42,171 @@ import static java.util.Collections.singletonList;
  */
 class QueryExecutor {
 
-    <C> BatchLoader<DataFetchingEnvironment, Object> asBatchLoader(SchemaSource<C> schemaSource, Link link) {
+    <C extends BraidContext> BatchLoader<DataFetchingEnvironment, Object> asBatchLoader(SchemaSource<C> schemaSource, Link link) {
         return environments -> query(schemaSource, environments, link);
     }
-    <C> CompletableFuture<List<Object>> query(SchemaSource<C> schemaSource, List<DataFetchingEnvironment> environments, Link link) {
+    @SuppressWarnings("Duplicates")
+    <C extends BraidContext> CompletableFuture<List<Object>> query(SchemaSource<C> schemaSource, List<DataFetchingEnvironment> environments, Link link) {
         Document doc = new Document();
         OperationDefinition queryOp = new OperationDefinition(
                 "",
                 OperationDefinition.Operation.QUERY, new SelectionSet());
         doc.getDefinitions().add(queryOp);
 
-        int counter = 0;
         Map<String, Object> variables = new HashMap<>();
         Map<DataFetchingEnvironment, Field> clonedFields = new HashMap<>();
+
+        // start at 99 so that we can find variables already counter-namespaced via startsWith()
+        int counter = 99;
+        // build batch query
         for (DataFetchingEnvironment environment : environments) {
-            Field original = findFieldWithName(environment);
-            Field field = DocumentCloners.clone(original);
+            Field field = cloneCurrentField(environment);
             field.setAlias(field.getName() + ++counter);
             clonedFields.put(environment, field);
 
             trimFieldSelection(schemaSource, environment, field);
 
-            variables.putAll(collectVariables(environment, field, link, counter));
-            processForOperations(environment, queryOp, field, link, counter);
+            // add variable and argument for linked field identifier
+            if (link != null) {
+                // set the argument from the value of the original field
+                String varName = link.getArgumentName() + counter;
+                field.setArguments(singletonList(
+                        new Argument(link.getArgumentName(), new VariableReference(varName))
+                ));
+                field.setName(link.getTargetField());
+                Map<String, String> source = findMapSource(environment);
+                Type argumentType = findArgumentType(schemaSource, link);
+                //noinspection unchecked
+                variables.put(varName, source.get(link.getSourceField()));
+                queryOp.getVariableDefinitions().add(new VariableDefinition(varName, argumentType));
+            }
 
-            // todo: handle duplicate fragments
-            List<Definition> fragmentDefinitions = processForFragments(environment, field);
-            doc.getDefinitions().addAll(fragmentDefinitions);
+            Document queryDoc = new Parser().parseDocument(environment.<BraidContext>getContext().getQuery());
+            OperationDefinition queryType = findQueryDefinition(queryDoc);
+
+            processForFragments(environment, field).forEach(d -> doc.getDefinitions().add(d));
+            queryOp.getSelectionSet().getSelections().add(field);
+
+            int finalCounter = counter;
+            new GraphQLQueryVisitor() {
+                @Override
+                protected void visitField(Field node) {
+                    List<Argument> renamedArguments = node.getArguments().stream()
+                            .map(a -> {
+                                Value value = a.getValue();
+                                if (value instanceof VariableReference) {
+                                    VariableReference varRef = (VariableReference) value;
+                                    if (isVariableNotAlreadyNamespaced(varRef)) {
+                                        value = namespaceVariable(varRef);
+                                    }
+                                }
+                                return new Argument(a.getName(), value);
+                            }).collect(Collectors.toList());
+                    node.setArguments(renamedArguments);
+                    super.visitField(node);
+                }
+
+                private Value namespaceVariable(VariableReference varRef) {
+                    Value value;
+                    value = new VariableReference(varRef.getName() + finalCounter);
+                    Type type = findVariableType(varRef, queryType);
+                    variables.put(varRef.getName() + finalCounter, environment.<BraidContext>getContext().getVariables().get(varRef.getName()));
+                    queryOp.getVariableDefinitions().add(new VariableDefinition(varRef.getName() + finalCounter, type));
+                    return value;
+                }
+
+                private boolean isVariableNotAlreadyNamespaced(VariableReference varRef) {
+                    return !varRef.getName().endsWith(String.valueOf(finalCounter));
+                }
+            }.visit(doc);
         }
 
+        ExecutionInput input = executeBatchQuery(doc, variables);
+
+        return schemaSource.query(input, environments.get(0).getContext())
+                .thenApply(result -> transformBatchResultIntoResultList(environments, clonedFields, result)
+                );
+    }
+
+    private Field cloneCurrentField(DataFetchingEnvironment environment) {
+        Field original = findFieldWithName(environment);
+        return DocumentCloners.clone(original);
+    }
+
+    private ExecutionInput executeBatchQuery(Document doc, Map<String, Object> variables) {
         GraphQLQueryPrinter printer = new GraphQLQueryPrinter();
         String query = printer.print(doc);
-        ExecutionInput input = ExecutionInput.newExecutionInput()
+        return ExecutionInput.newExecutionInput()
                 .query(query)
                 .operationName("Batch")
                 .variables(variables)
                 .build();
+    }
 
-        return schemaSource.query(input, environments.get(0).getContext())
-                .thenApply(result -> {
-                            List<Object> queryResults = new ArrayList<>();
-                            Map<String, Object> data = result.getData();
-                            for (DataFetchingEnvironment environment : environments) {
-                                Field field = clonedFields.get(environment);
-                                Object fieldData = data.getOrDefault(field.getAlias(), null);
+    private Type findVariableType(VariableReference varRef, OperationDefinition queryType) {
+        return queryType.getVariableDefinitions().stream().filter(d ->
+            d.getName().equals(varRef.getName()))
+                .map(VariableDefinition::getType)
+                .findFirst()
+                .orElseThrow(IllegalArgumentException::new);
+    }
 
-                                queryResults.add(new DataFetcherResult<>(fieldData, result.getErrors().stream()
-                                        .filter(e -> e.getPath() == null || e.getPath().isEmpty()
-                                                || field.getAlias().equals(e.getPath().get(0)))
-                                        .map(RelativeGraphQLError::new)
-                                        .collect(Collectors.toList())
-                                ));
-                            }
-                            return queryResults;
-                        }
-                );
+    private List<Object> transformBatchResultIntoResultList(List<DataFetchingEnvironment> environments, Map<DataFetchingEnvironment, Field> clonedFields, DataFetcherResult<Map<String, Object>> result) {
+        List<Object> queryResults = new ArrayList<>();
+        Map<String, Object> data = result.getData();
+        for (DataFetchingEnvironment environment : environments) {
+            Field field = clonedFields.get(environment);
+            Object fieldData = data.getOrDefault(field.getAlias(), null);
+
+            queryResults.add(new DataFetcherResult<>(
+                    fieldData,
+                    result.getErrors().stream()
+                        .filter(e -> e.getPath() == null || e.getPath().isEmpty()
+                                || field.getAlias().equals(e.getPath().get(0)))
+                        .map(RelativeGraphQLError::new)
+                        .collect(Collectors.toList())
+            ));
+        }
+        return queryResults;
+    }
+
+    private OperationDefinition findQueryDefinition(Document queryDoc) {
+        return (OperationDefinition) queryDoc.getDefinitions().stream()
+                .filter(d -> d instanceof OperationDefinition
+                        && ((OperationDefinition) d).getOperation() == OperationDefinition.Operation.QUERY)
+                .findFirst()
+                .orElseThrow(IllegalArgumentException::new);
+    }
+
+    private <C extends BraidContext> Type findArgumentType(SchemaSource<C> schemaSource, Link link) {
+        return findQueryType(schemaSource.getSchema()).getFieldDefinitions().stream()
+                .filter(f -> f.getName().equals(link.getTargetField()))
+                .findFirst()
+                .map(f -> f.getInputValueDefinitions().stream()
+                        .filter(iv -> iv.getName().equals(link.getArgumentName()))
+                        .findFirst()
+                        .map(InputValueDefinition::getType)
+                        .orElseThrow(IllegalArgumentException::new))
+                .orElseThrow(IllegalArgumentException::new);
+    }
+
+    private Map<String, String> findMapSource(DataFetchingEnvironment environment) {
+        Object source = environment.getSource();
+        while (!(source instanceof Map)) {
+            if (source instanceof CompletableFuture) {
+                try {
+                    source = ((CompletableFuture) source).get();
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
+            } else if (source instanceof DataFetcherResult) {
+                source = ((DataFetcherResult) source).getData();
+            } else {
+                throw new IllegalArgumentException("Unexpected parent type");
+            }
+        }
+        //noinspection unchecked
+        return (Map<String, String>) source;
     }
 
     private Field findFieldWithName(DataFetchingEnvironment environment) {
@@ -151,99 +261,19 @@ class QueryExecutor {
     }
 
     /**
-     * Collects variable values
-     */
-    private Map<String, Object> collectVariables(DataFetchingEnvironment environment, Field field, Link link, int counter) {
-        Map<String, Object> variables = new HashMap<>();
-        if (link != null) {
-            //noinspection unchecked
-            Object source = environment.getSource();
-            while (!(source instanceof Map)) {
-                if (source instanceof CompletableFuture) {
-                    try {
-                        source = ((CompletableFuture) source).get();
-                    } catch (InterruptedException | ExecutionException e) {
-                        throw new RuntimeException(e);
-                    }
-                } else if (source instanceof DataFetcherResult) {
-                    source = ((DataFetcherResult)source).getData();
-                } else {
-                    throw new IllegalArgumentException("Unexpected parent type");
-                }
-            }
-            //noinspection unchecked
-            variables.put(link.getArgumentName() + 1, ((Map<String, String>)source).get(field.getName()));
-        } else if (!field.getArguments().isEmpty()) {
-            for (Argument arg : referenceArguments(field)) {
-                variables.put(arg.getName() + 1, environment.getArgument(arg.getName()));
-            }
-        }
-
-        List<Argument> renamedArguments = field.getArguments().stream()
-                .map(a -> {
-                    Value value = a.getValue();
-                    if (value instanceof VariableReference) {
-                        value = new VariableReference(((VariableReference)value).getName() + counter);
-                    }
-                    return new Argument(a.getName(), value);
-                }).collect(Collectors.toList());
-        field.setArguments(renamedArguments);
-
-        return Collections.unmodifiableMap(variables);
-    }
-
-    private List<Argument> referenceArguments(Field field) {
-        return field.getArguments().stream()
-                .filter(a -> a.getValue() instanceof VariableReference)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Builds operation definitions, mainly the query.  Also modifies the field to set arguments
-     */
-    private void processForOperations(DataFetchingEnvironment environment, OperationDefinition query, Field field, Link link, int counter) {
-        List<VariableDefinition> variableTypes = new ArrayList<>();
-        if (link != null) {
-            field.setArguments(singletonList(
-                    new Argument(link.getArgumentName(), new VariableReference(link.getArgumentName() + counter))
-            ));
-            variableTypes = singletonList(new VariableDefinition(link.getArgumentName() + counter, new TypeName("String")));
-            field.setName(link.getTargetField());
-        } else if (!field.getArguments().isEmpty()) {
-            List<InputValueDefinition> inputValueDefinitions = environment.getFieldTypeInfo().getFieldDefinition()
-                    .getDefinition().getInputValueDefinitions();
-            for (Argument arg : referenceArguments(field)) {
-                variableTypes.add(new VariableDefinition(arg.getName() + counter,
-                        findArgumentVariableType(inputValueDefinitions, arg.getName())));
-            }
-        }
-
-        query.getVariableDefinitions().addAll(variableTypes);
-        query.getSelectionSet().getSelections().add(field);
-    }
-
-    /**
      * Ensures any referenced fragments are included in the query
      */
-    private List<Definition> processForFragments(DataFetchingEnvironment environment, Field field) {
-        List<Definition> result = new ArrayList<>();
+    private Collection<Definition> processForFragments(DataFetchingEnvironment environment, Field field) {
+        Map<String, Definition> result = new HashMap<>();
         new GraphQLQueryVisitor() {
             @Override
             protected void visitFragmentSpread(FragmentSpread node) {
                 FragmentDefinition fragmentDefinition = environment.getFragmentsByName().get(node.getName());
-                result.add(fragmentDefinition);
+                result.put(node.getName(), fragmentDefinition);
                 super.visitFragmentSpread(node);
             }
         }.visit(field);
-        return result;
-    }
-
-    private Type findArgumentVariableType(List<InputValueDefinition> inputValueDefinitions, String argName) {
-        return inputValueDefinitions.stream()
-                .filter(d -> d.getName().equals(argName))
-                .findFirst()
-                .orElseThrow(IllegalStateException::new)
-                .getType();
+        return result.values();
     }
 
     private Optional<Link> getLink(Collection<Link> links, String typeName, String fieldName) {

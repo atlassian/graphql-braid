@@ -1,6 +1,5 @@
 package com.atlassian.braid;
 
-import graphql.execution.batched.Batched;
 import graphql.language.Definition;
 import graphql.language.FieldDefinition;
 import graphql.language.ObjectTypeDefinition;
@@ -8,34 +7,29 @@ import graphql.language.OperationTypeDefinition;
 import graphql.language.SchemaDefinition;
 import graphql.language.TypeDefinition;
 import graphql.language.TypeName;
-import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
-import graphql.schema.DataFetchingEnvironmentBuilder;
 import graphql.schema.idl.RuntimeWiring;
 import graphql.schema.idl.SchemaGenerator;
 import graphql.schema.idl.TypeDefinitionRegistry;
 import org.dataloader.BatchLoader;
-import org.dataloader.DataLoader;
 import org.dataloader.DataLoaderRegistry;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toMap;
 
 /**
- * Weaves data source schemas into a single executable schema
+ * Weaves source schemas into a single executable schema
  */
 @SuppressWarnings("WeakerAccess")
-public class SchemaBraid<C> {
+public class SchemaBraid<C extends BraidContext> {
 
     public static final String QUERY_TYPE_NAME = "Query";
     public static final String QUERY_FIELD_NAME = "query";
@@ -51,13 +45,25 @@ public class SchemaBraid<C> {
     }
 
 
+    @Deprecated
     public Braid braid(SchemaSource<C>... dataSources) {
         return braid(new TypeDefinitionRegistry(), RuntimeWiring.newRuntimeWiring(), dataSources);
     }
 
+    @Deprecated
     public Braid braid(TypeDefinitionRegistry allTypes, RuntimeWiring.Builder wiringBuilder, SchemaSource<C>... dataSources) {
-        Map<SchemaNamespace, Source<C>> dataSourceTypes = stream(dataSources).collect(toMap(SchemaSource::getNamespace, Source::new));
+        SchemaBraidConfiguration.SchemaBraidConfigurationBuilder<C> configBuilder = SchemaBraidConfiguration.<C>builder()
+                .typeDefinitionRegistry(allTypes)
+                .runtimeWiringBuilder(wiringBuilder);
+        Arrays.stream(dataSources).forEach(configBuilder::schemaSource);
+        return braid(configBuilder.build());
+    }
 
+    public Braid braid(SchemaBraidConfiguration<C> configuration) {
+        Map<SchemaNamespace, Source<C>> dataSourceTypes = configuration.getSchemaSources().stream()
+                .collect(toMap(SchemaSource::getNamespace, Source::new));
+
+        TypeDefinitionRegistry allTypes = configuration.getTypeDefinitionRegistry();
         SchemaDefinition schema = allTypes.schemaDefinition().orElseGet(() -> {
             SchemaDefinition s = new SchemaDefinition();
             allTypes.add(s);
@@ -76,6 +82,7 @@ public class SchemaBraid<C> {
                     return queryType;
                 });
 
+        RuntimeWiring.Builder wiringBuilder = configuration.getRuntimeWiringBuilder();
         List<BatchLoader> queryBatchLoaders = addSchemaSourceTopLevelFieldsToQuery(query, dataSourceTypes, wiringBuilder);
         List<BatchLoader> linkBatchLoaders = linkTypes(allTypes, dataSourceTypes, wiringBuilder);
 
@@ -124,11 +131,6 @@ public class SchemaBraid<C> {
         return result;
     }
 
-    private List<Object> splitBatchedEnvironmentToList(DataFetchingEnvironment environment) {
-        return (List<Object>) ((List) environment.getSource()).stream().map(source ->
-                DataFetchingEnvironmentBuilder.newDataFetchingEnvironment(environment).source(source).build()).collect(Collectors.toList());
-    }
-
     private List<BatchLoader> linkTypes(TypeDefinitionRegistry allTypes, Map<SchemaNamespace, Source<C>> sources, RuntimeWiring.Builder wiringBuilder) {
 
         List<Definition> definitionsToAdd = new ArrayList<>();
@@ -169,20 +171,6 @@ public class SchemaBraid<C> {
         }
         definitionsToAdd.forEach(allTypes::add);
         return batchLoaders;
-    }
-
-    private static class DataLoaderRegistryProvider implements Supplier<DataLoaderRegistry> {
-
-        private final List<BatchLoader> batchLoaders;
-
-        private DataLoaderRegistryProvider(List<BatchLoader> batchLoaders) {
-            this.batchLoaders = batchLoaders;
-        }
-
-        @Override
-        public DataLoaderRegistry get() {
-            throw new UnsupportedOperationException("Not implemented");
-        }
     }
 
     private static class Source<C> {
