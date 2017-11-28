@@ -4,7 +4,7 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Fix to not mutate query document fragments
 
 0.4.3 (2017-11-28)
 -------------------
