@@ -4,7 +4,7 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Fix release process
 
 0.4.0 (2017-11-28)
 -------------------
