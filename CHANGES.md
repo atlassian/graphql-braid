@@ -4,6 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- 
+
+0.4.6 (2017-12-04)
+-------------------
+
 - Fix broken __typename support
 
 0.4.5 (2017-11-28)
