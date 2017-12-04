@@ -40,4 +40,7 @@ public class BraidTest {
     @Test
     public void testBraidWithNamedOperation() {
     }
+
+    @Test
+    public void testBraidWithTypename() {}
 }

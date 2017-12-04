@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static com.atlassian.braid.TypeUtils.findQueryType;
+import static graphql.introspection.Introspection.TypeNameMetaFieldDef;
 import static java.util.Collections.singletonList;
 
 /**
@@ -237,7 +238,11 @@ class QueryExecutor {
                 } else {
                     getLink(schemaSource.getLinks(), parentType.getName(), node.getName())
                             .ifPresent(l -> node.setSelectionSet(null));
-                    type = ((GraphQLObjectType) parentType).getFieldDefinition(node.getName()).getType();
+                    if (TypeNameMetaFieldDef.getName().equals(node.getName())) {
+                        type = TypeNameMetaFieldDef.getType();
+                    } else {
+                        type = ((GraphQLObjectType) parentType).getFieldDefinition(node.getName()).getType();
+                    }
                 }
 
                 while (type instanceof GraphQLModifiedType) {
