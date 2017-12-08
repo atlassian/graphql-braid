@@ -4,6 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- 
+
+0.4.7 (2017-12-08)
+-------------------
+
 - Fix broken handling of interfaces in a query
 
 0.4.6 (2017-12-04)
