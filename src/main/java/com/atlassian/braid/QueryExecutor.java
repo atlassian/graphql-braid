@@ -18,6 +18,7 @@ import graphql.language.VariableDefinition;
 import graphql.language.VariableReference;
 import graphql.parser.Parser;
 import graphql.schema.DataFetchingEnvironment;
+import graphql.schema.GraphQLInterfaceType;
 import graphql.schema.GraphQLModifiedType;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLOutputType;
@@ -240,6 +241,8 @@ class QueryExecutor {
                             .ifPresent(l -> node.setSelectionSet(null));
                     if (TypeNameMetaFieldDef.getName().equals(node.getName())) {
                         type = TypeNameMetaFieldDef.getType();
+                    } else if (parentType instanceof GraphQLInterfaceType) {
+                        type = ((GraphQLInterfaceType) parentType).getFieldDefinition(node.getName()).getType();
                     } else {
                         type = ((GraphQLObjectType) parentType).getFieldDefinition(node.getName()).getType();
                     }
