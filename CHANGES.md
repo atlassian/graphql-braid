@@ -4,6 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- 
+
+0.4.8 (2017-12-11)
+-------------------
+
 - Fix missing interfaces when import a schema from an introspection result
 
 0.4.7 (2017-12-08)
