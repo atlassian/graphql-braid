@@ -3,6 +3,8 @@ package com.atlassian.braid;
 import org.junit.Rule;
 import org.junit.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 @SuppressWarnings("unchecked")
 public class BraidTest {
 
@@ -43,4 +45,10 @@ public class BraidTest {
 
     @Test
     public void testBraidWithTypename() {}
+
+    @Test
+    public void testBraidWithInterface() {
+        assertThat(rule.braid.getSchema().getObjectType("Foo")
+                .getInterfaces().get(0).getName()).isEqualTo("Fooable");
+    }
 }

@@ -6,7 +6,6 @@ import com.atlassian.braid.SchemaSource;
 import graphql.ExecutionInput;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
-import graphql.introspection.IntrospectionResultToSchema;
 import graphql.language.Document;
 import graphql.schema.idl.SchemaParser;
 import graphql.schema.idl.TypeDefinitionRegistry;

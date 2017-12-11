@@ -22,6 +22,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.atlassian.braid.Util.read;
+import static graphql.schema.idl.RuntimeWiring.newRuntimeWiring;
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 import static org.junit.Assert.assertEquals;
@@ -36,6 +37,8 @@ public class YamlBraidExecutionRule implements MethodRule {
     @SuppressWarnings("WeakerAccess")
     public ExecutionResult executionResult = null;
 
+    public Braid braid = null;
+
     @Override
     public Statement apply(Statement base, FrameworkMethod method, Object target) {
         return new Statement() {
@@ -45,8 +48,9 @@ public class YamlBraidExecutionRule implements MethodRule {
                     Map<String, Object> config = (Map<String, Object>) new Yaml().load(
                             read(method.getName() + ".yml"));
 
-                    Braid braid = new SchemaBraid().braid(SchemaBraidConfiguration.<DefaultBraidContext>builder()
+                    braid = new SchemaBraid().braid(SchemaBraidConfiguration.<DefaultBraidContext>builder()
                             .schemaSources(loadSchemaSources(config))
+                            .runtimeWiringBuilder(newRuntimeWiring().type("Fooable", wriing -> wriing.typeResolver(blah -> null)))
                             .build());
                     DataLoaderRegistry dataLoaderRegistry = braid.newDataLoaderRegistry();
                     GraphQL graphql = GraphQL.newGraphQL(braid.getSchema())
