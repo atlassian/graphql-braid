@@ -44,22 +44,22 @@ public class SchemaBraidConfiguration<C extends BraidContext> {
 
         private SchemaBraidConfigurationBuilder() {}
 
-        public SchemaBraidConfigurationBuilder typeDefinitionRegistry(TypeDefinitionRegistry typeDefinitionRegistry) {
+        public SchemaBraidConfigurationBuilder<C> typeDefinitionRegistry(TypeDefinitionRegistry typeDefinitionRegistry) {
             this.typeDefinitionRegistry = typeDefinitionRegistry;
             return this;
         }
 
-        public SchemaBraidConfigurationBuilder runtimeWiringBuilder(RuntimeWiring.Builder runtimeWiringBuilder) {
+        public SchemaBraidConfigurationBuilder<C> runtimeWiringBuilder(RuntimeWiring.Builder runtimeWiringBuilder) {
             this.runtimeWiringBuilder = runtimeWiringBuilder;
             return this;
         }
 
-        public final SchemaBraidConfigurationBuilder schemaSource(SchemaSource<C> schemaSource) {
+        public final SchemaBraidConfigurationBuilder<C> schemaSource(SchemaSource<C> schemaSource) {
             this.schemaSources.add(schemaSource);
             return this;
         }
 
-        public final SchemaBraidConfigurationBuilder schemaSources(List<SchemaSource<C>> schemaSources) {
+        public final SchemaBraidConfigurationBuilder<C> schemaSources(List<SchemaSource<C>> schemaSources) {
             this.schemaSources.addAll(schemaSources);
             return this;
         }

@@ -1,6 +1,8 @@
 package com.atlassian.braid;
 
+import com.atlassian.braid.source.HttpRemoteRetriever;
 import com.atlassian.braid.source.LocalSchemaSource;
+import com.atlassian.braid.source.RemoteSchemaSource;
 import com.google.common.collect.ImmutableMap;
 import graphql.ExecutionInput;
 import graphql.ExecutionResult;
@@ -12,12 +14,15 @@ import org.dataloader.DataLoaderRegistry;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Map;
 import java.util.function.Function;
 
 import static com.atlassian.braid.Util.parseRegistry;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.argThat;
@@ -32,7 +37,7 @@ public class SchemaBraidConsumerTest {
     private static final SchemaNamespace FOO = SchemaNamespace.of("foo");
 
     @Test
-    public void testBraidWithExistingTypes() {
+    public void testBraidWithExistingTypes() throws MalformedURLException {
         Function<ExecutionInput, Object> fooQueryExecutor = mock(Function.class);
         ExecutionInput fooInput = ExecutionInput.newExecutionInput()
                 .query("query Bulk_Foo {\n" +
@@ -48,9 +53,11 @@ public class SchemaBraidConsumerTest {
         );
 
         TypeDefinitionRegistry registry = parseRegistry("/com/atlassian/braid/existing.graphql");
-        SchemaBraid schemaBraid = new SchemaBraid();
-        Braid braid = schemaBraid.braid(registry, RuntimeWiring.newRuntimeWiring(),
-                new LocalSchemaSource(FOO, parseRegistry("/com/atlassian/braid/foo.graphql"), fooQueryExecutor));
+        Braid braid = new SchemaBraid<DefaultBraidContext>().braid(SchemaBraidConfiguration.<DefaultBraidContext>builder()
+                .typeDefinitionRegistry(registry)
+                .runtimeWiringBuilder(RuntimeWiring.newRuntimeWiring())
+                .schemaSource(new LocalSchemaSource<>(FOO, parseRegistry("/com/atlassian/braid/foo.graphql"), fooQueryExecutor))
+                .build());
         DataLoaderRegistry dataLoaderRegistry = braid.newDataLoaderRegistry();
 
         GraphQL graphql = new GraphQL.Builder(braid.getSchema())

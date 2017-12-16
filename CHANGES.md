@@ -4,7 +4,7 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Fix generics with configuration
 
 0.4.8 (2017-12-11)
 -------------------
