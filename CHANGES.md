@@ -4,6 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- 
+
+0.5.0 (2018-01-18)
+-------------------
+
 - Add ability to link via a different field on the source type
 
 0.4.9 (2018-01-08)
