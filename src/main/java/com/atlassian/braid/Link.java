@@ -33,15 +33,31 @@ public final class Link {
     }
 
     public static LinkBuilder from(SchemaNamespace namespace, String type, String field) {
-        return new LinkBuilder(new LinkSource(namespace, type, field));
+        return from(namespace, type, field, field);
+    }
+    public static LinkBuilder from(SchemaNamespace namespace, String type, String field, String fromField) {
+        return new LinkBuilder(new LinkSource(namespace, type, field, fromField));
     }
 
+    /**
+     * @return the type of the source from field
+     */
     public String getSourceType() {
         return source.type;
     }
 
+    /**
+     * @return the field to store the linked type
+     */
     public String getSourceField() {
         return source.field;
+    }
+
+    /**
+     * @return the field to find the id of the linked type
+     */
+    public String getSourceFromField() {
+        return source.fromField;
     }
 
     public SchemaNamespace getTargetNamespace() {
@@ -92,11 +108,13 @@ public final class Link {
         private final SchemaNamespace namespace;
         private final String type;
         private final String field;
+        private final String fromField;
 
-        private LinkSource(SchemaNamespace namespace, String type, String field) {
+        private LinkSource(SchemaNamespace namespace, String type, String field, String fromField) {
             this.namespace = requireNonNull(namespace);
             this.type = requireNonNull(type);
             this.field = requireNonNull(field);
+            this.fromField = requireNonNull(fromField);
         }
     }
 

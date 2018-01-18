@@ -20,9 +20,11 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.lang.String.format;
 import static java.util.stream.Collectors.toMap;
 
 /**
@@ -143,9 +145,11 @@ public class SchemaBraid<C extends BraidContext> {
             for (Link link : source.schemaSource.getLinks()) {
                 // replace the field's type
                 ObjectTypeDefinition typeDefinition = (ObjectTypeDefinition) dsTypes.get(link.getSourceType());
-                FieldDefinition field = typeDefinition.getFieldDefinitions().stream().filter(
-                        d -> d.getName().equals(link.getSourceField())).findFirst().orElseThrow(() ->
-                        new IllegalArgumentException("Can't find source field: {}" + link.getSourceField()));
+
+                validateSourceFromFieldExists(link, typeDefinition);
+
+                Optional<FieldDefinition> sourceField = typeDefinition.getFieldDefinitions().stream().filter(
+                        d -> d.getName().equals(link.getSourceField())).findFirst();
 
                 // todo: support different target types like list
                 Source<C> targetSource = sources.get(link.getTargetNamespace());
@@ -153,7 +157,16 @@ public class SchemaBraid<C extends BraidContext> {
                     throw new IllegalArgumentException("Can't find target type: " + link.getTargetType());
 
                 }
-                field.setType(new TypeName(link.getTargetType()));
+
+                TypeName targetType = new TypeName(link.getTargetType());
+                if (!sourceField.isPresent()) {
+                    // Add source field to schema if not already there
+                    FieldDefinition field = new FieldDefinition(link.getSourceField(), targetType);
+                    typeDefinition.getFieldDefinitions().add(field);
+                } else {
+                    // Change source field type to the braided type
+                    sourceField.get().setType(targetType);
+                }
 
                 BatchLoader<DataFetchingEnvironment, Object> batchLoader = queryExecutor.asBatchLoader(targetSource.schemaSource, link);
                 batchLoaders.add(batchLoader);
@@ -171,6 +184,16 @@ public class SchemaBraid<C extends BraidContext> {
         }
         definitionsToAdd.forEach(allTypes::add);
         return batchLoaders;
+    }
+
+    private void validateSourceFromFieldExists(Link link, ObjectTypeDefinition typeDefinition) {
+        //noinspection ResultOfMethodCallIgnored
+        typeDefinition.getFieldDefinitions().stream().filter(
+                d -> d.getName().equals(link.getSourceFromField()))
+                .findFirst()
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                format("Can't find source from field: %s", link.getSourceFromField())));
     }
 
     private static class Source<C> {

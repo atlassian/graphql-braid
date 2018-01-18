@@ -47,6 +47,12 @@ public class BraidTest {
     public void testBraidWithTypename() {}
 
     @Test
+    public void testBraidWithLinkFromSiblingField() {}
+
+    @Test
+    public void testBraidWithLinkFromSiblingFieldButNoFromFieldInQuery() {}
+
+    @Test
     public void testBraidWithInterface() {
         assertThat(rule.braid.getSchema().getObjectType("Foo")
                 .getInterfaces().get(0).getName()).isEqualTo("Fooable");

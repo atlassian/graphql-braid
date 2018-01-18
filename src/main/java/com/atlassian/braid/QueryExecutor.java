@@ -11,6 +11,7 @@ import graphql.language.FragmentSpread;
 import graphql.language.InputValueDefinition;
 import graphql.language.Node;
 import graphql.language.OperationDefinition;
+import graphql.language.Selection;
 import graphql.language.SelectionSet;
 import graphql.language.Type;
 import graphql.language.Value;
@@ -84,7 +85,7 @@ class QueryExecutor {
                 Map<String, String> source = findMapSource(environment);
                 Type argumentType = findArgumentType(schemaSource, link);
                 //noinspection unchecked
-                variables.put(varName, source.get(link.getSourceField()));
+                variables.put(varName, source.get(link.getSourceFromField()));
                 queryOp.getVariableDefinitions().add(new VariableDefinition(varName, argumentType));
             }
 
@@ -265,10 +266,37 @@ class QueryExecutor {
                     GraphQLOutputType lastParentType = parentType;
                     parentType = lastFieldType;
                     for (final Node child : node.getChildren()) {
+
+                        // process child to handle cases where the source from field is different than the source field
+                        if (child instanceof Field) {
+                            Optional<Link> linkWithDifferentFromField = getLinkWithDifferentFromField(schemaSource.getLinks(), parentType.getName(), ((Field) child).getName());
+                            if (linkWithDifferentFromField.isPresent()) {
+                                removeSourceFieldIfDifferentThanFromField(node, linkWithDifferentFromField.get());
+                                addFromFieldToQueryIfMissing(node, linkWithDifferentFromField.get());
+                            }
+                        }
                         visit(child);
                     }
                     parentType = lastParentType;
                 }
+            }
+
+            private void addFromFieldToQueryIfMissing(SelectionSet node, Link link) {
+                Optional<Selection> fromField = node.getSelections().stream()
+                        .filter(s -> s instanceof Field
+                                && ((Field) s).getName().equals(link.getSourceFromField()))
+                        .findFirst();
+                if (!fromField.isPresent()) {
+                    node.getSelections().add(new Field(link.getSourceFromField()));
+                }
+            }
+
+            private void removeSourceFieldIfDifferentThanFromField(SelectionSet node, Link link) {
+                node.getSelections().stream()
+                        .filter(s -> s instanceof Field
+                                && ((Field)s).getName().equals(link.getSourceField()))
+                        .findAny()
+                        .ifPresent(s -> node.getSelections().remove(s));
             }
         }.visit(field);
     }
@@ -291,7 +319,15 @@ class QueryExecutor {
 
     private Optional<Link> getLink(Collection<Link> links, String typeName, String fieldName) {
         return links.stream()
-                .filter(l -> l.getSourceType().equals(typeName) && l.getSourceField().equals(fieldName))
+                .filter(l -> l.getSourceType().equals(typeName) && l.getSourceFromField().equals(fieldName))
+                .findFirst();
+    }
+
+    private Optional<Link> getLinkWithDifferentFromField(Collection<Link> links, String typeName, String fieldName) {
+        return links.stream()
+                .filter(l -> l.getSourceType().equals(typeName)
+                        && l.getSourceField().equals(fieldName)
+                        && !l.getSourceFromField().equals(fieldName))
                 .findFirst();
     }
 }

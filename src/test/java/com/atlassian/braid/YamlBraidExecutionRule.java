@@ -91,7 +91,9 @@ public class YamlBraidExecutionRule implements MethodRule {
                                             Link.LinkBuilder link = Link.from(
                                                     SchemaNamespace.of("name)"),
                                                     l.get("from").get("type"),
-                                                    l.get("from").get("field"))
+                                                    l.get("from").get("field"),
+                                                    l.get("from").getOrDefault("fromField",
+                                                            l.get("from").get("field")))
                                                     .to(
                                                             SchemaNamespace.of(l.get("to").get("namespace")),
                                                             l.get("to").get("type"),
