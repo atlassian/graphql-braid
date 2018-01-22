@@ -4,7 +4,8 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Make the original GraphQL query context available to local schema source
+  executions 
 
 0.5.0 (2018-01-18)
 -------------------
