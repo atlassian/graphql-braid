@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static com.atlassian.braid.TypeUtils.findQueryType;
@@ -43,13 +42,14 @@ import static java.util.Collections.singletonList;
 /**
  * Executes a query against the data source
  */
-class QueryExecutor {
+class QueryExecutor implements BatchLoaderFactory {
 
-    <C extends BraidContext> BatchLoader<DataFetchingEnvironment, Object> asBatchLoader(SchemaSource<C> schemaSource, Link link) {
+    @Override
+    public <C extends BraidContext> BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
         return environments -> query(schemaSource, environments, link);
     }
     @SuppressWarnings("Duplicates")
-    <C extends BraidContext> CompletableFuture<List<Object>> query(SchemaSource<C> schemaSource, List<DataFetchingEnvironment> environments, Link link) {
+    <C extends BraidContext> CompletableFuture<List<DataFetcherResult<Map<String, Object>>>> query(SchemaSource<C> schemaSource, List<DataFetchingEnvironment> environments, Link link) {
         Document doc = new Document();
         OperationDefinition queryOp = new OperationDefinition(
                 "",
@@ -82,10 +82,9 @@ class QueryExecutor {
                         new Argument(link.getArgumentName(), new VariableReference(varName))
                 ));
                 field.setName(link.getTargetField());
-                Map<String, String> source = findMapSource(environment);
+                String targetId = BatchLoaderUtils.getTargetIdFromEnvironment(link, environment);
                 Type argumentType = findArgumentType(schemaSource, link);
-                //noinspection unchecked
-                variables.put(varName, source.get(link.getSourceFromField()));
+                variables.put(varName, targetId);
                 queryOp.getVariableDefinitions().add(new VariableDefinition(varName, argumentType));
             }
 
@@ -159,12 +158,12 @@ class QueryExecutor {
                 .orElseThrow(IllegalArgumentException::new);
     }
 
-    private List<Object> transformBatchResultIntoResultList(List<DataFetchingEnvironment> environments, Map<DataFetchingEnvironment, Field> clonedFields, DataFetcherResult<Map<String, Object>> result) {
-        List<Object> queryResults = new ArrayList<>();
+    private List<DataFetcherResult<Map<String, Object>>> transformBatchResultIntoResultList(List<DataFetchingEnvironment> environments, Map<DataFetchingEnvironment, Field> clonedFields, DataFetcherResult<Map<String, Object>> result) {
+        List<DataFetcherResult<Map<String, Object>>> queryResults = new ArrayList<>();
         Map<String, Object> data = result.getData();
         for (DataFetchingEnvironment environment : environments) {
             Field field = clonedFields.get(environment);
-            Object fieldData = data.getOrDefault(field.getAlias(), null);
+            Map<String, Object> fieldData = (Map<String, Object>) data.getOrDefault(field.getAlias(), null);
 
             queryResults.add(new DataFetcherResult<>(
                     fieldData,
@@ -187,7 +186,7 @@ class QueryExecutor {
     }
 
     private <C extends BraidContext> Type findArgumentType(SchemaSource<C> schemaSource, Link link) {
-        return findQueryType(schemaSource.getSchema()).getFieldDefinitions().stream()
+        return findQueryType(schemaSource.getPrivateSchema()).getFieldDefinitions().stream()
                 .filter(f -> f.getName().equals(link.getTargetField()))
                 .findFirst()
                 .map(f -> f.getInputValueDefinitions().stream()
@@ -196,25 +195,6 @@ class QueryExecutor {
                         .map(InputValueDefinition::getType)
                         .orElseThrow(IllegalArgumentException::new))
                 .orElseThrow(IllegalArgumentException::new);
-    }
-
-    private Map<String, String> findMapSource(DataFetchingEnvironment environment) {
-        Object source = environment.getSource();
-        while (!(source instanceof Map)) {
-            if (source instanceof CompletableFuture) {
-                try {
-                    source = ((CompletableFuture) source).get();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
-            } else if (source instanceof DataFetcherResult) {
-                source = ((DataFetcherResult) source).getData();
-            } else {
-                throw new IllegalArgumentException("Unexpected parent type");
-            }
-        }
-        //noinspection unchecked
-        return (Map<String, String>) source;
     }
 
     private Field findFieldWithName(DataFetchingEnvironment environment) {

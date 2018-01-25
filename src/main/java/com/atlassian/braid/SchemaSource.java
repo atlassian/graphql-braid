@@ -14,9 +14,17 @@ import java.util.concurrent.CompletableFuture;
 public interface SchemaSource<C> {
 
     /**
-     * @return the schema document
+     * @return the public schema document to be braided
      */
     TypeDefinitionRegistry getSchema();
+
+    /**
+     * @return the full schema exposed by the source for use in links
+     * @since 0.6.0
+     */
+    default TypeDefinitionRegistry getPrivateSchema() {
+        return getSchema();
+    }
 
     /**
      * @return the data source identifier to be used in links targeting this data source.

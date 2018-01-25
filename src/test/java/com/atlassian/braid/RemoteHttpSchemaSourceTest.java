@@ -28,8 +28,8 @@ import static com.atlassian.braid.Util.read;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- */
+
+@SuppressWarnings("unchecked")
 public class RemoteHttpSchemaSourceTest {
 
     @Test
@@ -37,6 +37,7 @@ public class RemoteHttpSchemaSourceTest {
         GraphQL build = getGraphQL();
 
         MockWebServer server = new MockWebServer();
+        server.enqueue(new MockResponse().setBody(new ObjectMapper().writeValueAsString(build.execute(IntrospectionQuery.INTROSPECTION_QUERY).toSpecification())));
         server.enqueue(new MockResponse().setBody(new ObjectMapper().writeValueAsString(build.execute(IntrospectionQuery.INTROSPECTION_QUERY).toSpecification())));
         server.enqueue(new MockResponse().setBody(read("/com/atlassian/braid/http-success.json")));
         server.start();
@@ -60,6 +61,7 @@ public class RemoteHttpSchemaSourceTest {
         GraphQL build = getGraphQL();
 
         MockWebServer server = new MockWebServer();
+        server.enqueue(new MockResponse().setBody(new ObjectMapper().writeValueAsString(build.execute(IntrospectionQuery.INTROSPECTION_QUERY).toSpecification())));
         server.enqueue(new MockResponse().setBody(new ObjectMapper().writeValueAsString(build.execute(IntrospectionQuery.INTROSPECTION_QUERY).toSpecification())));
         server.enqueue(new MockResponse().setBody(read("/com/atlassian/braid/http-some-errors.json")));
         server.start();

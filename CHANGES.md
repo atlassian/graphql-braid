@@ -4,6 +4,10 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- Upgrade to graphql-java 7.0
+- SchemaSource instances can now construct their own BatchLoaders.  Useful for local source
+  instances that want to load the entities from id in non-graphql ways.
+- Ability for a non-exposed fields in a schema source to be the target of a link
 - Make the original GraphQL query context available to local schema source
   executions 
 

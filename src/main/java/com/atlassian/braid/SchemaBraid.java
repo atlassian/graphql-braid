@@ -1,5 +1,6 @@
 package com.atlassian.braid;
 
+import graphql.execution.DataFetcherResult;
 import graphql.language.Definition;
 import graphql.language.FieldDefinition;
 import graphql.language.ObjectTypeDefinition;
@@ -118,7 +119,7 @@ public class SchemaBraid<C extends BraidContext> {
 
             wiringBuilder.type(query.getName(), typeWiring -> {
                 for (FieldDefinition queryField : dsQuery.getFieldDefinitions()) {
-                    BatchLoader<DataFetchingEnvironment, Object> batchLoader = queryExecutor.asBatchLoader(source.schemaSource, null);
+                    BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> batchLoader = buildBatchLoader(source.schemaSource, null);
                     result.add(batchLoader);
                     typeWiring.dataFetcher(queryField.getName(), environment -> {
                                 DataLoaderRegistry registry = environment.<BraidContext>getContext().getDataLoaderRegistry();
@@ -168,7 +169,7 @@ public class SchemaBraid<C extends BraidContext> {
                     sourceField.get().setType(targetType);
                 }
 
-                BatchLoader<DataFetchingEnvironment, Object> batchLoader = queryExecutor.asBatchLoader(targetSource.schemaSource, link);
+                BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> batchLoader = buildBatchLoader(targetSource.schemaSource, link);
                 batchLoaders.add(batchLoader);
 
                 // wire in the field resolver to the target data source
@@ -184,6 +185,16 @@ public class SchemaBraid<C extends BraidContext> {
         }
         definitionsToAdd.forEach(allTypes::add);
         return batchLoaders;
+    }
+
+    private BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> buildBatchLoader(SchemaSource<C> schemaSource, Link link) {
+        // We use DataFetchingEnvironment as the key in the BatchLoader because different fetches of the object may
+        // request different fields. Someday we may smartly combine them into one somehow, but that day isn't today.
+        if (schemaSource instanceof BatchLoaderFactory) {
+            return ((BatchLoaderFactory)schemaSource).newBatchLoader(schemaSource, link);
+        } else {
+            return queryExecutor.newBatchLoader(schemaSource, link);
+        }
     }
 
     private void validateSourceFromFieldExists(Link link, ObjectTypeDefinition typeDefinition) {

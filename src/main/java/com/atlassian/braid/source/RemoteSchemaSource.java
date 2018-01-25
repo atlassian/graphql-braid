@@ -31,12 +31,11 @@ import static com.atlassian.braid.source.OptionalHelper.castNullableMap;
 @SuppressWarnings("WeakerAccess")
 public class RemoteSchemaSource<C> implements SchemaSource<C> {
 
-    private static final Logger log = LoggerFactory.getLogger(RemoteSchemaSource.class);
-
     private final SchemaNamespace namespace;
     private final RemoteRetriever<C> remoteRetriever;
     private final List<Link> links;
-    private final TypeDefinitionRegistry schema;
+    private final TypeDefinitionRegistry publicSchema;
+    private final TypeDefinitionRegistry privateSchema;
 
     public RemoteSchemaSource(SchemaNamespace namespace, RemoteRetriever<C> remoteRetriever, List<Link> links, String... topLevelFields) {
         this.namespace = namespace;
@@ -44,17 +43,25 @@ public class RemoteSchemaSource<C> implements SchemaSource<C> {
         this.links = links;
 
         try {
-            TypeDefinitionRegistry schema = new SchemaParser().buildRegistry(loadSchema().get());
+            SchemaParser parser = new SchemaParser();
+            TypeDefinitionRegistry schema = parser.buildRegistry(loadSchema().get());
             filterQueryType(schema, topLevelFields);
-            this.schema = schema;
-        } catch (IOException | InterruptedException | ExecutionException e) {
+            this.publicSchema = schema;
+            this.privateSchema = parser.buildRegistry(loadSchema().get());
+
+        } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
     public TypeDefinitionRegistry getSchema() {
-        return schema;
+        return publicSchema;
+    }
+
+    @Override
+    public TypeDefinitionRegistry getPrivateSchema() {
+        return privateSchema;
     }
 
     @Override
@@ -84,7 +91,7 @@ public class RemoteSchemaSource<C> implements SchemaSource<C> {
         });
     }
 
-    private CompletableFuture<Document> loadSchema() throws IOException {
+    private CompletableFuture<Document> loadSchema() {
         return remoteRetriever.queryIntrospectionSchema().thenApply(response ->
                 castNullableMap(response.get("data"), String.class, Object.class)
                         .map(data -> new IntrospectionResultToSchema().createSchemaDefinition(data))
