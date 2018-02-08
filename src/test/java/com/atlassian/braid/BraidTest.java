@@ -5,7 +5,6 @@ import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SuppressWarnings("unchecked")
 public class BraidTest {
 
     @Rule
@@ -44,13 +43,16 @@ public class BraidTest {
     }
 
     @Test
-    public void testBraidWithTypename() {}
+    public void testBraidWithTypename() {
+    }
 
     @Test
-    public void testBraidWithLinkFromSiblingField() {}
+    public void testBraidWithLinkFromSiblingField() {
+    }
 
     @Test
-    public void testBraidWithLinkFromSiblingFieldButNoFromFieldInQuery() {}
+    public void testBraidWithLinkFromSiblingFieldButNoFromFieldInQuery() {
+    }
 
     @Test
     public void testBraidWithInterface() {

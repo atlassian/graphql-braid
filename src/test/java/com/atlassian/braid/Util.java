@@ -1,16 +1,16 @@
 package com.atlassian.braid;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import graphql.language.Document;
+import com.google.common.base.Charsets;
 import graphql.schema.idl.SchemaParser;
 import graphql.schema.idl.TypeDefinitionRegistry;
 import org.antlr.v4.runtime.misc.ParseCancellationException;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
-import java.util.Map;
+import java.io.UnsupportedEncodingException;
 
 
 class Util {
@@ -25,12 +25,20 @@ class Util {
         }
     }
 
-    static String read(String schemaPath) throws IOException {
-        try {
-            return read(new InputStreamReader(Util.class.getResourceAsStream(schemaPath)));
+    static String read(String path) throws IOException {
+        try (Reader reader = getResourceAsReader(path)) {
+            return read(reader);
         } catch (IOException ex) {
-            throw new RuntimeException("Can't find " + schemaPath, ex);
+            throw new RuntimeException("Issue reading resource at '" + path + "'", ex);
         }
+    }
+
+    private static InputStreamReader getResourceAsReader(String schemaPath) throws UnsupportedEncodingException {
+        return new InputStreamReader(getResourceAsStream(schemaPath), Charsets.UTF_8.name());
+    }
+
+    private static InputStream getResourceAsStream(String schemaPath) {
+        return Util.class.getResourceAsStream(schemaPath);
     }
 
     private static String read(Reader reader) throws IOException {

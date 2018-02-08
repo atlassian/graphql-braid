@@ -5,10 +5,12 @@ import com.atlassian.braid.source.MapGraphQLError;
 import graphql.ExecutionInput;
 import graphql.ExecutionResult;
 import graphql.GraphQL;
+import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
 import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation;
 import graphql.parser.Parser;
 import graphql.schema.idl.SchemaParser;
+import graphql.schema.idl.TypeDefinitionRegistry;
 import org.dataloader.DataLoaderRegistry;
 import org.junit.rules.MethodRule;
 import org.junit.runners.model.FrameworkMethod;
@@ -18,20 +20,25 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
+import static com.atlassian.braid.Collections.castMap;
+import static com.atlassian.braid.Collections.getListValue;
+import static com.atlassian.braid.Collections.getMapValue;
 import static com.atlassian.braid.Util.read;
+import static graphql.GraphQL.newGraphQL;
 import static graphql.schema.idl.RuntimeWiring.newRuntimeWiring;
 import static java.util.Collections.emptyList;
+import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
+import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertEquals;
 
 /**
  * Executes a test by using the test name to find a yml file containing all the information to execute and test a
  * graphql scenario
  */
-@SuppressWarnings("unchecked")
 public class YamlBraidExecutionRule implements MethodRule {
 
     @SuppressWarnings("WeakerAccess")
@@ -45,32 +52,41 @@ public class YamlBraidExecutionRule implements MethodRule {
             @Override
             public void evaluate() throws Throwable {
                 try {
-                    Map<String, Object> config = (Map<String, Object>) new Yaml().load(
-                            read(method.getName() + ".yml"));
+                    TestConfiguration config = loadFromYaml(getYamlPath(method));
 
-                    braid = new SchemaBraid().braid(SchemaBraidConfiguration.<DefaultBraidContext>builder()
-                            .schemaSources(loadSchemaSources(config))
-                            .runtimeWiringBuilder(newRuntimeWiring().type("Fooable", wriing -> wriing.typeResolver(blah -> null)))
-                            .build());
-                    DataLoaderRegistry dataLoaderRegistry = braid.newDataLoaderRegistry();
-                    GraphQL graphql = GraphQL.newGraphQL(braid.getSchema())
+                    braid = new SchemaBraid<>()
+                            .braid(SchemaBraidConfiguration.builder()
+                                    .schemaSources(loadSchemaSources(config))
+                                    .runtimeWiringBuilder(newRuntimeWiring()
+                                            .type("Fooable", wiring -> wiring.typeResolver(__ -> null)))
+                                    .build());
+
+                    final DataLoaderRegistry dataLoaderRegistry = braid.newDataLoaderRegistry();
+
+                    final GraphQL graphql = newGraphQL(braid.getSchema())
                             .instrumentation(new DataLoaderDispatcherInstrumentation(dataLoaderRegistry))
                             .build();
 
-                    Map<String, Object> req = (Map<String, Object>) config.get("request");
+                    final TestQuery request = config.getRequest();
+
+                    final BraidContext context =
+                            new DefaultBraidContext(dataLoaderRegistry, request.getVariables(), request.getQuery());
+
                     ExecutionInput.Builder executionInputBuilder = ExecutionInput.newExecutionInput()
-                            .query((String) req.get("query"))
-                            .variables((Map<String, Object>) req.get("variables"))
-                            .context(new DefaultBraidContext(dataLoaderRegistry, (Map<String, Object>) req.get("variables"), (String) req.get("query")));
-                    if (req.containsKey("operation")) {
-                        executionInputBuilder.operationName((String) req.get("operation"));
-                    }
+                            .query(request.getQuery())
+                            .variables(request.getVariables())
+                            .context(context);
+
+                    request.getOperation().ifPresent(executionInputBuilder::operationName);
+
                     executionResult = graphql.execute(executionInputBuilder);
 
                     Map<String, Object> data = executionResult.getData();
-                    Map<String, Object> response = (Map<String, Object>) config.get("response");
-                    assertEquals(response.get("errors"), executionResult.getErrors().stream().map(e -> e.toSpecification()).collect(Collectors.toList()));
+                    Map<String, Object> response = config.getResponse();
+
+                    assertEquals(response.get("errors"), toSpecification(executionResult.getErrors()));
                     assertEquals(response.get("data"), data);
+
                     base.evaluate();
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -79,51 +95,172 @@ public class YamlBraidExecutionRule implements MethodRule {
         };
     }
 
-    private List<SchemaSource<DefaultBraidContext>> loadSchemaSources(Map<String, Object> config) {
+
+    private List<SchemaSource<BraidContext>> loadSchemaSources(TestConfiguration config) {
         GraphQLQueryPrinter printer = new GraphQLQueryPrinter();
-        return ((List<Map<String, Object>>) config.get("schemaSources")).stream()
-                .map(m -> new LocalSchemaSource<DefaultBraidContext>(
-                        SchemaNamespace.of((String) m.get("name")),
-                        new SchemaParser().parse((String) m.get("schema")),
-                        ofNullable((List<Map<String, Map<String, String>>>) m.get("links"))
-                                .map(links -> links.stream().map(
-                                        l -> {
-                                            Link.LinkBuilder link = Link.from(
-                                                    SchemaNamespace.of("name)"),
-                                                    l.get("from").get("type"),
-                                                    l.get("from").get("field"),
-                                                    l.get("from").getOrDefault("fromField",
-                                                            l.get("from").get("field")))
-                                                    .to(
-                                                            SchemaNamespace.of(l.get("to").get("namespace")),
-                                                            l.get("to").get("type"),
-                                                            l.get("to").get("field")
-                                                    );
-                                            ofNullable(l.get("to").get("argument")).ifPresent(link::argument);
-                                            return link.build();
-                                        })
-                                        .collect(Collectors.toList()))
-                                .orElse(emptyList()),
-                        mapInputToResult(printer, m))
+        return config.getSchemaSources()
+                .stream()
+                .map(schemaSource -> new LocalSchemaSource<BraidContext>(
+                        schemaSource.getNamespace(),
+                        schemaSource.getTypeDefinitionRegistry(),
+                        getLinks(schemaSource),
+                        mapInputToResult(printer, schemaSource))
                 )
-                .collect(Collectors.toList());
+                .collect(toList());
     }
 
-    private Function<ExecutionInput, Object> mapInputToResult(GraphQLQueryPrinter printer, Map<String, Object> m) {
+    private List<Link> getLinks(TestSchemaSource schemaSource) {
+        return schemaSource.getLinks()
+                .map(links -> links.stream().map(l -> this.getLink(schemaSource, l)).collect(toList()))
+                .orElse(emptyList());
+    }
+
+    private Link getLink(TestSchemaSource schemaSource, Map<String, Map<String, String>> l) {
+        Link.LinkBuilder link = Link.from(
+                schemaSource.getNamespace(),
+                l.get("from").get("type"),
+                l.get("from").get("field"),
+                l.get("from").getOrDefault("fromField",
+                        l.get("from").get("field")))
+                .to(
+                        SchemaNamespace.of(l.get("to").get("namespace")),
+                        l.get("to").get("type"),
+                        l.get("to").get("field")
+                );
+        ofNullable(l.get("to").get("argument")).ifPresent(link::argument);
+        return link.build();
+    }
+
+    private Function<ExecutionInput, Object> mapInputToResult(GraphQLQueryPrinter printer, TestSchemaSource schemaSource) {
         return input -> {
-            Map<String, Object> expected = (Map<String, Object>) m.get("expected");
-            assertEquals(printer.print(new Parser().parseDocument((String) expected.get("query"))),
-                    printer.print(new Parser().parseDocument(input.getQuery())));
-            assertEquals(expected.get("variables"), input.getVariables());
-            String operation = (String) expected.get("operation");
-            if (operation != null) {
-                assertEquals(operation, input.getOperationName());
-            }
-            Map<String, Object> response = (Map<String, Object>) m.get("response");
-            return new DataFetcherResult(response.get("data"),
-                    ((List<Map<String, Object>>) response.get("errors")).stream()
-                            .map(MapGraphQLError::new)
-                            .collect(Collectors.toList()));
+            final TestQuery expected = schemaSource.getExpected();
+
+            assertEquals(printQuery(printer, expected.getQuery()), printQuery(printer, input.getQuery()));
+            assertEquals(expected.getVariables(), input.getVariables());
+            expected.getOperation().ifPresent(operation -> assertEquals(operation, input.getOperationName()));
+
+            TestResponse response = schemaSource.getResponse();
+            return new DataFetcherResult<>(response.getData(), response.getGraphQLErrors());
         };
+    }
+
+    private String printQuery(GraphQLQueryPrinter printer, String query) {
+        return printer.print(new Parser().parseDocument(query));
+    }
+
+    private List<Map<String, Object>> toSpecification(List<GraphQLError> errors) {
+        return errors.stream().map(GraphQLError::toSpecification).collect(toList());
+    }
+
+    private static TestConfiguration loadFromYaml(String path) throws IOException {
+        return new TestConfiguration(loadYamlAsMap(path));
+    }
+
+    private static Map<String, Object> loadYamlAsMap(String path) throws IOException {
+        return castMap(new Yaml().loadAs(read(path), Map.class));
+    }
+
+    private static String getYamlPath(FrameworkMethod method) {
+        return method.getName() + ".yml";
+    }
+
+    private static class TestConfiguration {
+
+        private final Map<String, Object> configMap;
+
+        private TestConfiguration(Map<String, Object> configMap) {
+            this.configMap = requireNonNull(configMap);
+        }
+
+        TestQuery getRequest() {
+            return new TestQuery(getMapValue(configMap, "request"));
+        }
+
+        List<TestSchemaSource> getSchemaSources() {
+            return Collections.<String, Map<String, Object>>getListValue(configMap, "schemaSources")
+                    .stream()
+                    .map(TestSchemaSource::new)
+                    .collect(toList());
+        }
+
+        Map<String, Object> getResponse() {
+            return getMapValue(configMap, "response");
+        }
+    }
+
+    private static class TestQuery {
+        private final Map<String, Object> requestMap;
+
+        private TestQuery(Map<String, Object> requestMap) {
+            this.requestMap = requireNonNull(requestMap);
+        }
+
+        String getQuery() {
+            return (String) requestMap.get("query");
+        }
+
+        Map<String, Object> getVariables() {
+            return getMapValue(requestMap, "variables");
+        }
+
+        Optional<String> getOperation() {
+            return Optional.ofNullable(requestMap.get("operation")).map(String.class::cast);
+        }
+    }
+
+    private static class TestSchemaSource {
+        private final Map<String, Object> schemaSourceMap;
+
+        private TestSchemaSource(Map<String, Object> schemaSourceMap) {
+            this.schemaSourceMap = requireNonNull(schemaSourceMap);
+        }
+
+        SchemaNamespace getNamespace() {
+            return SchemaNamespace.of(getName());
+        }
+
+        TypeDefinitionRegistry getTypeDefinitionRegistry() {
+            return new SchemaParser().parse(getSchema());
+        }
+
+        String getName() {
+            return (String) schemaSourceMap.get("name");
+        }
+
+        String getSchema() {
+            return (String) schemaSourceMap.get("schema");
+        }
+
+        Optional<List<Map<String, Map<String, String>>>> getLinks() {
+            return Optional.ofNullable(getListValue(schemaSourceMap, "links"));
+        }
+
+        TestQuery getExpected() {
+            return new TestQuery(getMapValue(schemaSourceMap, "expected"));
+        }
+
+        TestResponse getResponse() {
+            return new TestResponse(getMapValue(schemaSourceMap, "response"));
+        }
+    }
+
+    private static class TestResponse {
+        private final Map<String, Object> responseMap;
+
+        private TestResponse(Map<String, Object> responseMap) {
+            this.responseMap = requireNonNull(responseMap);
+        }
+
+        Map<String, Object> getData() {
+            return getMapValue(responseMap, "data");
+        }
+
+        List<Map<String, Object>> getErrors() {
+            return getListValue(responseMap, "errors");
+        }
+
+        List<GraphQLError> getGraphQLErrors() {
+            return getErrors().stream().map(MapGraphQLError::new).collect(toList());
+        }
     }
 }
