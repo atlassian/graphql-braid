@@ -35,7 +35,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static com.atlassian.braid.TypeUtils.findQueryType;
+import static com.atlassian.braid.TypeUtils.findQueryFieldDefinitions;
 import static graphql.introspection.Introspection.TypeNameMetaFieldDef;
 import static java.util.Collections.singletonList;
 
@@ -48,6 +48,7 @@ class QueryExecutor implements BatchLoaderFactory {
     public <C extends BraidContext> BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
         return environments -> query(schemaSource, environments, link);
     }
+
     @SuppressWarnings("Duplicates")
     <C extends BraidContext> CompletableFuture<List<DataFetcherResult<Map<String, Object>>>> query(SchemaSource<C> schemaSource, List<DataFetchingEnvironment> environments, Link link) {
         Document doc = new Document();
@@ -151,8 +152,9 @@ class QueryExecutor implements BatchLoaderFactory {
     }
 
     private Type findVariableType(VariableReference varRef, OperationDefinition queryType) {
-        return queryType.getVariableDefinitions().stream().filter(d ->
-            d.getName().equals(varRef.getName()))
+        return queryType.getVariableDefinitions()
+                .stream()
+                .filter(d -> d.getName().equals(varRef.getName()))
                 .map(VariableDefinition::getType)
                 .findFirst()
                 .orElseThrow(IllegalArgumentException::new);
@@ -168,10 +170,10 @@ class QueryExecutor implements BatchLoaderFactory {
             queryResults.add(new DataFetcherResult<>(
                     fieldData,
                     result.getErrors().stream()
-                        .filter(e -> e.getPath() == null || e.getPath().isEmpty()
-                                || field.getAlias().equals(e.getPath().get(0)))
-                        .map(RelativeGraphQLError::new)
-                        .collect(Collectors.toList())
+                            .filter(e -> e.getPath() == null || e.getPath().isEmpty()
+                                    || field.getAlias().equals(e.getPath().get(0)))
+                            .map(RelativeGraphQLError::new)
+                            .collect(Collectors.toList())
             ));
         }
         return queryResults;
@@ -186,7 +188,9 @@ class QueryExecutor implements BatchLoaderFactory {
     }
 
     private <C extends BraidContext> Type findArgumentType(SchemaSource<C> schemaSource, Link link) {
-        return findQueryType(schemaSource.getPrivateSchema()).getFieldDefinitions().stream()
+        return findQueryFieldDefinitions(schemaSource.getPrivateSchema())
+                .orElseThrow(IllegalStateException::new)
+                .stream()
                 .filter(f -> f.getName().equals(link.getTargetField()))
                 .findFirst()
                 .map(f -> f.getInputValueDefinitions().stream()
@@ -230,7 +234,7 @@ class QueryExecutor implements BatchLoaderFactory {
                 }
 
                 while (type instanceof GraphQLModifiedType) {
-                    type = ((GraphQLModifiedType)type).getWrappedType();
+                    type = ((GraphQLModifiedType) type).getWrappedType();
                 }
                 lastFieldType = (GraphQLOutputType) type;
                 super.visitField(node);
@@ -274,7 +278,7 @@ class QueryExecutor implements BatchLoaderFactory {
             private void removeSourceFieldIfDifferentThanFromField(SelectionSet node, Link link) {
                 node.getSelections().stream()
                         .filter(s -> s instanceof Field
-                                && ((Field)s).getName().equals(link.getSourceField()))
+                                && ((Field) s).getName().equals(link.getSourceField()))
                         .findAny()
                         .ifPresent(s -> node.getSelections().remove(s));
             }
