@@ -48,7 +48,7 @@ schemaSources:
       }
     expected:
       query: |
-        query Bulk_Bar($id100: String!, $bazid100: String) {
+        query Bulk_Bar($bazid100: String, $id100: String!) {
             bar100: bar(id: $id100) {
                 id
                 title

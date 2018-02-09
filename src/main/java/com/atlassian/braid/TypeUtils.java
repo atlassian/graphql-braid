@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -21,8 +22,11 @@ import static java.util.stream.Collectors.toList;
  */
 public class TypeUtils {
 
-    private static final String DEFAULT_QUERY_TYPE_NAME = "Query";
     private static final String QUERY_FIELD_NAME = "query";
+    private static final String MUTATION_FIELD_NAME = "mutation";
+
+    private static final String DEFAULT_QUERY_TYPE_NAME = "Query";
+    private static final String DEFAULT_MUTATION_TYPE_NAME = "Mutation";
 
     /**
      * Creates an <em>emtpy</em> schema definition if the registry doesn't have one already
@@ -39,22 +43,35 @@ public class TypeUtils {
     /**
      * Creates a default query type definition and adds it to the given registry
      *
-     * @param typeRegistry the type registry to complete
+     * @param registry the type registry to complete
      * @return the created query type definition
      */
-    static ObjectTypeDefinition createDefaultQueryTypeDefinition(TypeDefinitionRegistry typeRegistry) {
-        OperationTypeDefinition queryOperationTypeDefinition =
-                new OperationTypeDefinition(QUERY_FIELD_NAME, new TypeName(DEFAULT_QUERY_TYPE_NAME));
+    static ObjectTypeDefinition createDefaultQueryTypeDefinition(TypeDefinitionRegistry registry) {
+        return createOperationTypeDefinition(registry, QUERY_FIELD_NAME, DEFAULT_QUERY_TYPE_NAME);
+    }
 
-        typeRegistry.schemaDefinition()
+    /**
+     * Creates a default mutation type definition and adds it to the given registry
+     *
+     * @param registry the type registry to complete
+     * @return the created query type definition
+     */
+    static ObjectTypeDefinition createDefaultMutationTypeDefinition(TypeDefinitionRegistry registry) {
+        return createOperationTypeDefinition(registry, MUTATION_FIELD_NAME, DEFAULT_MUTATION_TYPE_NAME);
+    }
+
+    private static ObjectTypeDefinition createOperationTypeDefinition(TypeDefinitionRegistry registry,
+                                                                      String operationFieldName,
+                                                                      String operationTypeName) {
+        registry.schemaDefinition()
                 .orElseThrow(IllegalStateException::new) // by now the schema definition should have been created
                 .getOperationTypeDefinitions()
-                .add(queryOperationTypeDefinition);
+                .add(new OperationTypeDefinition(operationFieldName, new TypeName(operationTypeName)));
 
-        final ObjectTypeDefinition queryObjectTypeDefinition = new ObjectTypeDefinition(DEFAULT_QUERY_TYPE_NAME);
-        typeRegistry.add(queryObjectTypeDefinition);
+        final ObjectTypeDefinition mutationObjectTypeDefinition = new ObjectTypeDefinition(operationTypeName);
+        registry.add(mutationObjectTypeDefinition);
 
-        return queryObjectTypeDefinition;
+        return mutationObjectTypeDefinition;
     }
 
     /**
@@ -76,8 +93,23 @@ public class TypeUtils {
      */
 
     static Optional<ObjectTypeDefinition> findQueryType(TypeDefinitionRegistry registry) throws IllegalArgumentException {
+        return findOperationType(registry, TypeUtils::isQueryOperation);
+    }
+
+    /**
+     * Finds the query type definition.
+     *
+     * @param registry the type registry to look into
+     * @return the optional query type
+     */
+
+    static Optional<ObjectTypeDefinition> findMutationType(TypeDefinitionRegistry registry) throws IllegalArgumentException {
+        return findOperationType(registry, TypeUtils::isMutationOperation);
+    }
+
+    private static Optional<ObjectTypeDefinition> findOperationType(TypeDefinitionRegistry registry, Predicate<OperationTypeDefinition> isQueryOperation) {
         return findOperationDefinitions(registry)
-                .flatMap(TypeUtils::findQueryOperationDefinition)
+                .flatMap(definitions -> findOperationDefinition(definitions, isQueryOperation))
                 .flatMap(getObjectTypeDefinition(registry));
     }
 
@@ -93,10 +125,19 @@ public class TypeUtils {
     }
 
 
-    private static Optional<OperationTypeDefinition> findQueryOperationDefinition(List<OperationTypeDefinition> definitions) {
+    private static Optional<OperationTypeDefinition> findOperationDefinition(List<OperationTypeDefinition> definitions,
+                                                                             Predicate<OperationTypeDefinition> isOperation) {
         return definitions.stream()
-                .filter(d -> Objects.equals(d.getName(), QUERY_FIELD_NAME))
+                .filter(isOperation)
                 .findFirst();
+    }
+
+    private static boolean isQueryOperation(OperationTypeDefinition operationTypeDefinition) {
+        return Objects.equals(operationTypeDefinition.getName(), QUERY_FIELD_NAME);
+    }
+
+    private static boolean isMutationOperation(OperationTypeDefinition operationTypeDefinition) {
+        return Objects.equals(operationTypeDefinition.getName(), MUTATION_FIELD_NAME);
     }
 
     /**
