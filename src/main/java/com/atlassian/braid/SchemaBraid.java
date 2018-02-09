@@ -10,6 +10,7 @@ import graphql.schema.GraphQLSchema;
 import graphql.schema.idl.RuntimeWiring;
 import graphql.schema.idl.SchemaGenerator;
 import graphql.schema.idl.TypeDefinitionRegistry;
+import graphql.schema.idl.TypeRuntimeWiring;
 import org.dataloader.BatchLoader;
 import org.dataloader.DataLoaderRegistry;
 
@@ -22,8 +23,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.atlassian.braid.TypeUtils.createDefaultMutationTypeDefinition;
 import static com.atlassian.braid.TypeUtils.createDefaultQueryTypeDefinition;
 import static com.atlassian.braid.TypeUtils.createSchemaDefinitionIfNecessary;
+import static com.atlassian.braid.TypeUtils.findMutationType;
 import static com.atlassian.braid.TypeUtils.findOperationTypes;
 import static com.atlassian.braid.TypeUtils.findQueryType;
 import static java.lang.String.format;
@@ -72,10 +75,14 @@ public class SchemaBraid<C extends BraidContext> {
                 findQueryType(braidTypeRegistry)
                         .orElseGet(() -> createDefaultQueryTypeDefinition(braidTypeRegistry));
 
+        final ObjectTypeDefinition mutationObjectTypeDefinition =
+                findMutationType(braidTypeRegistry)
+                        .orElseGet(() -> createDefaultMutationTypeDefinition(braidTypeRegistry));
+
         final RuntimeWiring.Builder wiringBuilder = config.getRuntimeWiringBuilder();
 
         final List<BatchLoader> batchLoaders =
-                addDataSources(dataSourceTypes, braidTypeRegistry, queryObjectTypeDefinition, wiringBuilder);
+                addDataSources(dataSourceTypes, braidTypeRegistry, wiringBuilder, queryObjectTypeDefinition, mutationObjectTypeDefinition);
 
         final GraphQLSchema graphQLSchema = new SchemaGenerator()
                 .makeExecutableSchema(braidTypeRegistry, wiringBuilder.build());
@@ -85,18 +92,22 @@ public class SchemaBraid<C extends BraidContext> {
 
     private List<BatchLoader> addDataSources(Map<SchemaNamespace, Source<C>> dataSources,
                                              TypeDefinitionRegistry registry,
+                                             RuntimeWiring.Builder runtimeWiringBuilder,
                                              ObjectTypeDefinition queryObjectTypeDefinition,
-                                             RuntimeWiring.Builder runtimeWiringBuilder) {
+                                             ObjectTypeDefinition mutationObjectTypeDefinition) {
         addAllNonOperationTypes(dataSources, registry);
 
         final List<BatchLoader> queryFieldsBatchLoaders =
-                addSchemaSourcesTopLevelFieldsToQuery(dataSources, queryObjectTypeDefinition, runtimeWiringBuilder);
+                addSchemaSourcesTopLevelFieldsToQuery(dataSources, runtimeWiringBuilder, queryObjectTypeDefinition);
+
+        final List<BatchLoader> mutationFieldsBatchLoaders =
+                addSchemaSourcesTopLevelFieldsToMutation(dataSources, runtimeWiringBuilder, mutationObjectTypeDefinition);
 
         final List<BatchLoader> linkedTypesBatchLoaders = linkTypes(dataSources, runtimeWiringBuilder);
 
-
         List<BatchLoader> batchLoaders = new LinkedList<>();
         batchLoaders.addAll(queryFieldsBatchLoaders);
+        batchLoaders.addAll(mutationFieldsBatchLoaders);
         batchLoaders.addAll(linkedTypesBatchLoaders);
         return batchLoaders;
     }
@@ -105,51 +116,128 @@ public class SchemaBraid<C extends BraidContext> {
         dataSources.values().forEach(source -> source.getNonOperationTypes().forEach(registry::add));
     }
 
-    private List<BatchLoader> addSchemaSourcesTopLevelFieldsToQuery(
-            Map<SchemaNamespace, Source<C>> sources, ObjectTypeDefinition braidQueryType,
-            RuntimeWiring.Builder wiringBuilder) {
-        return sources.values()
+    private List<BatchLoader> addSchemaSourcesTopLevelFieldsToQuery(Map<SchemaNamespace, Source<C>> dataSources,
+                                                                    RuntimeWiring.Builder runtimeWiringBuilder,
+                                                                    ObjectTypeDefinition braidQueryType) {
+        return dataSources.values()
                 .stream()
-                .map(source -> addSchemaSourceTopLevelFieldsToQuery(braidQueryType, source, wiringBuilder))
+                .map(source -> addSchemaSourceTopLevelFieldsToQuery(source, runtimeWiringBuilder, braidQueryType))
                 .flatMap(Collection::stream)
                 .collect(toList());
     }
 
-    private List<BatchLoader> addSchemaSourceTopLevelFieldsToQuery(
-            ObjectTypeDefinition braidQueryType,
-            Source<C> source,
-            RuntimeWiring.Builder wiringBuilder) {
+    private List<BatchLoader> addSchemaSourcesTopLevelFieldsToMutation(Map<SchemaNamespace, Source<C>> dataSources,
+                                                                       RuntimeWiring.Builder runtimeWiringBuilder,
+                                                                       ObjectTypeDefinition braidQueryType) {
+        return dataSources.values()
+                .stream()
+                .map(source -> addSchemaSourceTopLevelFieldsToMutation(source, runtimeWiringBuilder, braidQueryType))
+                .flatMap(Collection::stream)
+                .collect(toList());
+    }
 
-        return findQueryType(source.registry)
-                .map(sourceQueryType -> addSchemaSourceTopLevelFieldsToQuery(braidQueryType, wiringBuilder, sourceQueryType, source.schemaSource))
+    private List<BatchLoader> addSchemaSourceTopLevelFieldsToMutation(
+            Source<C> source, RuntimeWiring.Builder wiringBuilder, ObjectTypeDefinition braidQueryType) {
+
+        return findMutationType(source.registry)
+                .map(sourceQueryType -> addSchemaSourceTopLevelFieldsToMutation(source.schemaSource, wiringBuilder, braidQueryType, sourceQueryType))
                 .orElse(emptyList());
     }
 
     private List<BatchLoader> addSchemaSourceTopLevelFieldsToQuery(
-            ObjectTypeDefinition braidQueryType,
-            RuntimeWiring.Builder wiringBuilder,
-            ObjectTypeDefinition sourceQueryType,
-            SchemaSource<C> schemaSource) {
+            Source<C> source, RuntimeWiring.Builder wiringBuilder, ObjectTypeDefinition braidQueryType) {
 
-        List<BatchLoader> result = new ArrayList<>();
+        return findQueryType(source.registry)
+                .map(sourceQueryType -> addSchemaSourceTopLevelFieldsToQuery(source.schemaSource, wiringBuilder, braidQueryType, sourceQueryType))
+                .orElse(emptyList());
+    }
+
+    private List<BatchLoader> addSchemaSourceTopLevelFieldsToQuery(
+            SchemaSource<C> schemaSource,
+            RuntimeWiring.Builder runtimeWiringBuilder,
+            ObjectTypeDefinition queryType,
+            ObjectTypeDefinition sourceQueryType) {
+
+        final List<BatchLoader> result = new ArrayList<>();
 
         // todo: smarter merge, optional namespacing, etc
-        braidQueryType.getFieldDefinitions().addAll(sourceQueryType.getFieldDefinitions());
+        queryType.getFieldDefinitions().addAll(sourceQueryType.getFieldDefinitions());
 
-        wiringBuilder.type(braidQueryType.getName(), typeWiring -> {
-            for (FieldDefinition queryField : sourceQueryType.getFieldDefinitions()) {
-                BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> batchLoader = buildBatchLoader(schemaSource, null);
-                result.add(batchLoader);
-                typeWiring.dataFetcher(queryField.getName(), environment -> {
-                            DataLoaderRegistry registry = environment.<BraidContext>getContext().getDataLoaderRegistry();
-                            return registry.getDataLoader(batchLoader.toString()).load(environment);
-                        }
-                );
-            }
-            return typeWiring;
-        });
+        runtimeWiringBuilder.type(queryType.getName(),
+                typeRuntimeWiringBuilder -> {
+                    result.addAll(wireQueryFields(typeRuntimeWiringBuilder, schemaSource, sourceQueryType));
+                    return typeRuntimeWiringBuilder;
+                });
 
         return result;
+    }
+
+    private List<BatchLoader> addSchemaSourceTopLevelFieldsToMutation(
+            SchemaSource<C> schemaSource,
+            RuntimeWiring.Builder runtimeWiringBuilder,
+            ObjectTypeDefinition queryType,
+            ObjectTypeDefinition sourceQueryType) {
+
+        final List<BatchLoader> result = new ArrayList<>();
+
+        // todo: smarter merge, optional namespacing, etc
+        queryType.getFieldDefinitions().addAll(sourceQueryType.getFieldDefinitions());
+
+        runtimeWiringBuilder.type(queryType.getName(),
+                typeRuntimeWiringBuilder -> {
+                    result.addAll(wireMutationFields(typeRuntimeWiringBuilder, schemaSource, sourceQueryType));
+                    return typeRuntimeWiringBuilder;
+                });
+
+        return result;
+    }
+
+    private List<BatchLoader> wireMutationFields(TypeRuntimeWiring.Builder typeRuntimeWiringBuilder,
+                                                 SchemaSource<C> schemaSource,
+                                                 ObjectTypeDefinition sourceQueryType) {
+        return sourceQueryType.getFieldDefinitions().stream()
+                .map(queryField -> wireMutationField(typeRuntimeWiringBuilder, schemaSource, queryField))
+                .collect(toList());
+    }
+
+    private BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> wireMutationField(
+            TypeRuntimeWiring.Builder typeRuntimeWiringBuilder,
+            SchemaSource<C> schemaSource,
+            FieldDefinition mutationField) {
+
+        BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> batchLoader =
+                newBatchLoader(schemaSource, null);
+
+        typeRuntimeWiringBuilder.dataFetcher(mutationField.getName(), environment -> {
+            DataLoaderRegistry registry = environment.<BraidContext>getContext().getDataLoaderRegistry();
+            return registry.getDataLoader(batchLoader.toString()).load(environment);
+        });
+
+        return batchLoader;
+    }
+
+    private List<BatchLoader> wireQueryFields(TypeRuntimeWiring.Builder typeRuntimeWiringBuilder,
+                                              SchemaSource<C> schemaSource,
+                                              ObjectTypeDefinition sourceQueryType) {
+        return sourceQueryType.getFieldDefinitions().stream()
+                .map(queryField -> wireQueryField(typeRuntimeWiringBuilder, schemaSource, queryField))
+                .collect(toList());
+    }
+
+    private BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> wireQueryField(
+            TypeRuntimeWiring.Builder typeRuntimeWiringBuilder,
+            SchemaSource<C> schemaSource,
+            FieldDefinition queryField) {
+
+        BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> batchLoader =
+                newBatchLoader(schemaSource, null);
+
+        typeRuntimeWiringBuilder.dataFetcher(queryField.getName(), environment -> {
+            DataLoaderRegistry registry = environment.<BraidContext>getContext().getDataLoaderRegistry();
+            return registry.getDataLoader(batchLoader.toString()).load(environment);
+        });
+
+        return batchLoader;
     }
 
     private List<BatchLoader> linkTypes(Map<SchemaNamespace, Source<C>> sources, RuntimeWiring.Builder wiringBuilder) {
@@ -185,7 +273,7 @@ public class SchemaBraid<C extends BraidContext> {
                     sourceField.get().setType(targetType);
                 }
 
-                BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> batchLoader = buildBatchLoader(targetSource.schemaSource, link);
+                BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> batchLoader = newBatchLoader(targetSource.schemaSource, link);
                 batchLoaders.add(batchLoader);
 
                 // wire in the field resolver to the target data source
@@ -199,7 +287,7 @@ public class SchemaBraid<C extends BraidContext> {
         return batchLoaders;
     }
 
-    private BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> buildBatchLoader(SchemaSource<C> schemaSource, Link link) {
+    private BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
         // We use DataFetchingEnvironment as the key in the BatchLoader because different fetches of the object may
         // request different fields. Someday we may smartly combine them into one somehow, but that day isn't today.
         if (schemaSource instanceof BatchLoaderFactory) {
