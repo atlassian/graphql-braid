@@ -11,6 +11,10 @@ public class BraidTest {
     public YamlBraidExecutionRule rule = new YamlBraidExecutionRule();
 
     @Test
+    public void testBraidWithMultipleSameAliasedQueries() {
+    }
+
+    @Test
     public void testBraidWithExtraVariables() {
     }
 

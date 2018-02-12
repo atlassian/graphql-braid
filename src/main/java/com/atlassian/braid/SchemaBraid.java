@@ -1,14 +1,12 @@
 package com.atlassian.braid;
 
 import graphql.execution.DataFetcherResult;
-import graphql.language.Definition;
 import graphql.language.FieldDefinition;
 import graphql.language.ObjectTypeDefinition;
-import graphql.language.OperationTypeDefinition;
-import graphql.language.SchemaDefinition;
 import graphql.language.TypeDefinition;
 import graphql.language.TypeName;
 import graphql.schema.DataFetchingEnvironment;
+import graphql.schema.GraphQLSchema;
 import graphql.schema.idl.RuntimeWiring;
 import graphql.schema.idl.SchemaGenerator;
 import graphql.schema.idl.TypeDefinitionRegistry;
@@ -19,13 +17,19 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+import static com.atlassian.braid.TypeUtils.createDefaultQueryTypeDefinition;
+import static com.atlassian.braid.TypeUtils.createSchemaDefinitionIfNecessary;
+import static com.atlassian.braid.TypeUtils.findOperationTypes;
+import static com.atlassian.braid.TypeUtils.findQueryType;
 import static java.lang.String.format;
+import static java.util.Collections.emptyList;
+import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 /**
@@ -33,9 +37,6 @@ import static java.util.stream.Collectors.toMap;
  */
 @SuppressWarnings("WeakerAccess")
 public class SchemaBraid<C extends BraidContext> {
-
-    public static final String QUERY_TYPE_NAME = "Query";
-    public static final String QUERY_FIELD_NAME = "query";
 
     private final QueryExecutor queryExecutor;
 
@@ -46,7 +47,6 @@ public class SchemaBraid<C extends BraidContext> {
     SchemaBraid(QueryExecutor queryExecutor) {
         this.queryExecutor = queryExecutor;
     }
-
 
     @Deprecated
     public Braid braid(SchemaSource<C>... dataSources) {
@@ -62,81 +62,97 @@ public class SchemaBraid<C extends BraidContext> {
         return braid(configBuilder.build());
     }
 
-    public Braid braid(SchemaBraidConfiguration<C> configuration) {
-        Map<SchemaNamespace, Source<C>> dataSourceTypes = configuration.getSchemaSources().stream()
-                .collect(toMap(SchemaSource::getNamespace, Source::new));
+    public Braid braid(SchemaBraidConfiguration<C> config) {
+        final Map<SchemaNamespace, Source<C>> dataSourceTypes = collectDataSources(config);
 
-        TypeDefinitionRegistry allTypes = configuration.getTypeDefinitionRegistry();
-        SchemaDefinition schema = allTypes.schemaDefinition().orElseGet(() -> {
-            SchemaDefinition s = new SchemaDefinition();
-            allTypes.add(s);
-            return s;
-        });
+        final TypeDefinitionRegistry braidTypeRegistry =
+                createSchemaDefinitionIfNecessary(config.getTypeDefinitionRegistry());
 
-        ObjectTypeDefinition query = schema.getOperationTypeDefinitions().stream()
-                .filter(d -> d.getName().equals(QUERY_FIELD_NAME))
-                .findFirst()
-                .map(operType -> (ObjectTypeDefinition) allTypes.getType(operType.getType()).orElseThrow(IllegalArgumentException::new))
-                .orElseGet(() -> {
-                    OperationTypeDefinition definition = new OperationTypeDefinition(QUERY_FIELD_NAME, new TypeName(QUERY_TYPE_NAME));
-                    schema.getOperationTypeDefinitions().add(definition);
-                    ObjectTypeDefinition queryType = new ObjectTypeDefinition(QUERY_TYPE_NAME);
-                    allTypes.add(queryType);
-                    return queryType;
-                });
+        final ObjectTypeDefinition queryObjectTypeDefinition =
+                findQueryType(braidTypeRegistry)
+                        .orElseGet(() -> createDefaultQueryTypeDefinition(braidTypeRegistry));
 
-        RuntimeWiring.Builder wiringBuilder = configuration.getRuntimeWiringBuilder();
-        List<BatchLoader> queryBatchLoaders = addSchemaSourceTopLevelFieldsToQuery(query, dataSourceTypes, wiringBuilder);
-        List<BatchLoader> linkBatchLoaders = linkTypes(allTypes, dataSourceTypes, wiringBuilder);
+        final RuntimeWiring.Builder wiringBuilder = config.getRuntimeWiringBuilder();
 
-        SchemaGenerator schemaGenerator = new SchemaGenerator();
-        return new Braid(schemaGenerator.makeExecutableSchema(allTypes, wiringBuilder.build()), Stream.concat(
-                queryBatchLoaders.stream(),
-                linkBatchLoaders.stream()
-        ).collect(Collectors.toList()));
+        final List<BatchLoader> batchLoaders =
+                addDataSources(dataSourceTypes, braidTypeRegistry, queryObjectTypeDefinition, wiringBuilder);
+
+        final GraphQLSchema graphQLSchema = new SchemaGenerator()
+                .makeExecutableSchema(braidTypeRegistry, wiringBuilder.build());
+
+        return new Braid(graphQLSchema, batchLoaders);
+    }
+
+    private List<BatchLoader> addDataSources(Map<SchemaNamespace, Source<C>> dataSources,
+                                             TypeDefinitionRegistry registry,
+                                             ObjectTypeDefinition queryObjectTypeDefinition,
+                                             RuntimeWiring.Builder runtimeWiringBuilder) {
+        addAllNonOperationTypes(dataSources, registry);
+
+        final List<BatchLoader> queryFieldsBatchLoaders =
+                addSchemaSourcesTopLevelFieldsToQuery(dataSources, queryObjectTypeDefinition, runtimeWiringBuilder);
+
+        final List<BatchLoader> linkedTypesBatchLoaders = linkTypes(dataSources, runtimeWiringBuilder);
+
+
+        List<BatchLoader> batchLoaders = new LinkedList<>();
+        batchLoaders.addAll(queryFieldsBatchLoaders);
+        batchLoaders.addAll(linkedTypesBatchLoaders);
+        return batchLoaders;
+    }
+
+    private void addAllNonOperationTypes(Map<SchemaNamespace, Source<C>> dataSources, TypeDefinitionRegistry registry) {
+        dataSources.values().forEach(source -> source.getNonOperationTypes().forEach(registry::add));
+    }
+
+    private List<BatchLoader> addSchemaSourcesTopLevelFieldsToQuery(
+            Map<SchemaNamespace, Source<C>> sources, ObjectTypeDefinition braidQueryType,
+            RuntimeWiring.Builder wiringBuilder) {
+        return sources.values()
+                .stream()
+                .map(source -> addSchemaSourceTopLevelFieldsToQuery(braidQueryType, source, wiringBuilder))
+                .flatMap(Collection::stream)
+                .collect(toList());
     }
 
     private List<BatchLoader> addSchemaSourceTopLevelFieldsToQuery(
-            ObjectTypeDefinition query,
-            Map<SchemaNamespace, Source<C>> sources,
+            ObjectTypeDefinition braidQueryType,
+            Source<C> source,
             RuntimeWiring.Builder wiringBuilder) {
+
+        return findQueryType(source.registry)
+                .map(sourceQueryType -> addSchemaSourceTopLevelFieldsToQuery(braidQueryType, wiringBuilder, sourceQueryType, source.schemaSource))
+                .orElse(emptyList());
+    }
+
+    private List<BatchLoader> addSchemaSourceTopLevelFieldsToQuery(
+            ObjectTypeDefinition braidQueryType,
+            RuntimeWiring.Builder wiringBuilder,
+            ObjectTypeDefinition sourceQueryType,
+            SchemaSource<C> schemaSource) {
+
         List<BatchLoader> result = new ArrayList<>();
-        for (Source<C> source : sources.values()) {
-            TypeDefinitionRegistry typeRegistry = source.registry;
 
-            SchemaDefinition dsSchema = typeRegistry.schemaDefinition().orElseThrow(IllegalArgumentException::new);
-            OperationTypeDefinition dsQueryType = dsSchema.getOperationTypeDefinitions().stream()
-                    .filter(d -> d.getName().equals(QUERY_FIELD_NAME))
-                    .findFirst()
-                    .orElseThrow(IllegalArgumentException::new);
-            ObjectTypeDefinition dsQuery = (ObjectTypeDefinition) typeRegistry.getType(dsQueryType.getType())
-                    .orElseThrow(IllegalStateException::new);
-            HashMap<String, TypeDefinition> dsTypes = new HashMap<>(typeRegistry.types());
-            dsTypes.remove(dsQuery.getName());
+        // todo: smarter merge, optional namespacing, etc
+        braidQueryType.getFieldDefinitions().addAll(sourceQueryType.getFieldDefinitions());
 
-            // todo: smarter merge, optional namespacing, etc
-            query.getFieldDefinitions().addAll(dsQuery.getFieldDefinitions());
+        wiringBuilder.type(braidQueryType.getName(), typeWiring -> {
+            for (FieldDefinition queryField : sourceQueryType.getFieldDefinitions()) {
+                BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> batchLoader = buildBatchLoader(schemaSource, null);
+                result.add(batchLoader);
+                typeWiring.dataFetcher(queryField.getName(), environment -> {
+                            DataLoaderRegistry registry = environment.<BraidContext>getContext().getDataLoaderRegistry();
+                            return registry.getDataLoader(batchLoader.toString()).load(environment);
+                        }
+                );
+            }
+            return typeWiring;
+        });
 
-            wiringBuilder.type(query.getName(), typeWiring -> {
-                for (FieldDefinition queryField : dsQuery.getFieldDefinitions()) {
-                    BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> batchLoader = buildBatchLoader(source.schemaSource, null);
-                    result.add(batchLoader);
-                    typeWiring.dataFetcher(queryField.getName(), environment -> {
-                                DataLoaderRegistry registry = environment.<BraidContext>getContext().getDataLoaderRegistry();
-                                return registry.getDataLoader(batchLoader.toString()).load(environment);
-                            }
-                    );
-
-                }
-                return typeWiring;
-            });
-        }
         return result;
     }
 
-    private List<BatchLoader> linkTypes(TypeDefinitionRegistry allTypes, Map<SchemaNamespace, Source<C>> sources, RuntimeWiring.Builder wiringBuilder) {
-
-        List<Definition> definitionsToAdd = new ArrayList<>();
+    private List<BatchLoader> linkTypes(Map<SchemaNamespace, Source<C>> sources, RuntimeWiring.Builder wiringBuilder) {
         List<BatchLoader> batchLoaders = new ArrayList<>();
         for (Source<C> source : sources.values()) {
             TypeDefinitionRegistry typeRegistry = source.registry;
@@ -179,11 +195,7 @@ public class SchemaBraid<C extends BraidContext> {
                         }
                 ));
             }
-
-            // add all types but strip out operation types
-            definitionsToAdd.addAll(dsTypes.values().stream().filter(d -> !source.operationTypes.contains(d)).collect(Collectors.toList()));
         }
-        definitionsToAdd.forEach(allTypes::add);
         return batchLoaders;
     }
 
@@ -191,7 +203,7 @@ public class SchemaBraid<C extends BraidContext> {
         // We use DataFetchingEnvironment as the key in the BatchLoader because different fetches of the object may
         // request different fields. Someday we may smartly combine them into one somehow, but that day isn't today.
         if (schemaSource instanceof BatchLoaderFactory) {
-            return ((BatchLoaderFactory)schemaSource).newBatchLoader(schemaSource, link);
+            return ((BatchLoaderFactory) schemaSource).newBatchLoader(schemaSource, link);
         } else {
             return queryExecutor.newBatchLoader(schemaSource, link);
         }
@@ -207,20 +219,36 @@ public class SchemaBraid<C extends BraidContext> {
                                 format("Can't find source from field: %s", link.getSourceFromField())));
     }
 
-    private static class Source<C> {
+    private static <C extends BraidContext> Map<SchemaNamespace, Source<C>> collectDataSources(SchemaBraidConfiguration<C> config) {
+        return config.getSchemaSources()
+                .stream()
+                .collect(toMap(SchemaSource::getNamespace, Source::new));
+    }
+
+    private static final class Source<C> {
         private final SchemaSource<C> schemaSource;
         private final TypeDefinitionRegistry registry;
-        private final SchemaDefinition schema;
-        private final Collection<Definition> operationTypes;
+        private final Collection<? extends TypeDefinition> operationTypes;
 
         private Source(SchemaSource<C> schemaSource) {
-            this.schemaSource = schemaSource;
-
+            this.schemaSource = requireNonNull(schemaSource);
             this.registry = schemaSource.getSchema();
-            this.schema = registry.schemaDefinition().orElseThrow(IllegalArgumentException::new);
-            this.operationTypes = schema.getOperationTypeDefinitions().stream()
-                    .map(opType -> registry.getType(opType.getType()).orElseThrow(IllegalArgumentException::new))
-                    .collect(Collectors.toList());
+            this.operationTypes = findOperationTypes(registry);
+        }
+
+        Collection<? extends TypeDefinition> getNonOperationTypes() {
+            return registry.types().values()
+                    .stream()
+                    .filter(this::isNotOperationType)
+                    .collect(toList());
+        }
+
+        boolean isNotOperationType(TypeDefinition typeDefinition) {
+            return !isOperationType(typeDefinition);
+        }
+
+        boolean isOperationType(TypeDefinition typeDefinition) {
+            return operationTypes.contains(typeDefinition);
         }
     }
 }

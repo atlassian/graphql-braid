@@ -1,10 +1,13 @@
 package com.atlassian.braid;
 
+import graphql.language.FieldDefinition;
 import graphql.language.ObjectTypeDefinition;
 import graphql.schema.idl.TypeDefinitionRegistry;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
 
 import static com.atlassian.braid.TypeUtils.findQueryType;
 import static com.atlassian.braid.Util.parseRegistry;
@@ -17,9 +20,15 @@ public class TypeUtilsTest {
         TypeDefinitionRegistry registry = parseRegistry("/com/atlassian/braid/not-null-fields.graphql");
         TypeUtils.filterQueryType(registry, "foo");
 
-        ObjectTypeDefinition queryType = findQueryType(registry);
-        assertThat(queryType.getFieldDefinitions().size()).isEqualTo(1);
-        assertThat(queryType.getFieldDefinitions().get(0).getName()).isEqualTo("foo");
+        Optional<ObjectTypeDefinition> queryType = findQueryType(registry);
+        assertThat(queryType).isPresent();
+
+        final List<FieldDefinition> queryFieldDefinitions = queryType
+                .map(ObjectTypeDefinition::getFieldDefinitions)
+                .orElseThrow(IllegalStateException::new);
+
+        assertThat(queryFieldDefinitions).hasSize(1);
+        assertThat(queryFieldDefinitions).extracting("name").containsExactly("foo");
     }
 
     @Test
@@ -27,7 +36,13 @@ public class TypeUtilsTest {
         TypeDefinitionRegistry registry = parseRegistry("/com/atlassian/braid/not-null-fields.graphql");
         TypeUtils.filterQueryType(registry);
 
-        ObjectTypeDefinition queryType = findQueryType(registry);
-        assertThat(queryType.getFieldDefinitions().size()).isEqualTo(2);
+        Optional<ObjectTypeDefinition> queryType = findQueryType(registry);
+        assertThat(queryType).isPresent();
+
+        final List<FieldDefinition> queryFieldDefinitions = queryType
+                .map(ObjectTypeDefinition::getFieldDefinitions)
+                .orElseThrow(IllegalStateException::new);
+
+        assertThat(queryFieldDefinitions).hasSize(2);
     }
 }
