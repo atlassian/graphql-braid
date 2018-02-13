@@ -8,6 +8,9 @@ Changelog for graphql-braid
 - Add REST schema source (RestRemoteSchemaSource) for exposing REST resources as GraphQL fields
 - Add YAML configuration (YamlRemoteSchemaSourceFactory) for creating REST or GraphQL schema sources
 - Add new data mapper library for converting from one map structure into another
+- Add support for mutations, with:
+   - input object containing variables references
+   - weaving of mutation result with other schema
 
 0.6.0 (2018-01-25)
 -------------------

@@ -19,6 +19,10 @@ public class BraidTest {
     }
 
     @Test
+    public void testBraidWithMutationAndTwoSchemaSources() {
+    }
+
+    @Test
     public void testBraidWithMultipleSameAliasedQueries() {
     }
 

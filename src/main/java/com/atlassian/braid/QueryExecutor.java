@@ -39,6 +39,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static com.atlassian.braid.TypeUtils.findQueryFieldDefinitions;
+import static com.atlassian.braid.collections.BraidCollectors.singleton;
 import static graphql.introspection.Introspection.TypeNameMetaFieldDef;
 import static graphql.language.OperationDefinition.Operation.MUTATION;
 import static graphql.language.OperationDefinition.Operation.QUERY;
@@ -99,7 +100,7 @@ class QueryExecutor implements BatchLoaderFactory {
             }
 
             Document queryDoc = new Parser().parseDocument(environment.<BraidContext>getContext().getQuery());
-            OperationDefinition operationDefinition = findOperationDefinition(queryDoc, operationType);
+            OperationDefinition operationDefinition = findSingleOperationDefinition(queryDoc);
             final GraphQLQueryVisitor variableNameSpacer =
                     new VariableNamespacingGraphQLQueryVisitor(counter, operationDefinition, variables, environment, queryOp);
 
@@ -174,12 +175,11 @@ class QueryExecutor implements BatchLoaderFactory {
         return queryResults;
     }
 
-    private OperationDefinition findOperationDefinition(Document queryDoc, OperationDefinition.Operation operationType) {
-        return (OperationDefinition) queryDoc.getDefinitions().stream()
-                .filter(d -> d instanceof OperationDefinition
-                        && ((OperationDefinition) d).getOperation() == operationType)
-                .findFirst()
-                .orElseThrow(IllegalArgumentException::new);
+    private static OperationDefinition findSingleOperationDefinition(Document queryDoc) {
+        return queryDoc.getDefinitions().stream()
+                .filter(d -> d instanceof OperationDefinition)
+                .map(OperationDefinition.class::cast)
+                .collect(singleton());
     }
 
     private <C extends BraidContext> Type findArgumentType(SchemaSource<C> schemaSource, Link link) {
