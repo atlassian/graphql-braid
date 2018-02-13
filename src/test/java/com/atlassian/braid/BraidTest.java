@@ -15,6 +15,10 @@ public class BraidTest {
     }
 
     @Test
+    public void testBraidWithMutationAndObjectInput() {
+    }
+
+    @Test
     public void testBraidWithMultipleSameAliasedQueries() {
     }
 

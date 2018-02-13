@@ -10,6 +10,8 @@ import graphql.language.FragmentDefinition;
 import graphql.language.FragmentSpread;
 import graphql.language.InputValueDefinition;
 import graphql.language.Node;
+import graphql.language.ObjectField;
+import graphql.language.ObjectValue;
 import graphql.language.OperationDefinition;
 import graphql.language.Selection;
 import graphql.language.SelectionSet;
@@ -329,37 +331,54 @@ class QueryExecutor implements BatchLoaderFactory {
 
         @Override
         protected void visitField(Field node) {
-            List<Argument> renamedArguments = node.getArguments().stream()
-                    .map(a -> {
-                        Value value = a.getValue();
-                        if (value instanceof VariableReference) {
-                            VariableReference varRef = (VariableReference) value;
-                            if (isVariableNotAlreadyNamespaced(varRef)) {
-                                value = namespaceVariable(varRef);
-                            }
-                        }
-                        return new Argument(a.getName(), value);
-                    }).collect(toList());
-            node.setArguments(renamedArguments);
+            node.setArguments(node.getArguments().stream().map(this::namespaceReferences).collect(toList()));
             super.visitField(node);
         }
 
-        private Value namespaceVariable(VariableReference varRef) {
+        private Argument namespaceReferences(Argument arg) {
+            return new Argument(arg.getName(), namespaceReferences(arg.getValue()));
+        }
+
+        private Value namespaceReferences(Value value) {
+            final Value transformedValue;
+            if (value instanceof VariableReference) {
+                transformedValue = maybeNamespaceReference((VariableReference) value);
+            } else if (value instanceof ObjectValue) {
+                transformedValue = namespaceReferencesForObjectValue((ObjectValue) value);
+            } else {
+                transformedValue = value;
+            }
+            return transformedValue;
+        }
+
+        private ObjectValue namespaceReferencesForObjectValue(ObjectValue value) {
+            return new ObjectValue(
+                    value.getChildren().stream()
+                            .map(ObjectField.class::cast)
+                            .map(o -> new ObjectField(o.getName(), namespaceReferences(o.getValue())))
+                            .collect(toList()));
+        }
+
+        private VariableReference maybeNamespaceReference(VariableReference value) {
+            return isVariableAlreadyNamespaced(value) ? value : namespaceVariable(value);
+        }
+
+        private VariableReference namespaceVariable(VariableReference varRef) {
             final String newName = varRef.getName() + counter;
 
-            Value value = new VariableReference(newName);
-            Type type = findVariableType(varRef, queryType);
+            final VariableReference value = new VariableReference(newName);
+            final Type type = findVariableType(varRef, queryType);
 
             variables.put(newName, environment.<BraidContext>getContext().getVariables().get(varRef.getName()));
             queryOp.getVariableDefinitions().add(new VariableDefinition(newName, type));
             return value;
         }
 
-        private boolean isVariableNotAlreadyNamespaced(VariableReference varRef) {
-            return !varRef.getName().endsWith(String.valueOf(counter));
+        private boolean isVariableAlreadyNamespaced(VariableReference varRef) {
+            return varRef.getName().endsWith(String.valueOf(counter));
         }
 
-        private Type findVariableType(VariableReference varRef, OperationDefinition queryType) {
+        private static Type findVariableType(VariableReference varRef, OperationDefinition queryType) {
             return queryType.getVariableDefinitions()
                     .stream()
                     .filter(d -> d.getName().equals(varRef.getName()))
