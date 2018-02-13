@@ -4,7 +4,10 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Breaking change: renamed many schema sources, including RemoteSchemaSource
+- Add REST schema source (RestRemoteSchemaSource) for exposing REST resources as GraphQL fields
+- Add YAML configuration (YamlRemoteSchemaSourceFactory) for creating REST or GraphQL schema sources
+- Add new data mapper library for converting from one map structure into another
 
 0.6.0 (2018-01-25)
 -------------------

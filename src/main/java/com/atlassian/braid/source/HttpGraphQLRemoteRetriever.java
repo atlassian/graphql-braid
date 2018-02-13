@@ -8,38 +8,25 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-import static graphql.introspection.IntrospectionQuery.INTROSPECTION_QUERY;
 import static java.util.Objects.requireNonNull;
 
 /**
  * Simple remote retriever that retrieves data using the built-in HTTP client
  */
-public class HttpRemoteRetriever<C> implements RemoteRetriever<C> {
+public class HttpGraphQLRemoteRetriever<C> implements GraphQLRemoteRetriever<C> {
     private final ObjectMapper mapper = new ObjectMapper();
     private final URL remoteUrl;
 
-    public HttpRemoteRetriever(URL remoteUrl) {
+    public HttpGraphQLRemoteRetriever(URL remoteUrl) {
         this.remoteUrl = requireNonNull(remoteUrl);
     }
 
     @Override
-    public CompletableFuture<Map<String, Object>> queryIntrospectionSchema() {
-        return CompletableFuture.completedFuture(queryForJson(out -> {
-            try {
-                out.write(INTROSPECTION_QUERY.getBytes(Charset.forName("UTF-8")));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }));
-    }
-
-    @Override
-    public CompletableFuture<Map<String, Object>> query(ExecutionInput executionInput, C context) {
+    public CompletableFuture<Map<String, Object>> queryGraphQL(ExecutionInput executionInput, C context) {
         return CompletableFuture.completedFuture(queryForJson(out -> {
             try {
                 mapper.writeValue(out, executionInput);

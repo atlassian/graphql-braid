@@ -6,18 +6,15 @@ import com.atlassian.braid.SchemaSource;
 import graphql.ExecutionInput;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
-import graphql.language.Document;
 import graphql.schema.idl.SchemaParser;
 import graphql.schema.idl.TypeDefinitionRegistry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.io.Reader;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.atlassian.braid.TypeUtils.filterQueryType;
@@ -25,33 +22,30 @@ import static com.atlassian.braid.source.OptionalHelper.castNullableList;
 import static com.atlassian.braid.source.OptionalHelper.castNullableMap;
 
 /**
- * Data source for an external graphql service.  Loads the schema from the external service on
- * construction.
+ * Data source for an external graphql service.  Loads the schema on construction.
  */
 @SuppressWarnings("WeakerAccess")
-public class RemoteSchemaSource<C> implements SchemaSource<C> {
+public class GraphQLRemoteSchemaSource<C> implements SchemaSource<C> {
 
     private final SchemaNamespace namespace;
-    private final RemoteRetriever<C> remoteRetriever;
+    private final GraphQLRemoteRetriever<C> graphQLRemoteRetriever;
     private final List<Link> links;
     private final TypeDefinitionRegistry publicSchema;
     private final TypeDefinitionRegistry privateSchema;
 
-    public RemoteSchemaSource(SchemaNamespace namespace, RemoteRetriever<C> remoteRetriever, List<Link> links, String... topLevelFields) {
+    public GraphQLRemoteSchemaSource(SchemaNamespace namespace,
+                                     Supplier<Reader> schemaProvider,
+                                     GraphQLRemoteRetriever<C> graphQLRemoteRetriever,
+                                     List<Link> links,
+                                     String... topLevelFields) {
         this.namespace = namespace;
-        this.remoteRetriever = remoteRetriever;
+        this.graphQLRemoteRetriever = graphQLRemoteRetriever;
         this.links = links;
 
-        try {
-            SchemaParser parser = new SchemaParser();
-            TypeDefinitionRegistry schema = parser.buildRegistry(loadSchema().get());
-            filterQueryType(schema, topLevelFields);
-            this.publicSchema = schema;
-            this.privateSchema = parser.buildRegistry(loadSchema().get());
-
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
-        }
+        TypeDefinitionRegistry schema = loadSchema(schemaProvider);
+        filterQueryType(schema, topLevelFields);
+        this.publicSchema = schema;
+        this.privateSchema = loadSchema(schemaProvider);
     }
 
     @Override
@@ -76,7 +70,7 @@ public class RemoteSchemaSource<C> implements SchemaSource<C> {
 
     @Override
     public CompletableFuture<DataFetcherResult<Map<String, Object>>> query(ExecutionInput query, C context) {
-        return remoteRetriever.query(query, context).thenApply(response -> {
+        return graphQLRemoteRetriever.queryGraphQL(query, context).thenApply(response -> {
 
             Map<String, Object> data = castNullableMap(response.get("data"), String.class, Object.class)
                     .orElse(Collections.emptyMap());
@@ -91,10 +85,8 @@ public class RemoteSchemaSource<C> implements SchemaSource<C> {
         });
     }
 
-    private CompletableFuture<Document> loadSchema() {
-        return remoteRetriever.queryIntrospectionSchema().thenApply(response ->
-                castNullableMap(response.get("data"), String.class, Object.class)
-                        .map(data -> new IntrospectionResultToSchema().createSchemaDefinition(data))
-                        .orElseThrow(IllegalArgumentException::new));
+    private TypeDefinitionRegistry loadSchema(Supplier<Reader> schema) {
+        SchemaParser parser = new SchemaParser();
+        return parser.parse(schema.get());
     }
 }

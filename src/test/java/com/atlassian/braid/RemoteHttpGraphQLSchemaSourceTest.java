@@ -1,19 +1,11 @@
 package com.atlassian.braid;
 
-import com.atlassian.braid.source.HttpRemoteRetriever;
-import com.atlassian.braid.source.RemoteSchemaSource;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.atlassian.braid.source.HttpGraphQLRemoteRetriever;
+import com.atlassian.braid.source.GraphQLRemoteSchemaSource;
 import graphql.ExecutionInput;
-import graphql.GraphQL;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
-import graphql.introspection.IntrospectionQuery;
 import graphql.language.SourceLocation;
-import graphql.schema.GraphQLSchema;
-import graphql.schema.idl.RuntimeWiring;
-import graphql.schema.idl.SchemaGenerator;
-import graphql.schema.idl.SchemaParser;
-import graphql.schema.idl.TypeDefinitionRegistry;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.Test;
@@ -30,19 +22,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 
 @SuppressWarnings("unchecked")
-public class RemoteHttpSchemaSourceTest {
+public class RemoteHttpGraphQLSchemaSourceTest {
 
     @Test
     public void testSuccess() throws IOException, ExecutionException, InterruptedException {
-        GraphQL build = getGraphQL();
-
         MockWebServer server = new MockWebServer();
-        server.enqueue(new MockResponse().setBody(new ObjectMapper().writeValueAsString(build.execute(IntrospectionQuery.INTROSPECTION_QUERY).toSpecification())));
-        server.enqueue(new MockResponse().setBody(new ObjectMapper().writeValueAsString(build.execute(IntrospectionQuery.INTROSPECTION_QUERY).toSpecification())));
         server.enqueue(new MockResponse().setBody(read("/com/atlassian/braid/http-success.json")));
         server.start();
 
-        RemoteSchemaSource source = new RemoteSchemaSource<Object>(SchemaNamespace.of("bar"), new HttpRemoteRetriever(server.url("/").url()), Collections.emptyList());
+        GraphQLRemoteSchemaSource source = new GraphQLRemoteSchemaSource<Object>(SchemaNamespace.of("bar"), this::getSchemaReader,
+                new HttpGraphQLRemoteRetriever(server.url("/").url()), Collections.emptyList());
 
         DataFetcherResult<Map> result = (DataFetcherResult<Map>) source.query(
                 new ExecutionInput("blah", "op", null, null, Collections.emptyMap()), null).get();
@@ -58,15 +47,12 @@ public class RemoteHttpSchemaSourceTest {
 
     @Test
     public void testSomeErrors() throws IOException, ExecutionException, InterruptedException {
-        GraphQL build = getGraphQL();
-
         MockWebServer server = new MockWebServer();
-        server.enqueue(new MockResponse().setBody(new ObjectMapper().writeValueAsString(build.execute(IntrospectionQuery.INTROSPECTION_QUERY).toSpecification())));
-        server.enqueue(new MockResponse().setBody(new ObjectMapper().writeValueAsString(build.execute(IntrospectionQuery.INTROSPECTION_QUERY).toSpecification())));
         server.enqueue(new MockResponse().setBody(read("/com/atlassian/braid/http-some-errors.json")));
         server.start();
 
-        RemoteSchemaSource source = new RemoteSchemaSource(SchemaNamespace.of("bar"), new HttpRemoteRetriever(server.url("/").url()), Collections.emptyList());
+        GraphQLRemoteSchemaSource source = new GraphQLRemoteSchemaSource(SchemaNamespace.of("bar"), this::getSchemaReader,
+                new HttpGraphQLRemoteRetriever(server.url("/").url()), Collections.emptyList());
 
         DataFetcherResult<Map> result = (DataFetcherResult<Map>) source.query(
                 new ExecutionInput("blah", "op", null, null, Collections.emptyMap()), null).get();
@@ -82,11 +68,11 @@ public class RemoteHttpSchemaSourceTest {
         assertThat(bar.get("baz")).isEqualTo(null);
     }
 
-    private GraphQL getGraphQL() throws IOException {
-        SchemaParser parser = new SchemaParser();
-        TypeDefinitionRegistry registry = parser.parse(new StringReader(read("/com/atlassian/braid/http-bar-schema.graphql")));
-        SchemaGenerator schemaGenerator = new SchemaGenerator();
-        GraphQLSchema graphQLSchema = schemaGenerator.makeExecutableSchema(registry, RuntimeWiring.newRuntimeWiring().build());
-        return GraphQL.newGraphQL(graphQLSchema).build();
+    private StringReader getSchemaReader() {
+        try {
+            return new StringReader(read("/com/atlassian/braid/http-bar-schema.graphql"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

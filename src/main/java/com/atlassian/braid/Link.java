@@ -1,5 +1,6 @@
 package com.atlassian.braid;
 
+import java.util.Objects;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -76,6 +77,31 @@ public final class Link {
         return argument.name;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Link link = (Link) o;
+        return Objects.equals(source, link.source) &&
+                Objects.equals(target, link.target) &&
+                Objects.equals(argument, link.argument);
+    }
+
+    @Override
+    public int hashCode() {
+
+        return Objects.hash(source, target, argument);
+    }
+
+    @Override
+    public String toString() {
+        return "Link{" +
+                "source=" + source +
+                ", target=" + target +
+                ", argument=" + argument +
+                '}';
+    }
+
     public static final class LinkBuilder {
         private LinkSource source;
         private LinkTarget target;
@@ -116,6 +142,33 @@ public final class Link {
             this.field = requireNonNull(field);
             this.fromField = requireNonNull(fromField);
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            LinkSource that = (LinkSource) o;
+            return Objects.equals(namespace, that.namespace) &&
+                    Objects.equals(type, that.type) &&
+                    Objects.equals(field, that.field) &&
+                    Objects.equals(fromField, that.fromField);
+        }
+
+        @Override
+        public int hashCode() {
+
+            return Objects.hash(namespace, type, field, fromField);
+        }
+
+        @Override
+        public String toString() {
+            return "LinkSource{" +
+                    "namespace=" + namespace +
+                    ", type='" + type + '\'' +
+                    ", field='" + field + '\'' +
+                    ", fromField='" + fromField + '\'' +
+                    '}';
+        }
     }
 
     private static class LinkTarget {
@@ -128,6 +181,31 @@ public final class Link {
             this.type = requireNonNull(type);
             this.queryField = queryField; // can be null, in which case the value is the same as LinkSource#field
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            LinkTarget that = (LinkTarget) o;
+            return Objects.equals(namespace, that.namespace) &&
+                    Objects.equals(type, that.type) &&
+                    Objects.equals(queryField, that.queryField);
+        }
+
+        @Override
+        public int hashCode() {
+
+            return Objects.hash(namespace, type, queryField);
+        }
+
+        @Override
+        public String toString() {
+            return "LinkTarget{" +
+                    "namespace=" + namespace +
+                    ", type='" + type + '\'' +
+                    ", queryField='" + queryField + '\'' +
+                    '}';
+        }
     }
 
     private static class LinkArgument {
@@ -135,6 +213,27 @@ public final class Link {
 
         private LinkArgument(String name) {
             this.name = requireNonNull(name);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            LinkArgument that = (LinkArgument) o;
+            return Objects.equals(name, that.name);
+        }
+
+        @Override
+        public int hashCode() {
+
+            return Objects.hash(name);
+        }
+
+        @Override
+        public String toString() {
+            return "LinkArgument{" +
+                    "name='" + name + '\'' +
+                    '}';
         }
     }
 }

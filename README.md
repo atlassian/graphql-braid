@@ -18,13 +18,13 @@ For example, this configuration will combine two data sources:
 ```
 #!java
 Braid braid = new SchemaBraid().braid(SchemaBraidConfiguration.builder()
-        .schemaSource(new RemoteSchemaSource(
+        .schemaSource(new GraphQLRemoteSchemaSource(
                 SchemaNamespace.of("foo"),
-                new HttpRemoteRetriever(new URL("http://foo.com/graphql")),
+                new HttpGraphQLRemoteRetriever(new URL("http://foo.com/graphql")),
                 emptyList()))
-        .schemaSource(new RemoteSchemaSource(
+        .schemaSource(new GraphQLRemoteSchemaSource(
                 SchemaNamespace.of("bar"),
-                new HttpRemoteRetriever(new URL("http://bar.com/graphql")),
+                new HttpGraphQLRemoteRetriever(new URL("http://bar.com/graphql")),
                 emptyList()))
         .build());
         
@@ -81,20 +81,71 @@ The usage of Braid to make this happen is:
 ```
 #!java
 Braid braid = new SchemaBraid().braid(SchemaBraidConfiguration.builder()
-        .schemaSource(new RemoteSchemaSource(
+        .schemaSource(new GraphQLRemoteSchemaSource(
                 SchemaNamespace.of("foo"),
-                new HttpRemoteRetriever(new URL("http://foo.com/graphql")),
+                new HttpGraphQLRemoteRetriever(new URL("http://foo.com/graphql")),
                 singletonList(
                         Link.from(SchemaNamespace.of("foo"), "Foo", "bar")
                             .to(SchemaNamespace.of("bar"), "Bar"))))
-        .schemaSource(new RemoteSchemaSource(
+        .schemaSource(new GraphQLRemoteSchemaSource(
                 SchemaNamespace.of("bar"),
-                new HttpRemoteRetriever(new URL("http://bar.com/graphql")),
+                new HttpGraphQLRemoteRetriever(new URL("http://bar.com/graphql")),
                 emptyList()))
         .build());
 ```
 
 Braid currently only supports top-level query aggregation and simple links, but future work to support more link types is expected.
+
+### YAML configuration ###
+
+A REST or GraphQL schema source can also be configured via a YAML file.  To create the YAML-based schema source, first
+create a YAML file containing your configuration.  This file configures a REST source out of a Bitbucket followers 
+endpoint:
+
+```
+#!yaml
+name: bb-followers
+rootFields:
+  followers: 
+    uri: https://api.bitbucket.org/2.0/users/{username}/followers
+    responseMapping:
+      nodes: 
+        op: copyList
+        source: values
+        elements:
+          name: 
+            op: copy
+            source: display_name
+schema: |
+  schema {
+    query: Query
+  }
+  type Query {
+    followers(username: String) : FollowersSet
+  } 
+  type FollowersSet {
+    nodes : [Follower]
+  }
+  type Follower {
+    name: String
+  } 
+
+```
+
+This configuration file contains two primary sections: the schema and root field mappings.  The schema specifies the 
+GraphQL schema this source will expose. The "rootFields" section contains a list of root fields and instructions for 
+mapping the response of the URI to the desired GraphQL structure.
+
+The YAML configuration file supports the definition of links as well as more complex sets of mapping instructions.
+For examples, see YamlMapperTest.
+
+Finally, create this schema source in Java via:
+
+```
+#!java
+SchemaSource source = YamlRemoteSchemaSourceFactory
+        .createRestSource(yamlReader, new HttpRestRemoteRetriever());
+```
 
 ### Add to your project ###
 
