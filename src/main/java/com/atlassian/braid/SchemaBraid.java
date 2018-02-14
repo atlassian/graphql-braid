@@ -41,16 +41,6 @@ import static java.util.stream.Collectors.toMap;
 @SuppressWarnings("WeakerAccess")
 public class SchemaBraid<C extends BraidContext> {
 
-    private final QueryExecutor queryExecutor;
-
-    public SchemaBraid() {
-        this(new QueryExecutor());
-    }
-
-    SchemaBraid(QueryExecutor queryExecutor) {
-        this.queryExecutor = queryExecutor;
-    }
-
     @Deprecated
     public Braid braid(SchemaSource<C>... dataSources) {
         return braid(new TypeDefinitionRegistry(), RuntimeWiring.newRuntimeWiring(), dataSources);
@@ -290,11 +280,7 @@ public class SchemaBraid<C extends BraidContext> {
     private BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
         // We use DataFetchingEnvironment as the key in the BatchLoader because different fetches of the object may
         // request different fields. Someday we may smartly combine them into one somehow, but that day isn't today.
-        if (schemaSource instanceof BatchLoaderFactory) {
-            return ((BatchLoaderFactory) schemaSource).newBatchLoader(schemaSource, link);
-        } else {
-            return queryExecutor.newBatchLoader(schemaSource, link);
-        }
+        return schemaSource.newBatchLoader(schemaSource, link);
     }
 
     private void validateSourceFromFieldExists(Link link, ObjectTypeDefinition typeDefinition) {
@@ -313,7 +299,7 @@ public class SchemaBraid<C extends BraidContext> {
                 .collect(toMap(SchemaSource::getNamespace, Source::new));
     }
 
-    private static final class Source<C> {
+    private static final class Source<C extends BraidContext> {
         private final SchemaSource<C> schemaSource;
         private final TypeDefinitionRegistry registry;
         private final Collection<? extends TypeDefinition> operationTypes;

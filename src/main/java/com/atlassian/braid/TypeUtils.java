@@ -80,7 +80,7 @@ public class TypeUtils {
      * @param registry the type registry to look into
      * @return the optional query fields definitions
      */
-    static Optional<List<FieldDefinition>> findQueryFieldDefinitions(TypeDefinitionRegistry registry) {
+    public static Optional<List<FieldDefinition>> findQueryFieldDefinitions(TypeDefinitionRegistry registry) {
         return findQueryType(registry)
                 .map(ObjectTypeDefinition::getFieldDefinitions);
     }
@@ -146,12 +146,13 @@ public class TypeUtils {
      * @param registry       the types
      * @param topLevelFields the fields to allow or if empty, all of them
      */
-    public static void filterQueryType(TypeDefinitionRegistry registry, String... topLevelFields) {
+    public static TypeDefinitionRegistry filterQueryType(TypeDefinitionRegistry registry, String... topLevelFields) {
         List<String> topFields = asList(topLevelFields);
         if (!topFields.isEmpty()) {
             findQueryType(registry).map(ObjectTypeDefinition::getFieldDefinitions)
                     .ifPresent(d -> d.removeIf(field -> !topFields.contains(field.getName())));
         }
+        return registry;
     }
 
     private static Function<List<OperationTypeDefinition>, List<ObjectTypeDefinition>> toObjectTypeDefinition(TypeDefinitionRegistry registry) {

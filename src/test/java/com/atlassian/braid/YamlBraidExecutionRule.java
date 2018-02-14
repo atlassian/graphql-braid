@@ -27,6 +27,7 @@ import static com.atlassian.braid.Collections.castMap;
 import static com.atlassian.braid.Collections.getListValue;
 import static com.atlassian.braid.Collections.getMapValue;
 import static com.atlassian.braid.Util.read;
+import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
 import static graphql.GraphQL.newGraphQL;
 import static graphql.schema.idl.RuntimeWiring.newRuntimeWiring;
 import static java.util.Collections.emptyList;
@@ -97,14 +98,13 @@ public class YamlBraidExecutionRule implements MethodRule {
 
 
     private List<SchemaSource<BraidContext>> loadSchemaSources(TestConfiguration config) {
-        GraphQLQueryPrinter printer = new GraphQLQueryPrinter();
         return config.getSchemaSources()
                 .stream()
-                .map(schemaSource -> new LocalSchemaSource<BraidContext>(
+                .map(schemaSource -> new LocalSchemaSource<>(
                         schemaSource.getNamespace(),
                         schemaSource.getTypeDefinitionRegistry(),
                         getLinks(schemaSource),
-                        mapInputToResult(printer, schemaSource))
+                        mapInputToResult(schemaSource))
                 )
                 .collect(toList());
     }
@@ -131,11 +131,11 @@ public class YamlBraidExecutionRule implements MethodRule {
         return link.build();
     }
 
-    private Function<ExecutionInput, Object> mapInputToResult(GraphQLQueryPrinter printer, TestSchemaSource schemaSource) {
+    private Function<ExecutionInput, Object> mapInputToResult(TestSchemaSource schemaSource) {
         return input -> {
             final TestQuery expected = schemaSource.getExpected();
 
-            assertEquals(printQuery(printer, expected.getQuery()), printQuery(printer, input.getQuery()));
+            assertEquals(printQuery(expected.getQuery()), printQuery(input.getQuery()));
             assertEquals(expected.getVariables(), input.getVariables());
             expected.getOperation().ifPresent(operation -> assertEquals(operation, input.getOperationName()));
 
@@ -144,8 +144,8 @@ public class YamlBraidExecutionRule implements MethodRule {
         };
     }
 
-    private String printQuery(GraphQLQueryPrinter printer, String query) {
-        return printer.print(new Parser().parseDocument(query));
+    private String printQuery(String query) {
+        return printNode(new Parser().parseDocument(query));
     }
 
     private List<Map<String, Object>> toSpecification(List<GraphQLError> errors) {

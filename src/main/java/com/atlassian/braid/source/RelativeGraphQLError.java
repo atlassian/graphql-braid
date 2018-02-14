@@ -1,4 +1,4 @@
-package com.atlassian.braid;
+package com.atlassian.braid.source;
 
 import graphql.ErrorType;
 import graphql.GraphQLError;

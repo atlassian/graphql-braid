@@ -18,7 +18,7 @@ import graphql.language.VariableDefinition;
 @SuppressWarnings("WeakerAccess")
 public class GraphQLQueryVisitor {
     @SuppressWarnings("StatementWithEmptyBody")
-    void visit(final Node node) {
+    public void visit(final Node node) {
         if (node instanceof Document) {
             visitDocument((Document) node);
         } else if (node instanceof OperationDefinition) {

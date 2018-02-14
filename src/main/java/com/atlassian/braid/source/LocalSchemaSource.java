@@ -1,5 +1,6 @@
 package com.atlassian.braid.source;
 
+import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
@@ -21,10 +22,8 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
  * Local schema source
  */
 @SuppressWarnings("WeakerAccess")
-public final class LocalSchemaSource<C> implements SchemaSource<C> {
-    private final SchemaNamespace namespace;
-    private final TypeDefinitionRegistry schema;
-    private final List<Link> links;
+public final class LocalSchemaSource<C extends BraidContext> extends ForwardingSchemaSource<C> {
+    private final QueryExecutorSchemaSource<C> delegate;
     private final Function<ExecutionInput, Object> queryExecutor;
 
     public LocalSchemaSource(SchemaNamespace namespace,
@@ -37,29 +36,20 @@ public final class LocalSchemaSource<C> implements SchemaSource<C> {
                              TypeDefinitionRegistry schema,
                              List<Link> links,
                              Function<ExecutionInput, Object> queryExecutor) {
-        this.namespace = requireNonNull(namespace);
-        this.schema = requireNonNull(schema);
-        this.links = requireNonNull(links);
         this.queryExecutor = requireNonNull(queryExecutor);
+        this.delegate = new QueryExecutorSchemaSource<>(namespace,
+                schema,
+                links,
+                this::query);
+
     }
 
     @Override
-    public TypeDefinitionRegistry getSchema() {
-        return schema;
+    protected SchemaSource<C> getDelegate() {
+        return delegate;
     }
 
-    @Override
-    public SchemaNamespace getNamespace() {
-        return namespace;
-    }
-
-    @Override
-    public List<Link> getLinks() {
-        return links;
-    }
-
-    @Override
-    public CompletableFuture<DataFetcherResult<Map<String, Object>>> query(ExecutionInput executionInput, C context) {
+    private CompletableFuture<DataFetcherResult<Map<String, Object>>> query(ExecutionInput executionInput, C context) {
         final Object result = queryExecutor.apply(transformExecutionInput(executionInput, context));
         if (result instanceof DataFetcherResult) {
             return completedFuture((cast(result)));

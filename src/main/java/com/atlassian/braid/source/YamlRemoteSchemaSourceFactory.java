@@ -1,5 +1,6 @@
 package com.atlassian.braid.source;
 
+import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
@@ -22,19 +23,19 @@ import static java.util.Optional.ofNullable;
 @SuppressWarnings("unchecked")
 public class YamlRemoteSchemaSourceFactory {
 
-    public static <C> RestRemoteSchemaSource<C> createRestSource(Reader source, RestRemoteRetriever<C> restRemoteRetriever) {
+    public static <C extends BraidContext> RestRemoteSchemaSource<C> createRestSource(Reader source, RestRemoteRetriever<C> restRemoteRetriever) {
         Map<String, Object> m = (Map<String, Object>) new Yaml().load(source);
 
         SchemaNamespace namespace = SchemaNamespace.of((String) m.get("name"));
         Supplier<Reader> schema = () -> new StringReader((String) m.get("schema"));
 
-        Map<String, RestRemoteSchemaSource.RootField> rootFields = ((Map<String, Map<String, Object>>)m.getOrDefault("rootFields", emptyList()))
+        Map<String, RestRemoteSchemaSource.RootField> rootFields = ((Map<String, Map<String, Object>>) m.getOrDefault("rootFields", emptyList()))
                 .entrySet().stream()
                 .map(e -> {
                     String fieldName = e.getKey();
                     Map<String, Object> params = e.getValue();
                     YamlMapper mapping = new YamlMapper((Map<String, Object>) params.get("responseMapping"));
-                    return new RestRemoteSchemaSource.RootField(fieldName, (String)params.get("uri"), res -> mapping.map(res));
+                    return new RestRemoteSchemaSource.RootField(fieldName, (String) params.get("uri"), mapping::map);
                 })
                 .collect(Collectors.toMap(f -> f.name, f -> f));
 
@@ -48,7 +49,7 @@ public class YamlRemoteSchemaSourceFactory {
         );
     }
 
-    public static <C> SchemaSource<C> createGraphQLSource(Reader source, GraphQLRemoteRetriever<C> graphQLRemoteRetriever) {
+    public static <C extends BraidContext> SchemaSource<C> createGraphQLSource(Reader source, GraphQLRemoteRetriever<C> graphQLRemoteRetriever) {
         Map<String, Object> m = (Map<String, Object>) new Yaml().load(source);
 
         SchemaNamespace namespace = SchemaNamespace.of((String) m.get("name"));
