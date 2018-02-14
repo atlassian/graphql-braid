@@ -13,9 +13,9 @@ import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 
 
-class Util {
+public class Util {
 
-    static TypeDefinitionRegistry parseRegistry(String schemaPath) {
+    public static TypeDefinitionRegistry parseRegistry(String schemaPath) {
         try {
             SchemaParser schemaParser = new SchemaParser();
             String docString = read(schemaPath);
@@ -25,7 +25,7 @@ class Util {
         }
     }
 
-    static String read(String path) throws IOException {
+    public static String read(String path) throws IOException {
         try (Reader reader = getResourceAsReader(path)) {
             return read(reader);
         } catch (IOException ex) {

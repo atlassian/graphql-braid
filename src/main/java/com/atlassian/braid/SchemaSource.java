@@ -1,17 +1,13 @@
 package com.atlassian.braid;
 
-import graphql.ExecutionInput;
-import graphql.execution.DataFetcherResult;
 import graphql.schema.idl.TypeDefinitionRegistry;
 
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * A data source that contains a schema to be merged via {@link SchemaBraid}
  */
-public interface SchemaSource<C> {
+public interface SchemaSource<C extends BraidContext> extends BatchLoaderFactory<C> {
 
     /**
      * @return the public schema document to be braided
@@ -36,9 +32,4 @@ public interface SchemaSource<C> {
      * @return a list of links that connect fields in this data source to other data sources
      */
     List<Link> getLinks();
-
-    /**
-     * @param query the query to execute
-     */
-    CompletableFuture<DataFetcherResult<Map<String, Object>>> query(ExecutionInput query, C context);
 }

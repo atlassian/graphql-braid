@@ -1,5 +1,11 @@
-package com.atlassian.braid;
+package com.atlassian.braid.source;
 
+import com.atlassian.braid.BatchLoaderFactory;
+import com.atlassian.braid.BatchLoaderUtils;
+import com.atlassian.braid.BraidContext;
+import com.atlassian.braid.GraphQLQueryVisitor;
+import com.atlassian.braid.Link;
+import com.atlassian.braid.SchemaSource;
 import graphql.ExecutionInput;
 import graphql.execution.DataFetcherResult;
 import graphql.language.Argument;
@@ -40,24 +46,32 @@ import java.util.concurrent.CompletableFuture;
 
 import static com.atlassian.braid.TypeUtils.findQueryFieldDefinitions;
 import static com.atlassian.braid.collections.BraidCollectors.singleton;
+import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
 import static graphql.introspection.Introspection.TypeNameMetaFieldDef;
 import static graphql.language.OperationDefinition.Operation.MUTATION;
 import static graphql.language.OperationDefinition.Operation.QUERY;
 import static java.util.Collections.singletonList;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
 /**
  * Executes a query against the data source
  */
-class QueryExecutor implements BatchLoaderFactory {
+class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
+
+    private final QueryFunction<C> queryFunction;
+
+    QueryExecutor(QueryFunction<C> queryFunction) {
+        this.queryFunction = requireNonNull(queryFunction);
+    }
 
     @Override
-    public <C extends BraidContext> BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
+    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
         return environments -> query(schemaSource, environments, link);
     }
 
     @SuppressWarnings("Duplicates")
-    <C extends BraidContext> CompletableFuture<List<DataFetcherResult<Map<String, Object>>>> query(SchemaSource<C> schemaSource, List<DataFetchingEnvironment> environments, Link link) {
+    CompletableFuture<List<DataFetcherResult<Map<String, Object>>>> query(SchemaSource<C> schemaSource, List<DataFetchingEnvironment> environments, Link link) {
 
         final DataFetchingEnvironment firstEnv = environments.stream().findFirst()
                 .orElseThrow(IllegalStateException::new);
@@ -115,7 +129,7 @@ class QueryExecutor implements BatchLoaderFactory {
 
         ExecutionInput input = executeBatchQuery(doc, queryOp.getName(), variables);
 
-        return schemaSource
+        return queryFunction
                 .query(input, environments.get(0).getContext())
                 .thenApply(result -> transformBatchResultIntoResultList(environments, clonedFields, result));
     }
@@ -147,10 +161,8 @@ class QueryExecutor implements BatchLoaderFactory {
     }
 
     private ExecutionInput executeBatchQuery(Document doc, String operationName, Map<String, Object> variables) {
-        GraphQLQueryPrinter printer = new GraphQLQueryPrinter();
-        String query = printer.print(doc);
         return ExecutionInput.newExecutionInput()
-                .query(query)
+                .query(printNode(doc))
                 .operationName(operationName)
                 .variables(variables)
                 .build();
@@ -182,7 +194,7 @@ class QueryExecutor implements BatchLoaderFactory {
                 .collect(singleton());
     }
 
-    private <C extends BraidContext> Type findArgumentType(SchemaSource<C> schemaSource, Link link) {
+    private Type findArgumentType(SchemaSource<C> schemaSource, Link link) {
         return findQueryFieldDefinitions(schemaSource.getPrivateSchema())
                 .orElseThrow(IllegalStateException::new)
                 .stream()
@@ -206,7 +218,7 @@ class QueryExecutor implements BatchLoaderFactory {
     /**
      * Ensures we only ask for fields the data source supports
      */
-    <C> void trimFieldSelection(SchemaSource<C> schemaSource, DataFetchingEnvironment environment, Field field) {
+    void trimFieldSelection(SchemaSource<C> schemaSource, DataFetchingEnvironment environment, Field field) {
         new GraphQLQueryVisitor() {
             GraphQLOutputType parentType = null;
             GraphQLOutputType lastFieldType = null;

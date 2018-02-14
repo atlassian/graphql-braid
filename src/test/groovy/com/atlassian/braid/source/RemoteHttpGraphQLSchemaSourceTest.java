@@ -1,7 +1,8 @@
-package com.atlassian.braid;
+package com.atlassian.braid.source;
 
-import com.atlassian.braid.source.HttpGraphQLRemoteRetriever;
-import com.atlassian.braid.source.GraphQLRemoteSchemaSource;
+import com.atlassian.braid.BraidContext;
+import com.atlassian.braid.SchemaNamespace;
+import com.atlassian.braid.Util;
 import graphql.ExecutionInput;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
@@ -16,7 +17,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import static com.atlassian.braid.Util.read;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,10 +27,10 @@ public class RemoteHttpGraphQLSchemaSourceTest {
     @Test
     public void testSuccess() throws IOException, ExecutionException, InterruptedException {
         MockWebServer server = new MockWebServer();
-        server.enqueue(new MockResponse().setBody(read("/com/atlassian/braid/http-success.json")));
+        server.enqueue(new MockResponse().setBody(Util.read("/com/atlassian/braid/http-success.json")));
         server.start();
 
-        GraphQLRemoteSchemaSource source = new GraphQLRemoteSchemaSource<Object>(SchemaNamespace.of("bar"), this::getSchemaReader,
+        GraphQLRemoteSchemaSource source = new GraphQLRemoteSchemaSource<BraidContext>(SchemaNamespace.of("bar"), this::getSchemaReader,
                 new HttpGraphQLRemoteRetriever(server.url("/").url()), Collections.emptyList());
 
         DataFetcherResult<Map> result = (DataFetcherResult<Map>) source.query(
@@ -48,7 +48,7 @@ public class RemoteHttpGraphQLSchemaSourceTest {
     @Test
     public void testSomeErrors() throws IOException, ExecutionException, InterruptedException {
         MockWebServer server = new MockWebServer();
-        server.enqueue(new MockResponse().setBody(read("/com/atlassian/braid/http-some-errors.json")));
+        server.enqueue(new MockResponse().setBody(Util.read("/com/atlassian/braid/http-some-errors.json")));
         server.start();
 
         GraphQLRemoteSchemaSource source = new GraphQLRemoteSchemaSource(SchemaNamespace.of("bar"), this::getSchemaReader,
@@ -70,7 +70,7 @@ public class RemoteHttpGraphQLSchemaSourceTest {
 
     private StringReader getSchemaReader() {
         try {
-            return new StringReader(read("/com/atlassian/braid/http-bar-schema.graphql"));
+            return new StringReader(Util.read("/com/atlassian/braid/http-bar-schema.graphql"));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

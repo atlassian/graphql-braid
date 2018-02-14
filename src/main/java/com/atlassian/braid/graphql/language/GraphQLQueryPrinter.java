@@ -1,4 +1,4 @@
-package com.atlassian.braid;
+package com.atlassian.braid.graphql.language;
 
 import graphql.language.Argument;
 import graphql.language.ArrayValue;
@@ -33,7 +33,7 @@ import java.util.function.Consumer;
 /**
  * A printer for GraphQL query {@link Document} objects.
  */
-class GraphQLQueryPrinter {
+final class GraphQLQueryPrinter {
     private static final int INDENT_WIDTH = 4;
 
     String print(final Node node) {

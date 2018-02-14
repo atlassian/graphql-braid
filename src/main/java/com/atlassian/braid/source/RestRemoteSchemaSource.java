@@ -1,15 +1,11 @@
 package com.atlassian.braid.source;
 
-import com.atlassian.braid.BatchLoaderFactory;
 import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
-import graphql.ExecutionInput;
 import graphql.execution.DataFetcherResult;
 import graphql.schema.DataFetchingEnvironment;
-import graphql.schema.idl.SchemaParser;
-import graphql.schema.idl.TypeDefinitionRegistry;
 import org.dataloader.BatchLoader;
 
 import java.io.Reader;
@@ -23,22 +19,20 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static com.atlassian.braid.TypeUtils.filterQueryType;
+import static com.atlassian.braid.source.SchemaUtils.loadPublicSchema;
+import static com.atlassian.braid.source.SchemaUtils.loadSchema;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonMap;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Data source for an external REST service.
  */
 @SuppressWarnings("WeakerAccess")
-public class RestRemoteSchemaSource<C> implements SchemaSource<C>, BatchLoaderFactory {
+public final class RestRemoteSchemaSource<C extends BraidContext> extends AbstractSchemaSource<C> {
 
-    private final SchemaNamespace namespace;
     private final RestRemoteRetriever<C> remoteRetriever;
     private final Map<String, RootField> rootFields;
-    private final List<Link> links;
-    private final TypeDefinitionRegistry publicSchema;
-    private final TypeDefinitionRegistry privateSchema;
 
     public static final class RootField {
         String name;
@@ -58,49 +52,13 @@ public class RestRemoteSchemaSource<C> implements SchemaSource<C>, BatchLoaderFa
                                   Map<String, RootField> rootFields,
                                   List<Link> links,
                                   String... topLevelFields) {
-        this.namespace = namespace;
-        this.remoteRetriever = remoteRetriever;
-        this.rootFields = rootFields;
-        this.links = links;
-
-        TypeDefinitionRegistry schema = loadSchema(schemaProvider);
-        filterQueryType(schema, topLevelFields);
-        this.publicSchema = schema;
-        this.privateSchema = loadSchema(schemaProvider);
+        super(namespace, loadPublicSchema(schemaProvider, topLevelFields), loadSchema(schemaProvider), links);
+        this.remoteRetriever = requireNonNull(remoteRetriever);
+        this.rootFields = requireNonNull(rootFields);
     }
 
     @Override
-    public TypeDefinitionRegistry getSchema() {
-        return publicSchema;
-    }
-
-    @Override
-    public TypeDefinitionRegistry getPrivateSchema() {
-        return privateSchema;
-    }
-
-    @Override
-    public SchemaNamespace getNamespace() {
-        return namespace;
-    }
-
-    @Override
-    public List<Link> getLinks() {
-        return links;
-    }
-
-    @Override
-    public CompletableFuture<DataFetcherResult<Map<String, Object>>> query(ExecutionInput query, C context) {
-        throw new UnsupportedOperationException();
-    }
-
-    private TypeDefinitionRegistry loadSchema(Supplier<Reader> schema) {
-        SchemaParser parser = new SchemaParser();
-        return parser.parse(schema.get());
-    }
-
-    @Override
-    public <C extends BraidContext> BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
+    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
         return environments -> {
             List<CompletableFuture<DataFetcherResult<Map<String, Object>>>> results = new ArrayList<>();
             for (DataFetchingEnvironment env : environments) {
@@ -137,8 +95,9 @@ public class RestRemoteSchemaSource<C> implements SchemaSource<C>, BatchLoaderFa
     public static String replaceParams(Map<String, Object> hashMap, String template) {
         return hashMap.entrySet().stream()
                 .filter(e -> e.getValue() != null)
-                .reduce(template, (s, e) -> s.replace("{" + e.getKey() + "}", e.getValue().toString()),
-                (s, s2) -> s);
+                .reduce(template,
+                        (s, e) -> s.replace("{" + e.getKey() + "}", e.getValue().toString()),
+                        (s, s2) -> s);
     }
 
     public <T> CompletableFuture<List<T>> allOf(List<CompletableFuture<T>> futuresList) {

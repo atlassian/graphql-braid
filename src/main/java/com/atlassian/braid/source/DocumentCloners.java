@@ -1,4 +1,4 @@
-package com.atlassian.braid;
+package com.atlassian.braid.source;
 
 import graphql.language.Argument;
 import graphql.language.ArrayValue;
