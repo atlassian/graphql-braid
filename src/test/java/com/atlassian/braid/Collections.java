@@ -1,7 +1,9 @@
 package com.atlassian.braid;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collector;
 
 public final class Collections {
     private Collections() {
@@ -25,4 +27,5 @@ public final class Collections {
     public static <K, T> List<T> getListValue(Map<K, Object> map, K key) {
         return castList(map.get(key));
     }
+
 }

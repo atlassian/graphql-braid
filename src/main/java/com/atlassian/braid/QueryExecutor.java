@@ -10,6 +10,8 @@ import graphql.language.FragmentDefinition;
 import graphql.language.FragmentSpread;
 import graphql.language.InputValueDefinition;
 import graphql.language.Node;
+import graphql.language.ObjectField;
+import graphql.language.ObjectValue;
 import graphql.language.OperationDefinition;
 import graphql.language.Selection;
 import graphql.language.SelectionSet;
@@ -23,6 +25,7 @@ import graphql.schema.GraphQLInterfaceType;
 import graphql.schema.GraphQLModifiedType;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLOutputType;
+import graphql.schema.GraphQLSchema;
 import graphql.schema.GraphQLType;
 import org.dataloader.BatchLoader;
 
@@ -31,11 +34,15 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static com.atlassian.braid.TypeUtils.findQueryFieldDefinitions;
+import static com.atlassian.braid.collections.BraidCollectors.singleton;
 import static graphql.introspection.Introspection.TypeNameMetaFieldDef;
+import static graphql.language.OperationDefinition.Operation.MUTATION;
+import static graphql.language.OperationDefinition.Operation.QUERY;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
@@ -51,9 +58,16 @@ class QueryExecutor implements BatchLoaderFactory {
 
     @SuppressWarnings("Duplicates")
     <C extends BraidContext> CompletableFuture<List<DataFetcherResult<Map<String, Object>>>> query(SchemaSource<C> schemaSource, List<DataFetchingEnvironment> environments, Link link) {
+
+        final DataFetchingEnvironment firstEnv = environments.stream().findFirst()
+                .orElseThrow(IllegalStateException::new);
+
+        final GraphQLOutputType fieldType = firstEnv.getFieldDefinition().getType();
+
         Document doc = new Document();
 
-        OperationDefinition queryOp = newQueryOperationDefinition(environments);
+        final OperationDefinition.Operation operationType = getOperationType(firstEnv).orElse(QUERY);
+        OperationDefinition queryOp = newQueryOperationDefinition(fieldType, operationType);
 
         doc.getDefinitions().add(queryOp);
 
@@ -86,9 +100,9 @@ class QueryExecutor implements BatchLoaderFactory {
             }
 
             Document queryDoc = new Parser().parseDocument(environment.<BraidContext>getContext().getQuery());
-            OperationDefinition queryType = findQueryDefinition(queryDoc);
+            OperationDefinition operationDefinition = findSingleOperationDefinition(queryDoc);
             final GraphQLQueryVisitor variableNameSpacer =
-                    new VariableNamespacingGraphQLQueryVisitor(counter, queryType, variables, environment, queryOp);
+                    new VariableNamespacingGraphQLQueryVisitor(counter, operationDefinition, variables, environment, queryOp);
 
             processForFragments(environment, field).forEach(d -> {
                 variableNameSpacer.visit(d);
@@ -106,16 +120,25 @@ class QueryExecutor implements BatchLoaderFactory {
                 .thenApply(result -> transformBatchResultIntoResultList(environments, clonedFields, result));
     }
 
-    private OperationDefinition newQueryOperationDefinition(List<DataFetchingEnvironment> environments) {
-        return new OperationDefinition(newBulkOperationName(environments), OperationDefinition.Operation.QUERY, new SelectionSet());
+    private OperationDefinition newQueryOperationDefinition(GraphQLOutputType fieldType,
+                                                            OperationDefinition.Operation operationType) {
+        return new OperationDefinition(newBulkOperationName(fieldType), operationType, new SelectionSet());
     }
 
-    private String newBulkOperationName(List<DataFetchingEnvironment> environments) {
-        return "Bulk_" + environments.stream().findFirst().map(this::getFieldTypeName).orElse("");
+    private Optional<OperationDefinition.Operation> getOperationType(DataFetchingEnvironment env) {
+        final GraphQLType graphQLType = env.getParentType();
+        final GraphQLSchema graphQLSchema = env.getGraphQLSchema();
+        if (Objects.equals(graphQLSchema.getQueryType(), graphQLType)) {
+            return Optional.of(QUERY);
+        } else if (Objects.equals(graphQLSchema.getMutationType(), graphQLType)) {
+            return Optional.of(MUTATION);
+        } else {
+            return Optional.empty();
+        }
     }
 
-    private String getFieldTypeName(DataFetchingEnvironment environment) {
-        return environment.getFieldDefinition().getType().getName();
+    private String newBulkOperationName(GraphQLOutputType fieldType) {
+        return "Bulk_" + fieldType.getName();
     }
 
     private Field cloneCurrentField(DataFetchingEnvironment environment) {
@@ -132,8 +155,6 @@ class QueryExecutor implements BatchLoaderFactory {
                 .variables(variables)
                 .build();
     }
-
-
 
     private List<DataFetcherResult<Map<String, Object>>> transformBatchResultIntoResultList(List<DataFetchingEnvironment> environments, Map<DataFetchingEnvironment, Field> clonedFields, DataFetcherResult<Map<String, Object>> result) {
         List<DataFetcherResult<Map<String, Object>>> queryResults = new ArrayList<>();
@@ -154,12 +175,11 @@ class QueryExecutor implements BatchLoaderFactory {
         return queryResults;
     }
 
-    private OperationDefinition findQueryDefinition(Document queryDoc) {
-        return (OperationDefinition) queryDoc.getDefinitions().stream()
-                .filter(d -> d instanceof OperationDefinition
-                        && ((OperationDefinition) d).getOperation() == OperationDefinition.Operation.QUERY)
-                .findFirst()
-                .orElseThrow(IllegalArgumentException::new);
+    private static OperationDefinition findSingleOperationDefinition(Document queryDoc) {
+        return queryDoc.getDefinitions().stream()
+                .filter(d -> d instanceof OperationDefinition)
+                .map(OperationDefinition.class::cast)
+                .collect(singleton());
     }
 
     private <C extends BraidContext> Type findArgumentType(SchemaSource<C> schemaSource, Link link) {
@@ -311,37 +331,54 @@ class QueryExecutor implements BatchLoaderFactory {
 
         @Override
         protected void visitField(Field node) {
-            List<Argument> renamedArguments = node.getArguments().stream()
-                    .map(a -> {
-                        Value value = a.getValue();
-                        if (value instanceof VariableReference) {
-                            VariableReference varRef = (VariableReference) value;
-                            if (isVariableNotAlreadyNamespaced(varRef)) {
-                                value = namespaceVariable(varRef);
-                            }
-                        }
-                        return new Argument(a.getName(), value);
-                    }).collect(toList());
-            node.setArguments(renamedArguments);
+            node.setArguments(node.getArguments().stream().map(this::namespaceReferences).collect(toList()));
             super.visitField(node);
         }
 
-        private Value namespaceVariable(VariableReference varRef) {
+        private Argument namespaceReferences(Argument arg) {
+            return new Argument(arg.getName(), namespaceReferences(arg.getValue()));
+        }
+
+        private Value namespaceReferences(Value value) {
+            final Value transformedValue;
+            if (value instanceof VariableReference) {
+                transformedValue = maybeNamespaceReference((VariableReference) value);
+            } else if (value instanceof ObjectValue) {
+                transformedValue = namespaceReferencesForObjectValue((ObjectValue) value);
+            } else {
+                transformedValue = value;
+            }
+            return transformedValue;
+        }
+
+        private ObjectValue namespaceReferencesForObjectValue(ObjectValue value) {
+            return new ObjectValue(
+                    value.getChildren().stream()
+                            .map(ObjectField.class::cast)
+                            .map(o -> new ObjectField(o.getName(), namespaceReferences(o.getValue())))
+                            .collect(toList()));
+        }
+
+        private VariableReference maybeNamespaceReference(VariableReference value) {
+            return isVariableAlreadyNamespaced(value) ? value : namespaceVariable(value);
+        }
+
+        private VariableReference namespaceVariable(VariableReference varRef) {
             final String newName = varRef.getName() + counter;
 
-            Value value = new VariableReference(newName);
-            Type type = findVariableType(varRef, queryType);
+            final VariableReference value = new VariableReference(newName);
+            final Type type = findVariableType(varRef, queryType);
 
             variables.put(newName, environment.<BraidContext>getContext().getVariables().get(varRef.getName()));
             queryOp.getVariableDefinitions().add(new VariableDefinition(newName, type));
             return value;
         }
 
-        private boolean isVariableNotAlreadyNamespaced(VariableReference varRef) {
-            return !varRef.getName().endsWith(String.valueOf(counter));
+        private boolean isVariableAlreadyNamespaced(VariableReference varRef) {
+            return varRef.getName().endsWith(String.valueOf(counter));
         }
 
-        private Type findVariableType(VariableReference varRef, OperationDefinition queryType) {
+        private static Type findVariableType(VariableReference varRef, OperationDefinition queryType) {
             return queryType.getVariableDefinitions()
                     .stream()
                     .filter(d -> d.getName().equals(varRef.getName()))
