@@ -17,18 +17,18 @@ final class QueryExecutorSchemaSource<C extends BraidContext> extends AbstractSc
 
     private final QueryExecutor<C> queryExecutor;
 
-    public QueryExecutorSchemaSource(SchemaNamespace namespace,
-                                     TypeDefinitionRegistry schema,
-                                     List<Link> links,
-                                     QueryFunction<C> queryFunction) {
+    QueryExecutorSchemaSource(SchemaNamespace namespace,
+                              TypeDefinitionRegistry schema,
+                              List<Link> links,
+                              QueryFunction<C> queryFunction) {
         this(namespace, schema, schema, links, queryFunction);
     }
 
-    public QueryExecutorSchemaSource(SchemaNamespace namespace,
-                                     TypeDefinitionRegistry schema,
-                                     TypeDefinitionRegistry privateSchema,
-                                     List<Link> links,
-                                     QueryFunction<C> queryFunction) {
+    QueryExecutorSchemaSource(SchemaNamespace namespace,
+                              TypeDefinitionRegistry schema,
+                              TypeDefinitionRegistry privateSchema,
+                              List<Link> links,
+                              QueryFunction<C> queryFunction) {
         this(namespace, schema, privateSchema, links, new QueryExecutor<C>(queryFunction));
 
     }

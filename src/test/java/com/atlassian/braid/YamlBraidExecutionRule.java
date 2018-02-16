@@ -1,6 +1,6 @@
 package com.atlassian.braid;
 
-import com.atlassian.braid.source.LocalSchemaSource;
+import com.atlassian.braid.source.LocalQueryExecutingSchemaSource;
 import com.atlassian.braid.source.MapGraphQLError;
 import graphql.ExecutionInput;
 import graphql.ExecutionResult;
@@ -100,7 +100,7 @@ public class YamlBraidExecutionRule implements MethodRule {
     private List<SchemaSource<BraidContext>> loadSchemaSources(TestConfiguration config) {
         return config.getSchemaSources()
                 .stream()
-                .map(schemaSource -> new LocalSchemaSource<>(
+                .map(schemaSource -> new LocalQueryExecutingSchemaSource<>(
                         schemaSource.getNamespace(),
                         schemaSource.getTypeDefinitionRegistry(),
                         getLinks(schemaSource),

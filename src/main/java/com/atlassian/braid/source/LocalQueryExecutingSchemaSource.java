@@ -8,12 +8,15 @@ import graphql.ExecutionInput;
 import graphql.execution.DataFetcherResult;
 import graphql.schema.idl.TypeDefinitionRegistry;
 
+import java.io.Reader;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
+import static com.atlassian.braid.source.SchemaUtils.loadSchema;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -22,20 +25,27 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
  * Local schema source
  */
 @SuppressWarnings("WeakerAccess")
-public final class LocalSchemaSource<C extends BraidContext> extends ForwardingSchemaSource<C> {
+public final class LocalQueryExecutingSchemaSource<C extends BraidContext> extends ForwardingSchemaSource<C> {
     private final QueryExecutorSchemaSource<C> delegate;
     private final Function<ExecutionInput, Object> queryExecutor;
 
-    public LocalSchemaSource(SchemaNamespace namespace,
-                             TypeDefinitionRegistry schema,
-                             Function<ExecutionInput, Object> queryExecutor) {
-        this(namespace, schema, emptyList(), queryExecutor);
+    public LocalQueryExecutingSchemaSource(SchemaNamespace namespace,
+                                           Supplier<Reader> schemaProvider,
+                                           Function<ExecutionInput, Object> queryExecutor) {
+        this(namespace, schemaProvider, emptyList(), queryExecutor);
     }
 
-    public LocalSchemaSource(SchemaNamespace namespace,
-                             TypeDefinitionRegistry schema,
-                             List<Link> links,
-                             Function<ExecutionInput, Object> queryExecutor) {
+    public LocalQueryExecutingSchemaSource(SchemaNamespace namespace,
+                                           Supplier<Reader> schemaProvider,
+                                           List<Link> links,
+                                           Function<ExecutionInput, Object> queryExecutor) {
+        this(namespace, loadSchema(schemaProvider), links, queryExecutor);
+    }
+
+    public LocalQueryExecutingSchemaSource(SchemaNamespace namespace,
+                                           TypeDefinitionRegistry schema,
+                                           List<Link> links,
+                                           Function<ExecutionInput, Object> queryExecutor) {
         this.queryExecutor = requireNonNull(queryExecutor);
         this.delegate = new QueryExecutorSchemaSource<>(namespace,
                 schema,

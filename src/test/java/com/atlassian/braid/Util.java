@@ -33,8 +33,12 @@ public class Util {
         }
     }
 
-    private static InputStreamReader getResourceAsReader(String schemaPath) throws UnsupportedEncodingException {
-        return new InputStreamReader(getResourceAsStream(schemaPath), Charsets.UTF_8.name());
+    public static Reader getResourceAsReader(String schemaPath) {
+        try {
+            return new InputStreamReader(getResourceAsStream(schemaPath), Charsets.UTF_8.name());
+        } catch (UnsupportedEncodingException e) {
+            throw new IllegalStateException("It's UTF-8");
+        }
     }
 
     private static InputStream getResourceAsStream(String schemaPath) {

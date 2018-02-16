@@ -1,6 +1,6 @@
 package com.atlassian.braid;
 
-import com.atlassian.braid.source.LocalSchemaSource;
+import com.atlassian.braid.source.LocalQueryExecutingSchemaSource;
 import com.google.common.collect.ImmutableMap;
 import graphql.ExecutionInput;
 import graphql.ExecutionResult;
@@ -17,10 +17,13 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import java.io.Reader;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
+import static com.atlassian.braid.Util.getResourceAsReader;
 import static com.atlassian.braid.Util.parseRegistry;
 import static graphql.ExecutionInput.newExecutionInput;
 import static graphql.schema.idl.RuntimeWiring.newRuntimeWiring;
@@ -54,13 +57,13 @@ public class SchemaBraidConsumerTest {
 
 
         final TypeDefinitionRegistry existingRegistry = parseRegistry("/com/atlassian/braid/existing.graphql");
-        final TypeDefinitionRegistry fooRegistry = parseRegistry("/com/atlassian/braid/foo.graphql");
+        final Supplier<Reader> fooRegistry = () -> getResourceAsReader("/com/atlassian/braid/foo.graphql");
 
         Braid braid = new SchemaBraid<>()
                 .braid(SchemaBraidConfiguration.builder()
                         .typeDefinitionRegistry(existingRegistry)
                         .runtimeWiringBuilder(newRuntimeWiring())
-                        .schemaSource(new LocalSchemaSource<>(FOO, fooRegistry, queryExecutor))
+                        .schemaSource(new LocalQueryExecutingSchemaSource<>(FOO, fooRegistry, queryExecutor))
                         .build());
 
         DataLoaderRegistry dataLoaderRegistry = braid.newDataLoaderRegistry();
@@ -112,7 +115,7 @@ public class SchemaBraidConsumerTest {
                 singletonList(new DataFetcherResult(
                         ImmutableMap.of("id", "fooid", "name", "Foo"),
                         emptyList()))));
-        when(((BatchLoaderFactory)localSource).newBatchLoader(any(), any())).thenReturn(loader);
+        when(((BatchLoaderFactory) localSource).newBatchLoader(any(), any())).thenReturn(loader);
 
         Braid braid = new SchemaBraid<>()
                 .braid(SchemaBraidConfiguration.builder()
