@@ -21,7 +21,7 @@ foo:
 
         def result = new YamlMapper(new StringReader(yaml)).map(input)
 
-        assert output == result
+        assertThat(output).isEqualTo(result);
     }
 
     @Test
