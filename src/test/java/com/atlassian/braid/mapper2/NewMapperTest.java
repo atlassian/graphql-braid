@@ -2,6 +2,7 @@ package com.atlassian.braid.mapper2;
 
 import com.atlassian.braid.collections.BraidObjects;
 import org.junit.Test;
+import org.springframework.expression.spel.SpelEvaluationException;
 
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,30 @@ public class NewMapperTest {
         assertThat(mapper().copy("foo", "baz")
                 .apply(singletonMap("foo", "bar")))
                 .containsEntry("baz", "bar");
+    }
+
+    @Test
+    public void copyMissing() {
+        assertThat(mapper()
+                .copy("baz")
+                .apply(singletonMap("foo", "bar"))).isEmpty();
+    }
+
+    @Test
+    public void copyDeepValue() {
+        assertThat(mapper()
+                .copy("['foo']['bar']", "jim")
+                .apply(singletonMap("foo", singletonMap("bar", "baz"))))
+                .containsEntry("jim", "baz");
+    }
+
+
+    @Test(expected = SpelEvaluationException.class)
+    public void copyDeepValueIsMissing() {
+        assertThat(mapper()
+                .copy("['baz']['bar']")
+                .apply(singletonMap("foo", "bar")))
+                .isEmpty();
     }
 
     @Test

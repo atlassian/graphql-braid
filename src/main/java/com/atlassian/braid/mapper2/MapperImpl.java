@@ -31,7 +31,7 @@ final class MapperImpl implements NewMapper {
 
     @Override
     public <T, R> NewMapper copy(String sourceKey, String targetKey, Supplier<R> defaultValue, Function<T, R> transform) {
-        return newMapper(new CopyOperation<>(MapperImpl::getFromMap, sourceKey, targetKey, defaultValue, transform));
+        return newMapper(new CopyOperation<>(sourceKey, targetKey, defaultValue, transform));
     }
 
     @Override

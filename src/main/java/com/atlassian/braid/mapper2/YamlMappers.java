@@ -85,7 +85,7 @@ final class YamlMappers {
         COPY {
             @Override
             MapperOperation getOperation(String sourceKey, Map<String, Object> props) {
-                return new CopyOperation<>(Maps::get, sourceKey, getTargetKey(props, sourceKey), () -> null, Function.identity());
+                return new CopyOperation<>(sourceKey, getTargetKey(props, sourceKey), () -> null, Function.identity());
             }
         },
         PUT {

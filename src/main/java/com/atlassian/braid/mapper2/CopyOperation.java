@@ -1,5 +1,9 @@
 package com.atlassian.braid.mapper2;
 
+import com.atlassian.braid.collections.BraidObjects;
+import com.atlassian.braid.collections.Maps;
+import org.slf4j.LoggerFactory;
+
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -9,19 +13,26 @@ import java.util.function.Supplier;
 import static java.util.Objects.requireNonNull;
 
 final class CopyOperation<T, R> implements MapperOperation {
-    private final BiFunction<Map<String, Object>, String, Optional<Object>> getFromMap;
+    private static BiFunction<Map<String, Object>, String, Optional<Object>> getFromMap;
+
+    static {
+        try {
+            getFromMap = CopyOperation.<SpringExpressions>newInstance("com.atlassian.braid.mapper2.SpringExpressions")::get;
+        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
+            LoggerFactory.getLogger(CopyOperation.class).debug("Spring not found, using simple property expressions", e);
+            getFromMap = Maps::get;
+        }
+    }
 
     private final String sourceKey;
     private final String targetKey;
     private final Supplier<R> defaultValue;
     private final Function<T, R> transform;
 
-    CopyOperation(BiFunction<Map<String, Object>, String, Optional<Object>> getFromMap,
-                  String sourceKey,
+    CopyOperation(String sourceKey,
                   String targetKey,
                   Supplier<R> defaultValue,
                   Function<T, R> transform) {
-        this.getFromMap = requireNonNull(getFromMap);
         this.sourceKey = requireNonNull(sourceKey);
         this.targetKey = requireNonNull(targetKey);
         this.defaultValue = requireNonNull(defaultValue);
@@ -38,5 +49,9 @@ final class CopyOperation<T, R> implements MapperOperation {
         if (value != null) {
             output.put(targetKey, value);
         }
+    }
+
+    private static <T> T newInstance(String name) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+        return BraidObjects.cast(NewMapper.class.getClassLoader().loadClass(name).newInstance());
     }
 }
