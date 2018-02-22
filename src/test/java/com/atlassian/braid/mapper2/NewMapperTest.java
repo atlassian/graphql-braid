@@ -59,4 +59,19 @@ public class NewMapperTest {
                 .get("foz")))
                 .contains(singletonMap("boz", "baz"));
     }
+
+    @Test
+    public void copyEmbeddedList() {
+        Map<String, Object> data = singletonMap("foo", singletonList(singletonMap("embeddedlist", singletonList(singletonMap("bar", "baz")))));
+        assertThat(BraidObjects.<List<Map<String, List<Map<String, String>>>>>cast(mapper()
+                .copyList("foo", "foz", mapper().copyList("embeddedlist", "embedded", mapper().copy("bar", "boz")))
+                .apply(data).get("foz"))).contains(singletonMap("embedded", singletonList(singletonMap("boz", "baz"))));
+    }
+
+    @Test
+    public void mapAndPut() {
+        assertThat(BraidObjects.<Map<String, String>>cast(mapper()
+                .map("foo", mapper().put("bar", "baz"))
+                .apply(emptyMap()).get("foo"))).containsEntry("bar", "baz");
+    }
 }

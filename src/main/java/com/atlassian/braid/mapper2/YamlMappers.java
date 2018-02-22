@@ -15,7 +15,6 @@ import java.util.function.Supplier;
 
 import static com.atlassian.braid.collections.BraidObjects.cast;
 import static com.atlassian.braid.mapper2.MapperOperations.composed;
-import static com.atlassian.braid.mapper2.NewMapper.mapper;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
@@ -98,10 +97,19 @@ final class YamlMappers {
         COPYLIST {
             @Override
             MapperOperation getOperation(String sourceKey, Map<String, Object> props) {
-                return Maps.get(props, "mapper")
-                        .map(BraidObjects::<Map<String, Object>>cast)
-                        .map(mapper -> new CopyListOperation(sourceKey, getTargetKey(props, sourceKey), newYamlMapper(mapper)))
-                        .orElseGet(() -> new CopyListOperation(sourceKey, sourceKey, mapper()));
+                return new CopyListOperation(sourceKey, getTargetKey(props, sourceKey), getMapper(props));
+            }
+        },
+        SINGLETONLIST {
+            @Override
+            MapperOperation getOperation(String sourceKey, Map<String, Object> props) {
+                return new SingletonListOperation(sourceKey, getMapper(props));
+            }
+        },
+        MAP {
+            @Override
+            MapperOperation getOperation(String sourceKey, Map<String, Object> props) {
+                return new MapOperation(sourceKey, getMapper(props));
             }
         };
 
@@ -110,5 +118,12 @@ final class YamlMappers {
 
     private static String getTargetKey(Map<String, Object> props, String defaultValue) {
         return Maps.get(props, "target").map(String::valueOf).orElse(defaultValue);
+    }
+
+    private static NewMapper getMapper(Map<String, Object> props) {
+        return Maps.get(props, "mapper")
+                .map(BraidObjects::<Map<String, Object>>cast)
+                .map(YamlMappers::newYamlMapper)
+                .orElseGet(NewMapper::mapper);
     }
 }

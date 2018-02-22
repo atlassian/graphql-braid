@@ -44,6 +44,16 @@ final class MapperImpl implements NewMapper {
         return newMapper(new CopyListOperation(sourceKey, targetKey, mapper));
     }
 
+    @Override
+    public NewMapper singletonList(String key, NewMapper mapper) {
+        return newMapper(new SingletonListOperation(key, mapper));
+    }
+
+    @Override
+    public NewMapper map(String key, NewMapper mapper) {
+        return newMapper(new MapOperation(key, mapper));
+    }
+
     private MapperImpl newMapper(MapperOperation afterOperation) {
         return new MapperImpl(this.operation.andThen(afterOperation));
     }
