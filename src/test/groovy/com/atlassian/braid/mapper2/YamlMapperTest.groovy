@@ -60,7 +60,32 @@ foo:
         testYamlMapper(yaml, input, output)
     }
 
-    private static void testYamlMapper(String yaml, Map<String, String> input, Map<String, String> output) {
+    @Test
+    void copyList() {
+        def yaml = '''
+foo: 
+  op: "copyList"
+  target: "fooz"
+  mapper:
+    bar: 
+     op: "copy"
+     target: "baz"
+'''
+        def input = [
+                "foo": [
+                        ["bar": "blah2"],
+                        ["bar": "jim"]
+                ]
+        ]
+
+        def output = [
+                "fooz": [["baz": "blah2"], ["baz": "jim"]]
+        ]
+
+        testYamlMapper(yaml, input, output)
+    }
+
+    private static void testYamlMapper(String yaml, Map<String, Object> input, Map<String, Object> output) {
         def mapper = fromYaml { new StringReader(yaml) }
         assertThat(mapper.apply(input)).isEqualTo(output);
     }

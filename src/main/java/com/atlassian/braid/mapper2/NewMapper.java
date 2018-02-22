@@ -1,24 +1,17 @@
 package com.atlassian.braid.mapper2;
 
 import java.io.Reader;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
-import static com.atlassian.braid.mapper2.MapperOperations.composed;
-import static java.util.stream.Collectors.toList;
+import static com.atlassian.braid.mapper2.YamlMappers.newYamlMapper;
 
 public interface NewMapper extends UnaryOperator<Map<String, Object>> {
 
     static NewMapper fromYaml(Supplier<Reader> yaml) {
-        final List<MapperOperation> operations = YamlMappers.load(yaml)
-                .entrySet().stream()
-                .map(YamlMappers::fromEntry)
-                .collect(toList());
-        return new MapperImpl(composed(operations));
-
+        return newYamlMapper(YamlMappers.load(yaml));
     }
 
     static NewMapper mapper() {
@@ -48,4 +41,10 @@ public interface NewMapper extends UnaryOperator<Map<String, Object>> {
     <T, R> NewMapper copy(String sourceKey, String targetKey, Supplier<R> defaultValue, Function<T, R> transform);
 
     <V> NewMapper put(String key, V value);
+
+    default NewMapper copyList(String sourceKey, NewMapper mapper) {
+        return copyList(sourceKey, sourceKey, mapper);
+    }
+
+    NewMapper copyList(String sourceKey, String targetKey, NewMapper mapper);
 }

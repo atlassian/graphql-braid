@@ -39,6 +39,11 @@ final class MapperImpl implements NewMapper {
         return newMapper(new PutOperation<>(key, value));
     }
 
+    @Override
+    public NewMapper copyList(String sourceKey, String targetKey, NewMapper mapper) {
+        return newMapper(new CopyListOperation(sourceKey, targetKey, mapper));
+    }
+
     private MapperImpl newMapper(MapperOperation afterOperation) {
         return new MapperImpl(this.operation.andThen(afterOperation));
     }

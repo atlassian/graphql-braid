@@ -2,6 +2,8 @@ package com.atlassian.braid.mapper
 
 import org.junit.*
 
+import static org.assertj.core.api.Assertions.assertThat
+
 class YamlMapperTest {
 
     @Test
@@ -19,9 +21,7 @@ foo:
             "foo": "blah",
         ]
 
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assertThat(output).isEqualTo(result);
+        assertMapping(yaml, input, output)
     }
 
     @Test
@@ -40,9 +40,7 @@ bar: "copy"
                 "bar": "blah2"
         ]
 
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assert output == result
+        assertMapping(yaml, input, output)
     }
 
     @Test
@@ -67,9 +65,7 @@ foo:
                 "foo": [["baz": "blah2"], ["baz": "jim"]]
         ]
 
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assert output == result
+        assertMapping(yaml, input, output)
     }
 
     @Test
@@ -90,9 +86,7 @@ foo:
                 "foo": ["baz": "blah2"]
         ]
 
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assert output == result
+        assertMapping(yaml, input, output)
     }
 
     @Test
@@ -125,9 +119,7 @@ foo:
                 "foo": [["bar": [["baz": "blah2"]], "jim": [["sara": "b"]]]]
         ]
 
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assert output == result
+        assertMapping(yaml, input, output)
     }
 
     @Test
@@ -146,9 +138,7 @@ foo:
                 "foo": [["baz": "blah2"]]
         ]
 
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assert output == result
+        assertMapping(yaml, input, output)
     }
 
     @Test
@@ -167,9 +157,7 @@ foo:
                 "foo": ["baz": "blah2"]
         ]
 
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assert output == result
+        assertMapping(yaml, input, output)
     }
 
     @Test
@@ -185,8 +173,11 @@ foo:
                 "foo": "bar"
         ]
 
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
+        assertMapping(yaml, input, output)
+    }
 
-        assert output == result
+    private static void assertMapping(String yaml, Map<String, String> input, Map<String, String> output) {
+        def result = new YamlMapper(new StringReader(yaml)).map(input)
+        assertThat(result).isEqualTo(output)
     }
 }

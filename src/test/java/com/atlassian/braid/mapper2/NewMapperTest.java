@@ -1,12 +1,14 @@
 package com.atlassian.braid.mapper2;
 
+import com.atlassian.braid.collections.BraidObjects;
 import org.junit.Test;
 
-import java.io.StringReader;
+import java.util.List;
+import java.util.Map;
 
-import static com.atlassian.braid.mapper.Mapper.newMapper;
 import static com.atlassian.braid.mapper2.NewMapper.mapper;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,5 +48,15 @@ public class NewMapperTest {
         assertThat(mapper()
                 .put("foo", "bar")
                 .apply(emptyMap())).containsEntry("foo", "bar");
+    }
+
+    @Test
+    public void copyList() {
+        Map<String, Object> data = singletonMap("foo", singletonList(singletonMap("bar", "baz")));
+        assertThat(BraidObjects.<List<Map<String, String>>>cast(mapper()
+                .copyList("foo", "foz", mapper().copy("bar", "boz"))
+                .apply(data)
+                .get("foz")))
+                .contains(singletonMap("boz", "baz"));
     }
 }
