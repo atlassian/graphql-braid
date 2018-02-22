@@ -100,16 +100,22 @@ final class YamlMappers {
                 return new CopyListOperation(sourceKey, getTargetKey(props, sourceKey), getMapper(props));
             }
         },
-        SINGLETONLIST {
+        LIST {
             @Override
             MapperOperation getOperation(String sourceKey, Map<String, Object> props) {
-                return new SingletonListOperation(sourceKey, getMapper(props));
+                return new ListOperation(sourceKey, getMapper(props));
             }
         },
         MAP {
             @Override
             MapperOperation getOperation(String sourceKey, Map<String, Object> props) {
                 return new MapOperation(sourceKey, getMapper(props));
+            }
+        },
+        COPYMAP {
+            @Override
+            MapperOperation getOperation(String sourceKey, Map<String, Object> props) {
+                return new CopyMapOperation(sourceKey, getTargetKey(props, sourceKey), getMapper(props));
             }
         };
 

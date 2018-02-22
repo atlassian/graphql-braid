@@ -122,7 +122,7 @@ foo:
     void singleList() {
         def yaml = '''
 foo: 
-  op: "singletonList"
+  op: "list"
   mapper:
     bar: 
      op: "copy"
@@ -156,6 +156,26 @@ foo:
         testYamlMapper(yaml, input, output)
     }
 
+    @Test
+    void copyMap() {
+        def yaml = '''
+foo: 
+  op: "copyMap"
+  mapper:
+    bar: 
+     op: "copy"
+     target: "baz"
+'''
+        def input = [
+                "foo": ["bar": "blah2"]
+        ]
+
+        def output = [
+                "foo": ["baz": "blah2"]
+        ]
+
+        testYamlMapper(yaml, input, output)
+    }
 
     private static void testYamlMapper(String yaml, Map<String, Object> input, Map<String, Object> output) {
         def mapper = fromYaml { new StringReader(yaml) }

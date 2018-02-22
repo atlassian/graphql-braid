@@ -5,12 +5,12 @@ import java.util.Map;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 
-final class SingletonListOperation implements MapperOperation {
+final class ListOperation implements MapperOperation {
 
     private final String key;
     private final NewMapper mapper;
 
-    SingletonListOperation(String key, NewMapper mapper) {
+    ListOperation(String key, NewMapper mapper) {
         this.key = requireNonNull(key);
         this.mapper = requireNonNull(mapper);
     }

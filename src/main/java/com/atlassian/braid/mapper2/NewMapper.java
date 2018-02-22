@@ -48,7 +48,13 @@ public interface NewMapper extends UnaryOperator<Map<String, Object>> {
 
     NewMapper copyList(String sourceKey, String targetKey, NewMapper mapper);
 
-    NewMapper singletonList(String key, NewMapper mapper);
+    NewMapper list(String key, NewMapper mapper);
 
     NewMapper map(String key, NewMapper mapper);
+
+    default NewMapper copyMap(String sourceKey, NewMapper mapper) {
+        return copyMap(sourceKey, sourceKey, mapper);
+    }
+
+    NewMapper copyMap(String sourceKey, String targetKey, NewMapper mapper);
 }

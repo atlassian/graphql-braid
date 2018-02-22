@@ -42,7 +42,6 @@ public class NewMapperTest {
                 .containsEntry("baz", "bar");
     }
 
-
     @Test
     public void put() {
         assertThat(mapper()
@@ -73,5 +72,13 @@ public class NewMapperTest {
         assertThat(BraidObjects.<Map<String, String>>cast(mapper()
                 .map("foo", mapper().put("bar", "baz"))
                 .apply(emptyMap()).get("foo"))).containsEntry("bar", "baz");
+    }
+
+    @Test
+    public void copyMap() {
+        assertThat(mapper()
+                .copyMap("foo", "faz", mapper().copy("bar", "barn"))
+                .apply(singletonMap("foo", singletonMap("bar", "baz"))))
+                .isEqualTo(singletonMap("faz", singletonMap("barn", "baz")));
     }
 }
