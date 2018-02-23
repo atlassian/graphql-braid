@@ -14,7 +14,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.atlassian.braid.collections.BraidObjects.cast;
-import static com.atlassian.braid.mapper2.MapperOperations.composed;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
@@ -29,11 +28,8 @@ final class YamlMappers {
         }
     }
 
-    static NewMapper newYamlMapper(Map<String, Object> yamlAsMap) {
-        return new MapperImpl(composed(toMapperOperations(yamlAsMap)));
-    }
 
-    private static List<MapperOperation> toMapperOperations(Map<String, Object> yamlAsMap) {
+    static List<MapperOperation> toMapperOperations(Map<String, Object> yamlAsMap) {
         return yamlAsMap
                 .entrySet().stream()
                 .map(YamlMappers::fromEntry)
@@ -129,7 +125,7 @@ final class YamlMappers {
     private static NewMapper getMapper(Map<String, Object> props) {
         return Maps.get(props, "mapper")
                 .map(BraidObjects::<Map<String, Object>>cast)
-                .map(YamlMappers::newYamlMapper)
-                .orElseGet(NewMapper::mapper);
+                .map(Mappers::fromYamlMap)
+                .orElseGet(Mappers::mapper);
     }
 }

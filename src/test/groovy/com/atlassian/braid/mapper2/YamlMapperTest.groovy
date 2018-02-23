@@ -2,7 +2,7 @@ package com.atlassian.braid.mapper2
 
 import org.junit.Test
 
-import static com.atlassian.braid.mapper2.NewMapper.fromYaml
+import static com.atlassian.braid.mapper2.Mappers.fromYaml
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat
 
 class YamlMapperTest {

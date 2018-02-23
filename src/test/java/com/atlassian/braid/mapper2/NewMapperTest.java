@@ -7,7 +7,7 @@ import org.springframework.expression.spel.SpelEvaluationException;
 import java.util.List;
 import java.util.Map;
 
-import static com.atlassian.braid.mapper2.NewMapper.mapper;
+import static com.atlassian.braid.mapper2.Mappers.mapper;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
