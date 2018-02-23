@@ -4,7 +4,7 @@ import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
-import com.atlassian.braid.collections.BraidObjects;
+import com.atlassian.braid.java.util.BraidObjects;
 import com.atlassian.braid.mapper.Mapper;
 import org.yaml.snakeyaml.Yaml;
 

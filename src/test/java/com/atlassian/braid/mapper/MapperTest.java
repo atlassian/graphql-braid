@@ -1,8 +1,7 @@
 package com.atlassian.braid.mapper;
 
-import com.atlassian.braid.collections.BraidObjects;
+import com.atlassian.braid.java.util.BraidObjects;
 import org.junit.Test;
-import org.springframework.expression.spel.SpelEvaluationException;
 
 import java.util.List;
 import java.util.Map;
@@ -59,7 +58,7 @@ public class MapperTest {
     }
 
 
-    @Test(expected = SpelEvaluationException.class)
+    @Test(expected = MapperException.class)
     public void copyDeepValueIsMissing() {
         assertThat(mapper()
                 .copy("['baz']['bar']")

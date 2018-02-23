@@ -1,7 +1,7 @@
 package com.atlassian.braid.mapper;
 
-import com.atlassian.braid.collections.BraidObjects;
-import com.atlassian.braid.collections.Maps;
+import com.atlassian.braid.java.util.BraidMaps;
+import com.atlassian.braid.java.util.BraidObjects;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
@@ -20,7 +20,7 @@ final class CopyOperation<T, R> implements MapperOperation {
             getFromMap = CopyOperation.<SpringExpressions>newInstance("com.atlassian.braid.mapper.SpringExpressions")::get;
         } catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
             LoggerFactory.getLogger(CopyOperation.class).debug("Spring not found, using simple property expressions", e);
-            getFromMap = Maps::get;
+            getFromMap = BraidMaps::get;
         }
     }
 
@@ -42,7 +42,7 @@ final class CopyOperation<T, R> implements MapperOperation {
     @Override
     public void accept(Map<String, Object> input, Map<String, Object> output) {
         final R value = getFromMap.apply(input, sourceKey)
-                .map(MapperImpl::<T>cast)
+                .map(BraidObjects::<T>cast)
                 .map(transform)
                 .orElseGet(defaultValue);
 

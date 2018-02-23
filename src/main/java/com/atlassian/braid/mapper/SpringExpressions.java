@@ -1,6 +1,7 @@
 package com.atlassian.braid.mapper;
 
-import com.atlassian.braid.collections.BraidObjects;
+import com.atlassian.braid.java.util.BraidObjects;
+import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 
 import java.util.Map;
@@ -16,6 +17,10 @@ final class SpringExpressions {
     }
 
     private static Object maybeGetValue(Object source, String sourcePath) {
-        return PARSER.parseExpression(sourcePath).getValue(source);
+        try {
+            return PARSER.parseExpression(sourcePath).getValue(source);
+        } catch (SpelEvaluationException e) {
+            throw new MapperException(e);
+        }
     }
 }

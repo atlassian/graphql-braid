@@ -6,12 +6,15 @@ import java.util.Map;
 
 import static java.util.Arrays.asList;
 
+/**
+ * Helper class to deal with common operations handling
+ */
 final class MapperOperations {
 
     private MapperOperations() {
     }
 
-    static MapperOperation noop(){
+    static MapperOperation noop() {
         return new NoopOperation();
     }
 

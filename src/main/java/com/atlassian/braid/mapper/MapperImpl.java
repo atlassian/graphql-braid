@@ -2,13 +2,15 @@ package com.atlassian.braid.mapper;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.atlassian.braid.mapper.MapperOperations.noop;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Default implemenation of {@link Mapper}
+ */
 final class MapperImpl implements Mapper {
 
     private final MapperOperation operation;
@@ -61,14 +63,5 @@ final class MapperImpl implements Mapper {
 
     private MapperImpl newMapper(MapperOperation afterOperation) {
         return new MapperImpl(this.operation.andThen(afterOperation));
-    }
-
-    private static Optional<Object> getFromMap(Map<String, Object> map, String key) {
-        return Optional.ofNullable(map.get(key));
-    }
-
-    @SuppressWarnings("unchecked")
-    static <T> T cast(Object o) {
-        return (T) o;
     }
 }

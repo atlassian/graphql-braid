@@ -1,7 +1,7 @@
 package com.atlassian.braid.mapper;
 
-import com.atlassian.braid.collections.BraidObjects;
-import com.atlassian.braid.collections.Maps;
+import com.atlassian.braid.java.util.BraidObjects;
+import com.atlassian.braid.java.util.BraidMaps;
 
 import java.util.Map;
 
@@ -21,7 +21,7 @@ final class CopyMapOperation implements MapperOperation {
 
     @Override
     public void accept(Map<String, Object> input, Map<String, Object> output) {
-        Maps.get(input, sourceKey)
+        BraidMaps.get(input, sourceKey)
                 .map(BraidObjects::<Map<String, Object>>cast)
                 .map(mapper)
                 .ifPresent(mappedList -> output.put(targetKey, mappedList));
