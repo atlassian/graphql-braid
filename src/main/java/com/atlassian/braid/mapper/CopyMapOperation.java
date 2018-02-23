@@ -1,4 +1,4 @@
-package com.atlassian.braid.mapper2;
+package com.atlassian.braid.mapper;
 
 import com.atlassian.braid.collections.BraidObjects;
 import com.atlassian.braid.collections.Maps;
@@ -11,9 +11,9 @@ final class CopyMapOperation implements MapperOperation {
 
     private final String sourceKey;
     private final String targetKey;
-    private final NewMapper mapper;
+    private final Mapper mapper;
 
-    CopyMapOperation(String sourceKey, String targetKey, NewMapper mapper) {
+    CopyMapOperation(String sourceKey, String targetKey, Mapper mapper) {
         this.sourceKey = requireNonNull(sourceKey);
         this.targetKey = requireNonNull(targetKey);
         this.mapper = requireNonNull(mapper);

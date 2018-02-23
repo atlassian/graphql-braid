@@ -1,4 +1,4 @@
-package com.atlassian.braid.mapper2;
+package com.atlassian.braid.mapper;
 
 import com.atlassian.braid.collections.BraidObjects;
 import org.springframework.expression.spel.standard.SpelExpressionParser;

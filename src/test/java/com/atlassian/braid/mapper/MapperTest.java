@@ -1,4 +1,4 @@
-package com.atlassian.braid.mapper2;
+package com.atlassian.braid.mapper;
 
 import com.atlassian.braid.collections.BraidObjects;
 import org.junit.Test;
@@ -7,13 +7,13 @@ import org.springframework.expression.spel.SpelEvaluationException;
 import java.util.List;
 import java.util.Map;
 
-import static com.atlassian.braid.mapper2.Mappers.mapper;
+import static com.atlassian.braid.mapper.Mappers.mapper;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class NewMapperTest {
+public class MapperTest {
 
     @Test
     public void copy() {

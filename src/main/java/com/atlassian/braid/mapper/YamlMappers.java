@@ -1,4 +1,4 @@
-package com.atlassian.braid.mapper2;
+package com.atlassian.braid.mapper;
 
 import com.atlassian.braid.collections.BraidObjects;
 import com.atlassian.braid.collections.Maps;
@@ -122,7 +122,7 @@ final class YamlMappers {
         return Maps.get(props, "target").map(String::valueOf).orElse(defaultValue);
     }
 
-    private static NewMapper getMapper(Map<String, Object> props) {
+    private static Mapper getMapper(Map<String, Object> props) {
         return Maps.get(props, "mapper")
                 .map(BraidObjects::<Map<String, Object>>cast)
                 .map(Mappers::fromYamlMap)

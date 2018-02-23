@@ -1,4 +1,4 @@
-package com.atlassian.braid.mapper2;
+package com.atlassian.braid.mapper;
 
 import java.util.Map;
 
@@ -7,9 +7,9 @@ import static java.util.Objects.requireNonNull;
 final class MapOperation implements MapperOperation {
 
     private final String key;
-    private final NewMapper mapper;
+    private final Mapper mapper;
 
-    MapOperation(String key, NewMapper mapper) {
+    MapOperation(String key, Mapper mapper) {
         this.key = requireNonNull(key);
         this.mapper = requireNonNull(mapper);
     }

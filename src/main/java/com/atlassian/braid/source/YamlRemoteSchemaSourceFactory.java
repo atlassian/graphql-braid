@@ -5,7 +5,7 @@ import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
 import com.atlassian.braid.collections.BraidObjects;
-import com.atlassian.braid.mapper2.NewMapper;
+import com.atlassian.braid.mapper.Mapper;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.Reader;
@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static com.atlassian.braid.mapper2.Mappers.fromYamlMap;
+import static com.atlassian.braid.mapper.Mappers.fromYamlMap;
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 
@@ -37,7 +37,7 @@ public class YamlRemoteSchemaSourceFactory {
                     String fieldName = e.getKey();
                     Map<String, Object> params = e.getValue();
 
-                    NewMapper mapping = fromYamlMap(BraidObjects.cast(params.get("responseMapping")));
+                    Mapper mapping = fromYamlMap(BraidObjects.cast(params.get("responseMapping")));
 
                     return new RestRemoteSchemaSource.RootField(fieldName, (String) params.get("uri"), mapping);
                 })

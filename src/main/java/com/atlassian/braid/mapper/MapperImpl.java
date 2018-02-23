@@ -1,4 +1,4 @@
-package com.atlassian.braid.mapper2;
+package com.atlassian.braid.mapper;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -6,10 +6,10 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static com.atlassian.braid.mapper2.MapperOperations.noop;
+import static com.atlassian.braid.mapper.MapperOperations.noop;
 import static java.util.Objects.requireNonNull;
 
-final class MapperImpl implements NewMapper {
+final class MapperImpl implements Mapper {
 
     private final MapperOperation operation;
 
@@ -30,32 +30,32 @@ final class MapperImpl implements NewMapper {
     }
 
     @Override
-    public <T, R> NewMapper copy(String sourceKey, String targetKey, Supplier<R> defaultValue, Function<T, R> transform) {
+    public <T, R> Mapper copy(String sourceKey, String targetKey, Supplier<R> defaultValue, Function<T, R> transform) {
         return newMapper(new CopyOperation<>(sourceKey, targetKey, defaultValue, transform));
     }
 
     @Override
-    public <V> NewMapper put(String key, V value) {
+    public <V> Mapper put(String key, V value) {
         return newMapper(new PutOperation<>(key, value));
     }
 
     @Override
-    public NewMapper copyList(String sourceKey, String targetKey, NewMapper mapper) {
+    public Mapper copyList(String sourceKey, String targetKey, Mapper mapper) {
         return newMapper(new CopyListOperation(sourceKey, targetKey, mapper));
     }
 
     @Override
-    public NewMapper list(String key, NewMapper mapper) {
+    public Mapper list(String key, Mapper mapper) {
         return newMapper(new ListOperation(key, mapper));
     }
 
     @Override
-    public NewMapper map(String key, NewMapper mapper) {
+    public Mapper map(String key, Mapper mapper) {
         return newMapper(new MapOperation(key, mapper));
     }
 
     @Override
-    public NewMapper copyMap(String sourceKey, String targetKey, NewMapper mapper) {
+    public Mapper copyMap(String sourceKey, String targetKey, Mapper mapper) {
         return newMapper(new CopyMapOperation(sourceKey, targetKey, mapper));
     }
 

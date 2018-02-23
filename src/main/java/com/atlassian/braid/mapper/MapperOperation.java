@@ -1,9 +1,9 @@
-package com.atlassian.braid.mapper2;
+package com.atlassian.braid.mapper;
 
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-import static com.atlassian.braid.mapper2.MapperOperations.composed;
+import static com.atlassian.braid.mapper.MapperOperations.composed;
 
 @FunctionalInterface
 interface MapperOperation extends BiConsumer<Map<String, Object>, Map<String, Object>> {
