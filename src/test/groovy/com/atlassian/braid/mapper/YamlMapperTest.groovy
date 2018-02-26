@@ -1,31 +1,32 @@
 package com.atlassian.braid.mapper
 
-import org.junit.*
+import org.junit.Test
+
+import static com.atlassian.braid.mapper.Mappers.fromYaml
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat
 
 class YamlMapperTest {
 
     @Test
-    void simple() {
+    void copy() {
         def yaml = '''
 foo: 
   op: "copy"
 '''
         def input = [
-            "foo": "blah",
-            "bar": "blah2"
+                "foo": "blah",
+                "bar": "blah2"
         ]
 
         def output = [
-            "foo": "blah",
+                "foo": "blah",
         ]
 
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assert output == result
+        testYamlMapper(yaml, input, output)
     }
 
     @Test
-    void simpleAsString() {
+    void copySimple() {
         def yaml = '''
 foo: "copy"
 bar: "copy"
@@ -40,136 +41,7 @@ bar: "copy"
                 "bar": "blah2"
         ]
 
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assert output == result
-    }
-
-    @Test
-    void list() {
-        def yaml = '''
-foo: 
-  op: "copyList"
-  elements:
-    baz: 
-     op: "copy"
-     source: "bar"
-'''
-        def input = [
-                "foo": [
-                    ["bar": "blah2"],
-                    ["bar": "jim"]
-
-                ]
-        ]
-
-        def output = [
-                "foo": [["baz": "blah2"], ["baz": "jim"]]
-        ]
-
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assert output == result
-    }
-
-    @Test
-    void copyMap() {
-        def yaml = '''
-foo: 
-  op: "copyMap"
-  elements:
-    baz: 
-     op: "copy"
-     source: "bar"
-'''
-        def input = [
-                "foo": ["bar": "blah2"]
-        ]
-
-        def output = [
-                "foo": ["baz": "blah2"]
-        ]
-
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assert output == result
-    }
-
-    @Test
-    void nestedList() {
-        def yaml = '''
-foo: 
-  op: "copyList"
-  elements:
-    bar: 
-     op: "copyList"
-     elements:
-        baz: "copy" 
-    jim: 
-     op: "copyList"
-     elements:
-        sara: "copy"     
-'''
-        def input = [
-                "foo": [
-                        ["bar": [
-                                ["baz": "blah2"],
-                        ],
-                        "jim": [
-                                ["sara": "b"]
-                        ]]
-                ]
-        ]
-
-        def output = [
-                "foo": [["bar": [["baz": "blah2"]], "jim": [["sara": "b"]]]]
-        ]
-
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assert output == result
-    }
-
-    @Test
-    void singleList() {
-        def yaml = '''
-foo: 
-  op: "singletonList"
-  elements:
-    baz: 
-     op: "copy"
-     source: "bar"
-'''
-        def input = ["bar": "blah2"]
-
-        def output = [
-                "foo": [["baz": "blah2"]]
-        ]
-
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assert output == result
-    }
-
-    @Test
-    void map() {
-        def yaml = '''
-foo: 
-  op: "map"
-  elements:
-    baz: 
-     op: "copy"
-     source: "bar"
-'''
-        def input = ["bar": "blah2"]
-
-        def output = [
-                "foo": ["baz": "blah2"]
-        ]
-
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
-
-        assert output == result
+        testYamlMapper(yaml, input, output)
     }
 
     @Test
@@ -185,8 +57,128 @@ foo:
                 "foo": "bar"
         ]
 
-        def result = new YamlMapper(new StringReader(yaml)).map(input)
+        testYamlMapper(yaml, input, output)
+    }
 
-        assert output == result
+    @Test
+    void copyList() {
+        def yaml = '''
+foo: 
+  op: "copyList"
+  target: "fooz"
+  mapper:
+    bar: 
+     op: "copy"
+     target: "baz"
+'''
+        def input = [
+                "foo": [
+                        ["bar": "blah2"],
+                        ["bar": "jim"]
+                ]
+        ]
+
+        def output = [
+                "fooz": [["baz": "blah2"], ["baz": "jim"]]
+        ]
+
+        testYamlMapper(yaml, input, output)
+    }
+
+    @Test
+    void nestedList() {
+        def yaml = '''
+foo: 
+  op: "copyList"
+  mapper:
+    bar: 
+     op: "copyList"
+     mapper:
+        baz: "copy" 
+    jim: 
+     op: "copyList"
+     mapper:
+        sara: "copy"     
+'''
+        def input = [
+                "foo": [
+                        ["bar": [
+                                ["baz": "blah2"],
+                        ],
+                         "jim": [
+                                 ["sara": "b"]
+                         ]]
+                ]
+        ]
+
+        def output = [
+                "foo": [["bar": [["baz": "blah2"]], "jim": [["sara": "b"]]]]
+        ]
+
+        testYamlMapper(yaml, input, output)
+    }
+
+    @Test
+    void singleList() {
+        def yaml = '''
+foo: 
+  op: "list"
+  mapper:
+    bar: 
+     op: "copy"
+     target: "baz"
+'''
+        def input = ["bar": "blah2"]
+
+        def output = [
+                "foo": [["baz": "blah2"]]
+        ]
+
+        testYamlMapper(yaml, input, output)
+    }
+
+    @Test
+    void map() {
+        def yaml = '''
+foo: 
+  op: "map"
+  mapper:
+    bar: 
+     op: "copy"
+     target: "baz"
+'''
+        def input = ["bar": "blah2"]
+
+        def output = [
+                "foo": ["baz": "blah2"]
+        ]
+
+        testYamlMapper(yaml, input, output)
+    }
+
+    @Test
+    void copyMap() {
+        def yaml = '''
+foo: 
+  op: "copyMap"
+  mapper:
+    bar: 
+     op: "copy"
+     target: "baz"
+'''
+        def input = [
+                "foo": ["bar": "blah2"]
+        ]
+
+        def output = [
+                "foo": ["baz": "blah2"]
+        ]
+
+        testYamlMapper(yaml, input, output)
+    }
+
+    private static void testYamlMapper(String yaml, Map<String, Object> input, Map<String, Object> output) {
+        def mapper = fromYaml { new StringReader(yaml) }
+        assertThat(mapper.apply(input)).isEqualTo(output);
     }
 }

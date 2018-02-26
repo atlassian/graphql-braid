@@ -119,9 +119,9 @@ rootFields:
   foo:
     uri: ${url}
     responseMapping:
-      jim:
+      foo:
         op: copy
-        source: foo
+        target: jim
 schema: |
   schema {
     query: Query

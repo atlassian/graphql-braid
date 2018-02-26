@@ -45,7 +45,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static com.atlassian.braid.TypeUtils.findQueryFieldDefinitions;
-import static com.atlassian.braid.collections.BraidCollectors.singleton;
+import static com.atlassian.braid.java.util.BraidCollectors.singleton;
 import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
 import static graphql.introspection.Introspection.TypeNameMetaFieldDef;
 import static graphql.language.OperationDefinition.Operation.MUTATION;
