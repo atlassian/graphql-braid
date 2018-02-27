@@ -1,7 +1,12 @@
 Changelog for graphql-braid
 ===============================
 
-0.7.0 (Unreleased)
+(Unreleased)
+-------------------
+
+- 
+
+0.7.0 (2018-02-27)
 -------------------
 
 - Breaking change: renamed many schema sources, including RemoteSchemaSource
