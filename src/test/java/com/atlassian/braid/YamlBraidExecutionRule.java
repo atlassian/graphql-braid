@@ -1,5 +1,7 @@
 package com.atlassian.braid;
 
+import com.atlassian.braid.document.DocumentMapper;
+import com.atlassian.braid.document.DocumentMappers;
 import com.atlassian.braid.java.util.BraidMaps;
 import com.atlassian.braid.java.util.BraidObjects;
 import com.atlassian.braid.source.LocalQueryExecutingSchemaSource;
@@ -29,9 +31,6 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.function.Function;
 
-import static com.atlassian.braid.Collections.castMap;
-import static com.atlassian.braid.Collections.getListValue;
-import static com.atlassian.braid.Collections.getMapValue;
 import static com.atlassian.braid.Util.read;
 import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
 import static com.atlassian.braid.java.util.BraidObjects.cast;
@@ -97,7 +96,12 @@ public class YamlBraidExecutionRule implements MethodRule {
                     Map<String, Object> response = config.getResponse();
 
                     assertEquals(response.get("errors"), toSpecification(executionResult.getErrors()));
-                    assertEquals(response.get("data"), data);
+
+                    final Object expectedData = response.get("data");
+                    System.out.println("Expected data:\n" + expectedData);
+                    System.out.println("Actual data:\n" + data);
+
+                    assertEquals(expectedData, data);
 
                     base.evaluate();
                 } catch (IOException e) {
@@ -107,7 +111,6 @@ public class YamlBraidExecutionRule implements MethodRule {
         };
     }
 
-
     private List<SchemaSource<BraidContext>> loadSchemaSources(TestConfiguration config) {
         return config.getSchemaSources()
                 .stream()
@@ -115,6 +118,7 @@ public class YamlBraidExecutionRule implements MethodRule {
                         schemaSource.getNamespace(),
                         schemaSource.getTypeDefinitionRegistry(),
                         getLinks(schemaSource),
+                        schemaSource.getMapper(),
                         mapInputToResult(schemaSource))
                 )
                 .collect(toList());
@@ -175,7 +179,7 @@ public class YamlBraidExecutionRule implements MethodRule {
     }
 
     private static Map<String, Object> loadYamlAsMap(String path) throws IOException {
-        return castMap(new Yaml().loadAs(read(path), Map.class));
+        return BraidObjects.cast(new Yaml().loadAs(read(path), Map.class));
     }
 
     private static String getYamlPath(FrameworkMethod method) {
@@ -191,18 +195,23 @@ public class YamlBraidExecutionRule implements MethodRule {
         }
 
         TestQuery getRequest() {
-            return new TestQuery(getMapValue(configMap, "request"));
+            return BraidMaps.get(configMap, "request")
+                    .map(BraidObjects::<Map<String, Object>>cast)
+                    .map(TestQuery::new)
+                    .orElse(null);
         }
 
         List<TestSchemaSource> getSchemaSources() {
-            return Collections.<String, Map<String, Object>>getListValue(configMap, "schemaSources")
-                    .stream()
-                    .map(TestSchemaSource::new)
-                    .collect(toList());
+            return BraidMaps.get(configMap, "schemaSources")
+                    .map(BraidObjects::<List<Map<String, Object>>>cast)
+                    .map(sources -> sources.stream().map(TestSchemaSource::new).collect(toList()))
+                    .orElse(emptyList());
         }
 
         Map<String, Object> getResponse() {
-            return getMapValue(configMap, "response");
+            return BraidMaps.get(configMap, "response")
+                    .map(BraidObjects::<Map<String, Object>>cast)
+                    .orElse(null);
         }
     }
 
@@ -218,7 +227,7 @@ public class YamlBraidExecutionRule implements MethodRule {
         }
 
         Map<String, Object> getVariables() {
-            return getMapValue(requestMap, "variables");
+            return BraidMaps.get(requestMap, "variables").map(BraidObjects::<Map<String, Object>>cast).orElse(null);
         }
 
         Optional<String> getOperation() {
@@ -265,6 +274,13 @@ public class YamlBraidExecutionRule implements MethodRule {
         Queue<TestResponse> getResponse() {
             return response.get();
         }
+
+        Function<TypeDefinitionRegistry, DocumentMapper> getMapper() {
+            return BraidMaps.get(schemaSourceMap, "mapper")
+                    .map(BraidObjects::<List<Map<String, Object>>>cast)
+                    .map(DocumentMappers::fromYamlList)
+                    .orElse(DocumentMappers.identity());
+        }
     }
 
     private static <T> List<T> asList(Object o) {
@@ -294,12 +310,16 @@ public class YamlBraidExecutionRule implements MethodRule {
             this.responseMap = requireNonNull(responseMap);
         }
 
-        private Map<String, Object> getData() {
-            return getMapValue(responseMap, "data");
+        Map<String, Object> getData() {
+            return BraidMaps.get(responseMap, "data")
+                    .map(BraidObjects::<Map<String, Object>>cast)
+                    .orElse(null);
         }
 
-        private List<Map<String, Object>> getErrors() {
-            return getListValue(responseMap, "errors");
+        List<Map<String, Object>> getErrors() {
+            return BraidMaps.get(responseMap, "errors")
+                    .map(BraidObjects::<List<Map<String, Object>>>cast)
+                    .orElse(emptyList());
         }
 
         private List<GraphQLError> getGraphQLErrors() {

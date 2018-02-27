@@ -3,17 +3,21 @@ package com.atlassian.braid;
 import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLType;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.rules.Timeout.millis;
 
 public class BraidTest {
+
+//    @Rule
+    public final Timeout timeoutRule = millis(500);
 
     @Rule
     public final YamlBraidExecutionRule braidRule = new YamlBraidExecutionRule();
@@ -83,7 +87,8 @@ public class BraidTest {
     }
 
     @Test
-    public void testBraidBatchingWithLink() {}
+    public void testBraidBatchingWithLink() {
+    }
 
     @Test
     public void testBraidWithLinkOfIds() {
@@ -98,19 +103,24 @@ public class BraidTest {
     }
 
     @Test
-    public void testBraidWithNonStringId() {}
+    public void testBraidWithNonStringId() {
+    }
 
     @Test
-    public void testBraidWithLinkFromReplaceTopLevelField() {}
+    public void testBraidWithLinkFromReplaceTopLevelField() {
+    }
 
     @Test
-    public void testBraidWithLinkFromReplaceTopLevelFieldOfList() {}
+    public void testBraidWithLinkFromReplaceTopLevelFieldOfList() {
+    }
 
     @Test
-    public void testBraidWithLinkFromReplaceTopLevelFieldWithDifferentQueryNames() {}
+    public void testBraidWithLinkFromReplaceTopLevelFieldWithDifferentQueryNames() {
+    }
 
     @Test
-    public void testBraidWithLinkFromReplaceTopLevelFieldSameSource() {}
+    public void testBraidWithLinkFromReplaceTopLevelFieldSameSource() {
+    }
 
     @Test
     public void testBraidWithLinkFromReplaceField() {
@@ -136,5 +146,9 @@ public class BraidTest {
     public void testBraidWithInterface() {
         assertThat(braidRule.braid.getSchema().getObjectType("Foo")
                 .getInterfaces().get(0).getName()).isEqualTo("Fooable");
+    }
+
+    @Test
+    public void testBraidWithDocumentMapper() {
     }
 }

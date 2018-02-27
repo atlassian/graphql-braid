@@ -4,7 +4,7 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Add experimental document mapper 
 
 0.8.2 (2018-03-21)
 -------------------

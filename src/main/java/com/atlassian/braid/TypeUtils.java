@@ -120,7 +120,7 @@ public class TypeUtils {
                 .orElse(emptyList());
     }
 
-    private static Optional<List<OperationTypeDefinition>> findOperationDefinitions(TypeDefinitionRegistry registry) {
+    public static Optional<List<OperationTypeDefinition>> findOperationDefinitions(TypeDefinitionRegistry registry) {
         return registry.schemaDefinition()
                 .map(SchemaDefinition::getOperationTypeDefinitions);
     }

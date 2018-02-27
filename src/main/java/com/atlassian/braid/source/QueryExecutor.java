@@ -5,6 +5,7 @@ import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.GraphQLQueryVisitor;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaSource;
+import com.atlassian.braid.document.DocumentMapper.MappedDocument;
 import com.atlassian.braid.java.util.BraidObjects;
 import graphql.ExecutionInput;
 import graphql.GraphQLError;
@@ -53,8 +54,8 @@ import java.util.function.Predicate;
 
 import static com.atlassian.braid.BatchLoaderUtils.getTargetIdsFromEnvironment;
 import static com.atlassian.braid.TypeUtils.findQueryFieldDefinitions;
-import static com.atlassian.braid.java.util.BraidCollectors.singleton;
 import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
+import static com.atlassian.braid.java.util.BraidCollectors.singleton;
 import static graphql.introspection.Introspection.TypeNameMetaFieldDef;
 import static graphql.language.OperationDefinition.Operation.MUTATION;
 import static graphql.language.OperationDefinition.Operation.QUERY;
@@ -78,18 +79,18 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
 
     @Override
     public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
-        return new QueryExecutorBatchLoader<>(schemaSource, link, queryFunction);
+        return new QueryExecutorBatchLoader<>(BraidObjects.cast(schemaSource), link, queryFunction);
     }
 
     private static class QueryExecutorBatchLoader<C extends BraidContext> implements BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> {
 
-        private final SchemaSource<C> schemaSource;
+        private final QueryExecutorSchemaSource<C> schemaSource;
 
         private final Link link; // nullable
 
         private final QueryFunction<?> queryFunction;
 
-        private QueryExecutorBatchLoader(SchemaSource<C> schemaSource, Link link, QueryFunction<?> queryFunction) {
+        private QueryExecutorBatchLoader(QueryExecutorSchemaSource<C> schemaSource, Link link, QueryFunction<?> queryFunction) {
             this.schemaSource = requireNonNull(schemaSource);
             this.link = link;  // may be null
             this.queryFunction = requireNonNull(queryFunction);
@@ -159,7 +160,9 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                         .collect(toList()));
             }
 
-            CompletableFuture<DataFetcherResult<Map<String, Object>>> queryResult = executeQuery(environments, doc, queryOp, variables);
+            final MappedDocument mappedDocument = schemaSource.getDocumentMapper().apply(doc);
+
+            CompletableFuture<DataFetcherResult<Map<String, Object>>> queryResult = executeQuery(environments, mappedDocument.getDocument(), queryOp, variables);
             return queryResult
                     .thenApply(result -> {
                         final HashMap<FieldKey, Object> data = new HashMap<>();
@@ -170,6 +173,17 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                         data.putAll(dataByKey);
                         data.putAll(shortCircuitedData);
                         return new DataFetcherResult<Map<FieldKey, Object>>(data, result.getErrors());
+                    })
+                    .thenApply(result -> {
+                        final Function<Map<String, Object>, Map<String, Object>> mapper = mappedDocument.getResultMapper();
+                        final Map<String, Object> data = new HashMap<>();
+                        result.getData().forEach((key, value) -> data.put(key.value, value));
+
+                        final Map<String, Object> newData = mapper.apply(data);
+
+                        final Map<FieldKey, Object> resultData = new HashMap<>();
+                        newData.forEach((key, value) -> resultData.put(new FieldKey(key), value));
+                        return new DataFetcherResult<>(resultData, result.getErrors());
                     })
                     .thenApply(result -> transformBatchResultIntoResultList(environments, clonedFields, result));
         }
@@ -187,6 +201,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
         }
 
         private CompletableFuture<DataFetcherResult<Map<String, Object>>> executeQuery(List<DataFetchingEnvironment> environments, Document doc, OperationDefinition queryOp, Map<String, Object> variables) {
+
             CompletableFuture<DataFetcherResult<Map<String, Object>>> queryResult;
             if (queryOp.getSelectionSet().getSelections().isEmpty()) {
                 queryResult = CompletableFuture.completedFuture(new DataFetcherResult<>(emptyMap(), emptyList()));
@@ -209,7 +224,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
         }
 
         private FieldRequest cloneField(SchemaSource<C> schemaSource, AtomicInteger counter, List<Integer> usedCounterIds,
-                                               DataFetchingEnvironment environment) {
+                                        DataFetchingEnvironment environment) {
             final Field field = cloneFieldBeingFetchedWithAlias(environment, createFieldAlias(counter.incrementAndGet()));
             usedCounterIds.add(counter.get());
             trimFieldSelection(schemaSource, environment, field);
@@ -242,7 +257,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
     }
 
     private static OperationDefinition newQueryOperationDefinition(GraphQLOutputType fieldType,
-                                                            OperationDefinition.Operation operationType) {
+                                                                   OperationDefinition.Operation operationType) {
         return new OperationDefinition(newBulkOperationName(fieldType), operationType, new SelectionSet());
     }
 
@@ -261,7 +276,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
     private static String newBulkOperationName(GraphQLOutputType fieldType) {
         String type;
         if (fieldType instanceof GraphQLList) {
-            type = ((GraphQLList)fieldType).getWrappedType().getName();
+            type = ((GraphQLList) fieldType).getWrappedType().getName();
         } else {
             type = fieldType.getName();
         }
@@ -296,7 +311,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
             List<FieldKey> fields = clonedFields.get(environment);
             Object fieldData;
 
-            if (!fields.isEmpty()){
+            if (!fields.isEmpty()) {
                 FieldKey field = fields.get(0);
                 fieldData = BraidObjects.cast(data.getOrDefault(field, null));
 
@@ -333,6 +348,12 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                         || fields.contains(new FieldKey(String.valueOf(e.getPath().get(0)))))
                 .map(RelativeGraphQLError::new)
                 .collect(toList());
+    }
+
+    private static Predicate<GraphQLError> isErrorForField(Field field) {
+        return e -> e.getPath() == null
+                || e.getPath().isEmpty()
+                || field.getAlias().equals(e.getPath().get(0));
     }
 
     private static OperationDefinition findSingleOperationDefinition(Document queryDoc) {

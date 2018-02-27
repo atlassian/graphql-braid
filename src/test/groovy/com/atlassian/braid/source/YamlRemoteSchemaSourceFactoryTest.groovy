@@ -119,7 +119,7 @@ rootFields:
   foo:
     uri: ${url}
     responseMapping:
-      foo:
+      - key: "foo"
         op: copy
         target: jim
 schema: |

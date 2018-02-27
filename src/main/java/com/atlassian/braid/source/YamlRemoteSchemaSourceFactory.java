@@ -13,11 +13,10 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Supplier;
 
 import static com.atlassian.braid.java.util.BraidObjects.cast;
-import static com.atlassian.braid.mapper.Mappers.fromYamlMap;
+import static com.atlassian.braid.mapper.Mappers.fromYamlList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.stream.Collectors.toList;
@@ -42,7 +41,7 @@ public class YamlRemoteSchemaSourceFactory {
                     String fieldName = e.getKey();
                     Map<String, Object> params = e.getValue();
 
-                    Mapper mapping = fromYamlMap(cast(params.get("responseMapping")));
+                    Mapper mapping = fromYamlList(BraidObjects.cast(params.get("responseMapping")));
                     return new RestRemoteSchemaSource.RootField(fieldName, cast(params.get("uri")), mapping);
                 })
                 .collect(toMap(f -> f.name, f -> f));

@@ -10,7 +10,7 @@ class YamlMapperTest {
     @Test
     void copy() {
         def yaml = '''
-foo: 
+- key: "foo" 
   op: "copy"
 '''
         def input = [
@@ -28,8 +28,8 @@ foo:
     @Test
     void copySimple() {
         def yaml = '''
-foo: "copy"
-bar: "copy"
+- foo: "copy"
+- bar: "copy"
 '''
         def input = [
                 "foo": "blah",
@@ -47,7 +47,7 @@ bar: "copy"
     @Test
     void put() {
         def yaml = '''
-foo: 
+- key: "foo" 
   op: "put"
   value: "bar"
 '''
@@ -63,13 +63,13 @@ foo:
     @Test
     void copyList() {
         def yaml = '''
-foo: 
+- key: "foo" 
   op: "copyList"
   target: "fooz"
   mapper:
-    bar: 
-     op: "copy"
-     target: "baz"
+    - key: "bar" 
+      op: "copy"
+      target: "baz"
 '''
         def input = [
                 "foo": [
@@ -88,17 +88,17 @@ foo:
     @Test
     void nestedList() {
         def yaml = '''
-foo: 
+- key: "foo" 
   op: "copyList"
   mapper:
-    bar: 
-     op: "copyList"
-     mapper:
-        baz: "copy" 
-    jim: 
-     op: "copyList"
-     mapper:
-        sara: "copy"     
+    - key: "bar" 
+      op: "copyList"
+      mapper:
+        - baz: "copy" 
+    - key: "jim" 
+      op: "copyList"
+      mapper:
+        - sara: "copy"     
 '''
         def input = [
                 "foo": [
@@ -121,12 +121,12 @@ foo:
     @Test
     void singleList() {
         def yaml = '''
-foo: 
+- key: "foo" 
   op: "list"
   mapper:
-    bar: 
-     op: "copy"
-     target: "baz"
+    - key: "bar" 
+      op: "copy"
+      target: "baz"
 '''
         def input = ["bar": "blah2"]
 
@@ -140,12 +140,12 @@ foo:
     @Test
     void map() {
         def yaml = '''
-foo: 
+- key: "foo" 
   op: "map"
   mapper:
-    bar: 
-     op: "copy"
-     target: "baz"
+    - key: "bar" 
+      op: "copy"
+      target: "baz"
 '''
         def input = ["bar": "blah2"]
 
@@ -159,12 +159,12 @@ foo:
     @Test
     void copyMap() {
         def yaml = '''
-foo: 
+- key: "foo" 
   op: "copyMap"
   mapper:
-    bar: 
-     op: "copy"
-     target: "baz"
+    - key: "bar" 
+      op: "copy"
+      target: "baz"
 '''
         def input = [
                 "foo": ["bar": "blah2"]
