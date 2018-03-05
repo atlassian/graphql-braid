@@ -128,12 +128,17 @@ public class YamlBraidExecutionRule implements MethodRule {
                         l.get("to").get("field")
                 );
         ofNullable(l.get("to").get("argument")).ifPresent(link::argument);
+        String nullable = String.valueOf(l.get("to").get("nullable"));
+        ofNullable(nullable).map(String::valueOf).map(Boolean::valueOf).ifPresent(link::setNullable);
         return link.build();
     }
 
     private Function<ExecutionInput, Object> mapInputToResult(TestSchemaSource schemaSource) {
         return input -> {
             final TestQuery expected = schemaSource.getExpected();
+            if (expected == null) {
+                throw new IllegalArgumentException(schemaSource + " shouldn't be called");
+            }
 
             assertEquals(printQuery(expected.getQuery()), printQuery(input.getQuery()));
             assertEquals(expected.getVariables(), input.getVariables());
@@ -236,7 +241,11 @@ public class YamlBraidExecutionRule implements MethodRule {
         }
 
         TestQuery getExpected() {
-            return new TestQuery(getMapValue(schemaSourceMap, "expected"));
+            if (schemaSourceMap.containsKey("expected")) {
+                return new TestQuery(getMapValue(schemaSourceMap, "expected"));
+            } else {
+                return null;
+            }
         }
 
         TestResponse getResponse() {

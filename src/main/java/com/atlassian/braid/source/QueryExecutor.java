@@ -50,6 +50,8 @@ import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
 import static graphql.introspection.Introspection.TypeNameMetaFieldDef;
 import static graphql.language.OperationDefinition.Operation.MUTATION;
 import static graphql.language.OperationDefinition.Operation.QUERY;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
@@ -90,7 +92,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
 
         // start at 99 so that we can find variables already counter-namespaced via startsWith()
         int counter = 99;
-        // build batch query
+        // build batch queryResult
         for (DataFetchingEnvironment environment : environments) {
             Field field = cloneCurrentField(environment);
 
@@ -108,6 +110,9 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                 ));
                 field.setName(link.getTargetField());
                 String targetId = BatchLoaderUtils.getTargetIdFromEnvironment(link, environment);
+                if (targetId == null && !link.isNullable()) {
+                    continue;
+                }
                 Type argumentType = findArgumentType(schemaSource, link);
                 variables.put(varName, targetId);
                 queryOp.getVariableDefinitions().add(new VariableDefinition(varName, argumentType));
@@ -127,10 +132,15 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
             queryOp.getSelectionSet().getSelections().add(field);
         }
 
-        ExecutionInput input = executeBatchQuery(doc, queryOp.getName(), variables);
-
-        return queryFunction
-                .query(input, environments.get(0).getContext())
+        CompletableFuture<DataFetcherResult<Map<String, Object>>> queryResult;
+        if (queryOp.getSelectionSet().getSelections().isEmpty()) {
+            queryResult = CompletableFuture.completedFuture(new DataFetcherResult<>(emptyMap(), emptyList()));
+        } else {
+            ExecutionInput input = executeBatchQuery(doc, queryOp.getName(), variables);
+            queryResult = queryFunction
+                    .query(input, environments.get(0).getContext());
+        }
+        return queryResult
                 .thenApply(result -> transformBatchResultIntoResultList(environments, clonedFields, result));
     }
 

@@ -4,7 +4,8 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- New 'nullable' property on a link to signify whether a link handles nulls or not.  Default is not, which
+  is different than the old default of fetching the data from the link target for a null key value.
 
 0.7.0 (2018-02-27)
 -------------------

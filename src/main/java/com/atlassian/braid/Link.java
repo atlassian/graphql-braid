@@ -27,10 +27,16 @@ public final class Link {
      */
     private final LinkArgument argument;
 
-    private Link(LinkSource source, LinkTarget target, LinkArgument argument) {
+    /**
+     * Whether a null source field value should prompt a remote link call
+     */
+    private final boolean nullable;
+
+    private Link(LinkSource source, LinkTarget target, LinkArgument argument, boolean nullable) {
         this.source = requireNonNull(source);
         this.target = requireNonNull(target);
         this.argument = requireNonNull(argument);
+        this.nullable = nullable;
     }
 
     public static LinkBuilder from(SchemaNamespace namespace, String type, String field) {
@@ -77,6 +83,10 @@ public final class Link {
         return argument.name;
     }
 
+    public boolean isNullable() {
+        return nullable;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -106,6 +116,7 @@ public final class Link {
         private LinkSource source;
         private LinkTarget target;
         private LinkArgument argument = new LinkArgument("id");
+        private boolean nullable = false;
 
         LinkBuilder(LinkSource source) {
             this.source = requireNonNull(source);
@@ -126,7 +137,12 @@ public final class Link {
         }
 
         public Link build() {
-            return new Link(source, target, argument);
+            return new Link(source, target, argument, nullable);
+        }
+
+        public LinkBuilder setNullable(boolean nullable) {
+            this.nullable = nullable;
+            return this;
         }
     }
 

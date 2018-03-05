@@ -71,6 +71,14 @@ public class BraidTest {
     }
 
     @Test
+    public void testBraidWithNullFromField() {
+    }
+
+    @Test
+    public void testBraidWithNullFromFieldWithNullSupport() {
+    }
+
+    @Test
     public void testBraidWithInterface() {
         assertThat(rule.braid.getSchema().getObjectType("Foo")
                 .getInterfaces().get(0).getName()).isEqualTo("Fooable");

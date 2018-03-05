@@ -88,6 +88,8 @@ public class YamlRemoteSchemaSourceFactory {
                                             l.get("to").get("field")
                                     );
                             ofNullable(l.get("to").get("argument")).ifPresent(link::argument);
+                            String nullable = String.valueOf(l.get("to").get("nullable"));
+                            ofNullable(nullable).map(String::valueOf).map(Boolean::valueOf).ifPresent(link::setNullable);
                             return link.build();
                         })
                         .collect(Collectors.toList()))
