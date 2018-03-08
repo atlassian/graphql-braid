@@ -2,6 +2,7 @@ package com.atlassian.braid.mapper;
 
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
@@ -123,7 +124,18 @@ public interface Mapper extends UnaryOperator<Map<String, Object>> {
      * @param mapper a mapper for the new map
      * @return the mapper with the list operation, this is <em>not</em> necessarily the same mapper
      */
-    Mapper list(String key, Mapper mapper);
+    default Mapper list(String key, Mapper mapper) {
+        return list(key, __ -> true, mapper);
+    }
+
+    /**
+     * Creates a list of a single map
+     *
+     * @param key    the key to store the list at
+     * @param mapper a mapper for the new map
+     * @return the mapper with the list operation, this is <em>not</em> necessarily the same mapper
+     */
+    Mapper list(String key, Predicate<MapperInputOutput> predicate, Mapper mapper);
 
     /**
      * Creates a new map at a given key
@@ -132,7 +144,18 @@ public interface Mapper extends UnaryOperator<Map<String, Object>> {
      * @param mapper a mapper for the new map
      * @return the mapper with the map operation, this is <em>not</em> necessarily the same mapper
      */
-    Mapper map(String key, Mapper mapper);
+    default Mapper map(String key, Mapper mapper) {
+        return map(key, __ -> true, mapper);
+    }
+
+    /**
+     * Creates a new map at a given key
+     *
+     * @param key    the key
+     * @param mapper a mapper for the new map
+     * @return the mapper with the map operation, this is <em>not</em> necessarily the same mapper
+     */
+    Mapper map(String key, Predicate<MapperInputOutput> predicate, Mapper mapper);
 
     /**
      * Copies a map at a key to the same key in the target map

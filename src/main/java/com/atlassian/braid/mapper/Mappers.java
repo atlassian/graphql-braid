@@ -2,6 +2,7 @@ package com.atlassian.braid.mapper;
 
 import java.io.Reader;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static com.atlassian.braid.mapper.MapperOperations.composed;
@@ -26,5 +27,17 @@ public final class Mappers {
 
     public static Mapper fromYamlMap(Map<String, Object> yamlAsMap) {
         return new MapperImpl(composed(toMapperOperations(yamlAsMap)));
+    }
+
+    /**
+     * Predicates that returns {@code true} if the mapper input contains a value at the given key
+     *
+     * @param key the key to lookup
+     * @return a predicate
+     * @see Mapper#list(String, Predicate, Mapper)
+     * @see Mapper#map(String, Predicate, Mapper)
+     */
+    public static Predicate<MapperInputOutput> inputContains(String key) {
+        return inout -> MapperMaps.get(inout.getInput(), key).isPresent();
     }
 }

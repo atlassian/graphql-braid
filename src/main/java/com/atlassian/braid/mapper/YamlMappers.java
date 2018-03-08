@@ -68,8 +68,8 @@ final class YamlMappers {
         COPY((key, props) -> new CopyOperation<>(key, getTargetKey(props, key), () -> null, Function.identity())),
         PUT((key, props) -> new PutOperation<>(key, props.get("value"))),
         COPYLIST((key, props) -> new CopyListOperation(key, getTargetKey(props, key), getMapper(props))),
-        LIST((key, props) -> new ListOperation(key, getMapper(props))),
-        MAP((key, props) -> new MapOperation(key, getMapper(props))),
+        LIST((key, props) -> new ListOperation(key, __ -> true, getMapper(props))),
+        MAP((key, props) -> new MapOperation(key, __ -> true, getMapper(props))),
         COPYMAP((key, props) -> new CopyMapOperation(key, getTargetKey(props, key), getMapper(props)));
 
         final BiFunction<String, Map<String, Object>, MapperOperation> getOperation;
