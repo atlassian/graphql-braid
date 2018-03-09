@@ -4,7 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+-
+
+0.7.3 (2018-03-09)
+-------------------
+- Added Link.LinkBuiler.replaceFromField() and Link.isReplaceFromField()
 
 0.7.2 (2018-03-09)
 -------------------
@@ -36,7 +40,7 @@ Changelog for graphql-braid
   instances that want to load the entities from id in non-graphql ways.
 - Ability for a non-exposed fields in a schema source to be the target of a link
 - Make the original GraphQL query context available to local schema source
-  executions 
+  executions
 
 0.5.0 (2018-01-18)
 -------------------
@@ -76,12 +80,12 @@ Changelog for graphql-braid
 0.4.3 (2017-11-28)
 -------------------
 
-- 
+-
 
 0.4.2 (2017-11-28)
 -------------------
 
-- 
+-
 
 0.4.1 (2017-11-28)
 -------------------
