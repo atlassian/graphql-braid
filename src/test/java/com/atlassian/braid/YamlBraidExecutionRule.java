@@ -28,6 +28,7 @@ import static com.atlassian.braid.Collections.getListValue;
 import static com.atlassian.braid.Collections.getMapValue;
 import static com.atlassian.braid.Util.read;
 import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
+import static com.atlassian.braid.source.YamlRemoteSchemaSourceFactory.getReplaceFromField;
 import static graphql.GraphQL.newGraphQL;
 import static graphql.schema.idl.RuntimeWiring.newRuntimeWiring;
 import static java.util.Collections.emptyList;
@@ -122,11 +123,13 @@ public class YamlBraidExecutionRule implements MethodRule {
                 l.get("from").get("field"),
                 l.get("from").getOrDefault("fromField",
                         l.get("from").get("field")))
-                .to(
-                        SchemaNamespace.of(l.get("to").get("namespace")),
+                .to(SchemaNamespace.of(l.get("to").get("namespace")),
                         l.get("to").get("type"),
                         l.get("to").get("field")
                 );
+        if (getReplaceFromField(l)) {
+            link.replaceFromField();
+        }
         ofNullable(l.get("to").get("argument")).ifPresent(link::argument);
         String nullable = String.valueOf(l.get("to").get("nullable"));
         ofNullable(nullable).map(String::valueOf).map(Boolean::valueOf).ifPresent(link::setNullable);

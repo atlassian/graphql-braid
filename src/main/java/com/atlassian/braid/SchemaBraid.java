@@ -183,8 +183,17 @@ public class SchemaBraid<C extends BraidContext> {
 
                 validateSourceFromFieldExists(link, typeDefinition);
 
-                Optional<FieldDefinition> sourceField = typeDefinition.getFieldDefinitions().stream().filter(
-                        d -> d.getName().equals(link.getSourceField())).findFirst();
+                Optional<FieldDefinition> sourceField = typeDefinition.getFieldDefinitions().stream()
+                        .filter(d -> d.getName().equals(link.getSourceField()))
+                        .findFirst();
+
+                if (link.isReplaceFromField()) {
+                    typeDefinition.getFieldDefinitions().stream()
+                            .filter(s -> s instanceof FieldDefinition
+                                    && s.getName().equals(link.getSourceFromField()))
+                            .findAny()
+                            .ifPresent(s -> typeDefinition.getFieldDefinitions().remove(s));
+                }
 
                 // todo: support different target types like list
                 Source<C> targetSource = sources.get(link.getTargetNamespace());
@@ -225,8 +234,8 @@ public class SchemaBraid<C extends BraidContext> {
 
     private void validateSourceFromFieldExists(Link link, ObjectTypeDefinition typeDefinition) {
         //noinspection ResultOfMethodCallIgnored
-        typeDefinition.getFieldDefinitions().stream().filter(
-                d -> d.getName().equals(link.getSourceFromField()))
+        typeDefinition.getFieldDefinitions().stream()
+                .filter(d -> d.getName().equals(link.getSourceFromField()))
                 .findFirst()
                 .orElseThrow(() ->
                         new IllegalArgumentException(

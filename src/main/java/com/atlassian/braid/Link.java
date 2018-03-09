@@ -67,6 +67,10 @@ public final class Link {
         return source.fromField;
     }
 
+    public boolean isReplaceFromField() {
+        return source.replaceFromField;
+    }
+
     public SchemaNamespace getTargetNamespace() {
         return target.namespace;
     }
@@ -122,6 +126,11 @@ public final class Link {
             this.source = requireNonNull(source);
         }
 
+        public LinkBuilder replaceFromField() {
+            this.source.replaceFromField = true;
+            return this;
+        }
+
         public LinkBuilder to(SchemaNamespace namespace, String type) {
             return to(namespace, type, null);
         }
@@ -151,12 +160,14 @@ public final class Link {
         private final String type;
         private final String field;
         private final String fromField;
+        private boolean replaceFromField;
 
         private LinkSource(SchemaNamespace namespace, String type, String field, String fromField) {
             this.namespace = requireNonNull(namespace);
             this.type = requireNonNull(type);
             this.field = requireNonNull(field);
             this.fromField = requireNonNull(fromField);
+            this.replaceFromField = false;
         }
 
         @Override
@@ -167,7 +178,8 @@ public final class Link {
             return Objects.equals(namespace, that.namespace) &&
                     Objects.equals(type, that.type) &&
                     Objects.equals(field, that.field) &&
-                    Objects.equals(fromField, that.fromField);
+                    Objects.equals(fromField, that.fromField) &&
+                    Objects.equals(replaceFromField, that.replaceFromField);
         }
 
         @Override
@@ -183,6 +195,7 @@ public final class Link {
                     ", type='" + type + '\'' +
                     ", field='" + field + '\'' +
                     ", fromField='" + fromField + '\'' +
+                    (replaceFromField ? ", replaceFromField=true" : "") +
                     '}';
         }
     }
@@ -241,7 +254,6 @@ public final class Link {
 
         @Override
         public int hashCode() {
-
             return Objects.hash(name);
         }
 

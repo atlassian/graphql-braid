@@ -87,6 +87,9 @@ public class YamlRemoteSchemaSourceFactory {
                                             l.get("to").get("type"),
                                             l.get("to").get("field")
                                     );
+                            if (getReplaceFromField(l)) {
+                                link.replaceFromField();
+                            }
                             ofNullable(l.get("to").get("argument")).ifPresent(link::argument);
                             String nullable = String.valueOf(l.get("to").get("nullable"));
                             ofNullable(nullable).map(String::valueOf).map(Boolean::valueOf).ifPresent(link::setNullable);
@@ -95,4 +98,15 @@ public class YamlRemoteSchemaSourceFactory {
                         .collect(Collectors.toList()))
                 .orElse(emptyList());
     }
+
+    public static boolean getReplaceFromField(Map<String, Map<String, String>> l) {
+        Object argh = l.get("from").get("replaceFromField");    // if type is Boolean, then compile time type incompatibility
+        boolean replaceFromField = false;    // default in case no replaceFromField in Yaml file
+        if (argh != null) {    // since get() above can return null
+            replaceFromField = (Boolean) argh;    // because get() above returned a Boolean, not a String!
+        }
+        return replaceFromField;
+    }
+
+
 }

@@ -1,9 +1,16 @@
 package com.atlassian.braid;
 
+import graphql.schema.GraphQLFieldDefinition;
+import graphql.schema.GraphQLObjectType;
+import graphql.schema.GraphQLType;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class BraidTest {
 
@@ -68,6 +75,18 @@ public class BraidTest {
 
     @Test
     public void testBraidWithLinkFromSiblingFieldButNoFromFieldInQuery() {
+    }
+
+    @Test
+    public void testBraidWithLinkFromReplaceField() {
+        Optional<GraphQLType> fooType = rule.braid.getSchema().getAllTypesAsList().stream()
+                .filter(t -> t.getName().equals("Foo")).findAny();
+        assertEquals(true, fooType.isPresent());
+        assertTrue(fooType.get() instanceof GraphQLObjectType);
+        GraphQLObjectType foo = (GraphQLObjectType) fooType.get();
+        Optional<GraphQLFieldDefinition> idField = foo.getFieldDefinitions().stream()
+                .filter(f -> f.getName().equals("id")).findAny();
+        assertEquals(false, idField.isPresent());
     }
 
     @Test
