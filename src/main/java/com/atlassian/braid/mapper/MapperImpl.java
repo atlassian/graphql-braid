@@ -3,6 +3,7 @@ package com.atlassian.braid.mapper;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static com.atlassian.braid.mapper.MapperOperations.noop;
@@ -47,13 +48,13 @@ final class MapperImpl implements Mapper {
     }
 
     @Override
-    public Mapper list(String key, Mapper mapper) {
-        return newMapper(new ListOperation(key, mapper));
+    public Mapper list(String key, Predicate<MapperInputOutput> predicate, Mapper mapper) {
+        return newMapper(new ListOperation(key, predicate, mapper));
     }
 
     @Override
-    public Mapper map(String key, Mapper mapper) {
-        return newMapper(new MapOperation(key, mapper));
+    public Mapper map(String key, Predicate<MapperInputOutput> predicate, Mapper mapper) {
+        return newMapper(new MapOperation(key, predicate, mapper));
     }
 
     @Override

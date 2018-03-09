@@ -74,6 +74,38 @@ public class MapperTest {
     }
 
     @Test
+    public void list() {
+        final Map<String, Object> result = mapper().list("list", mapper().copy("foo", "baz"))
+                .apply(singletonMap("foo", "bar"));
+
+        assertThat(result).containsKey("list");
+        assertThat(BraidObjects.<List<Map<String, String>>>cast(result.get("list")).get(0)).containsEntry("baz", "bar");
+    }
+
+    @Test
+    public void listWithTruePredicate() {
+        final Map<String, Object> result = mapper()
+                .list("list",
+                        inout -> true,
+                        mapper().copy("foo", "baz"))
+                .apply(singletonMap("foo", "bar"));
+
+        assertThat(result).containsKey("list");
+        assertThat(BraidObjects.<List<Map<String, String>>>cast(result.get("list")).get(0)).containsEntry("baz", "bar");
+    }
+
+    @Test
+    public void listWithFalsePredicate() {
+        final Map<String, Object> result = mapper()
+                .list("list",
+                        inout -> false,
+                        mapper().copy("foo", "baz"))
+                .apply(singletonMap("foo", "bar"));
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     public void copyList() {
         Map<String, Object> data = singletonMap("foo", singletonList(singletonMap("bar", "baz")));
         assertThat(BraidObjects.<List<Map<String, String>>>cast(mapper()
@@ -95,7 +127,24 @@ public class MapperTest {
     public void mapAndPut() {
         assertThat(BraidObjects.<Map<String, String>>cast(mapper()
                 .map("foo", mapper().put("bar", "baz"))
-                .apply(emptyMap()).get("foo"))).containsEntry("bar", "baz");
+                .apply(emptyMap()).get("foo")))
+                .containsEntry("bar", "baz");
+    }
+
+    @Test
+    public void mapAndPutWithTruePredicate() {
+        assertThat(BraidObjects.<Map<String, String>>cast(mapper()
+                .map("foo", __ -> true, mapper().put("bar", "baz"))
+                .apply(emptyMap()).get("foo")))
+                .containsEntry("bar", "baz");
+    }
+
+    @Test
+    public void mapAndPutWithFalsePredicate() {
+        assertThat(mapper()
+                .map("foo", __ -> false, mapper().put("bar", "baz"))
+                .apply(emptyMap()))
+                .isEmpty();
     }
 
     @Test

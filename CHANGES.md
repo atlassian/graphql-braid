@@ -4,7 +4,7 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Add mapper `list` and `map` function with predicates
 
 0.7.1 (2018-03-05)
 -------------------
