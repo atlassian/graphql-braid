@@ -17,7 +17,7 @@ response:
     foo:
       name: Foo
       bar:
-        title: Bar
+        id: baz
 
 schemaSources:
   - name: foo
@@ -29,26 +29,25 @@ schemaSources:
           foo(id: String) : Foo
       }
       type Foo {
-          id: String
           name: String
+          barid: String
       }
     links:
       - from:
           type: Foo
           field: bar
-          fromField: id
-          replaceFromField: true
+          fromField: barid
         to:
           namespace: bar
           type: Bar
           field: topbar
-          argument: id
+          argument: topbarid
     expected:
       query: |
         query Bulk_Foo($id100: String!) {
             foo100: foo(id: $id100) {
                 name
-                id
+                barid
             }
         }
       variables:
@@ -56,7 +55,7 @@ schemaSources:
     response:
       data:
         foo100:
-          id: fooid
+          barid: baz
           name: Foo
       errors: []
   - name: bar
@@ -65,7 +64,7 @@ schemaSources:
           query: Query
       }
       type Query {
-          topbar(id: String) : Bar
+          topbar(topbarid: String) : Bar
       }
       type Bar {
           id: ID
@@ -73,18 +72,15 @@ schemaSources:
       }
     expected:
       query: |
-        query Bulk_Bar($id100: String) {
-            bar100: topbar(id: $id100) {
+        query Bulk_Bar($topbarid100: String) {
+            bar100: topbar(topbarid: $topbarid100) {
                 id
             }
         }
       variables:
-        id100: fooid
+        topbarid100: baz
     response:
       data:
         bar100:
-          id: fooid
+          id: baz
       errors: []
-
-
-
