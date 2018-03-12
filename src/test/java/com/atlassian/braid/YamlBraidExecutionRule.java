@@ -1,7 +1,10 @@
 package com.atlassian.braid;
 
+import com.atlassian.braid.java.util.BraidMaps;
+import com.atlassian.braid.java.util.BraidObjects;
 import com.atlassian.braid.source.LocalQueryExecutingSchemaSource;
 import com.atlassian.braid.source.MapGraphQLError;
+import com.google.common.base.Supplier;
 import graphql.ExecutionInput;
 import graphql.ExecutionResult;
 import graphql.GraphQL;
@@ -18,9 +21,11 @@ import org.junit.runners.model.Statement;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.function.Function;
 
 import static com.atlassian.braid.Collections.castMap;
@@ -28,12 +33,14 @@ import static com.atlassian.braid.Collections.getListValue;
 import static com.atlassian.braid.Collections.getMapValue;
 import static com.atlassian.braid.Util.read;
 import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
+import static com.atlassian.braid.java.util.BraidObjects.cast;
 import static com.atlassian.braid.source.YamlRemoteSchemaSourceFactory.getReplaceFromField;
+import static com.google.common.base.Suppliers.memoize;
 import static graphql.GraphQL.newGraphQL;
 import static graphql.schema.idl.RuntimeWiring.newRuntimeWiring;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
-import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertEquals;
 
@@ -112,33 +119,36 @@ public class YamlBraidExecutionRule implements MethodRule {
 
     private List<Link> getLinks(TestSchemaSource schemaSource) {
         return schemaSource.getLinks()
-                .map(links -> links.stream().map(l -> this.getLink(schemaSource, l)).collect(toList()))
+                .map(links -> links.stream().map(link -> getLink(schemaSource, link)).collect(toList()))
                 .orElse(emptyList());
     }
 
-    private Link getLink(TestSchemaSource schemaSource, Map<String, Map<String, String>> l) {
+    private static Link getLink(TestSchemaSource schemaSource, Map<String, Map<String, Object>> l) {
+        final Map<String, Object> from = l.get("from");
+        final Map<String, Object> to = l.get("to");
+
         Link.LinkBuilder link = Link.from(
                 schemaSource.getNamespace(),
-                l.get("from").get("type"),
-                l.get("from").get("field"),
-                l.get("from").getOrDefault("fromField",
-                        l.get("from").get("field")))
-                .to(SchemaNamespace.of(l.get("to").get("namespace")),
-                        l.get("to").get("type"),
-                        l.get("to").get("field")
-                );
+                getString(from, "type"),
+                getString(from, "field"),
+                BraidMaps.get(from, "fromField").map(BraidObjects::<String>cast).orElseGet(() -> getString(from, "field")))
+                .to(SchemaNamespace.of(getString(to, "namespace")),
+                        getString(to, "type"),
+                        getStringOrNull(to, "field"),
+                        getStringOrNull(to, "variableField"));
         if (getReplaceFromField(l)) {
             link.replaceFromField();
         }
-        ofNullable(l.get("to").get("argument")).ifPresent(link::argument);
-        String nullable = String.valueOf(l.get("to").get("nullable"));
-        ofNullable(nullable).map(String::valueOf).map(Boolean::valueOf).ifPresent(link::setNullable);
+
+        BraidMaps.get(to, "argument").map(BraidObjects::<String>cast).ifPresent(link::argument);
+        BraidMaps.get(to, "nullable").map(BraidObjects::<Boolean>cast).ifPresent(link::setNullable);
+
         return link.build();
     }
 
     private Function<ExecutionInput, Object> mapInputToResult(TestSchemaSource schemaSource) {
         return input -> {
-            final TestQuery expected = schemaSource.getExpected();
+            final TestQuery expected = schemaSource.getExpected().poll();
             if (expected == null) {
                 throw new IllegalArgumentException(schemaSource + " shouldn't be called");
             }
@@ -147,7 +157,7 @@ public class YamlBraidExecutionRule implements MethodRule {
             assertEquals(expected.getVariables(), input.getVariables());
             expected.getOperation().ifPresent(operation -> assertEquals(operation, input.getOperationName()));
 
-            TestResponse response = schemaSource.getResponse();
+            TestResponse response = schemaSource.getResponse().poll();
             return new DataFetcherResult<>(response.getData(), response.getGraphQLErrors());
         };
     }
@@ -218,9 +228,14 @@ public class YamlBraidExecutionRule implements MethodRule {
 
     private static class TestSchemaSource {
         private final Map<String, Object> schemaSourceMap;
+        private final Supplier<Queue<TestQuery>> expected;
+        private final Supplier<Queue<TestResponse>> response;
+
 
         private TestSchemaSource(Map<String, Object> schemaSourceMap) {
             this.schemaSourceMap = requireNonNull(schemaSourceMap);
+            this.expected = memoize(() -> parseAsQueue(schemaSourceMap, "expected", TestQuery::new));
+            this.response = memoize(() -> parseAsQueue(schemaSourceMap, "response", TestResponse::new));
         }
 
         SchemaNamespace getNamespace() {
@@ -232,28 +247,44 @@ public class YamlBraidExecutionRule implements MethodRule {
         }
 
         String getName() {
-            return (String) schemaSourceMap.get("name");
+            return getString(this.schemaSourceMap, "name");
         }
 
         String getSchema() {
-            return (String) schemaSourceMap.get("schema");
+            return getString(schemaSourceMap, "schema");
         }
 
-        Optional<List<Map<String, Map<String, String>>>> getLinks() {
-            return Optional.ofNullable(getListValue(schemaSourceMap, "links"));
+        Optional<List<Map<String, Map<String, Object>>>> getLinks() {
+            return BraidMaps.get(schemaSourceMap, "links").map(BraidObjects::cast);
         }
 
-        TestQuery getExpected() {
-            if (schemaSourceMap.containsKey("expected")) {
-                return new TestQuery(getMapValue(schemaSourceMap, "expected"));
-            } else {
-                return null;
-            }
+        Queue<TestQuery> getExpected() {
+            return expected.get();
         }
 
-        TestResponse getResponse() {
-            return new TestResponse(getMapValue(schemaSourceMap, "response"));
+        Queue<TestResponse> getResponse() {
+            return response.get();
         }
+    }
+
+    private static <T> List<T> asList(Object o) {
+        return o instanceof List ? cast(o) : singletonList(cast(o));
+    }
+
+    private static <T> Queue<T> parseAsQueue(Map<String, Object> map, String key,
+                                             Function<Map<String, Object>, T> transform) {
+        return new LinkedList<>(BraidMaps.get(map, key)
+                .map(YamlBraidExecutionRule::<Map<String, Object>>asList)
+                .map(l -> l.stream().map(transform).collect(toList()))
+                .orElse(emptyList()));
+    }
+
+    private static String getString(Map<String, Object> map, String key) {
+        return BraidMaps.get(map, key).map(BraidObjects::<String>cast).orElseThrow(IllegalStateException::new);
+    }
+
+    private static String getStringOrNull(Map<String, Object> map, String key) {
+        return BraidMaps.get(map, key).map(BraidObjects::<String>cast).orElse(null);
     }
 
     private static class TestResponse {

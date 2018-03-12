@@ -1,5 +1,6 @@
 package com.atlassian.braid;
 
+import com.atlassian.braid.java.util.BraidMaps;
 import graphql.execution.DataFetcherResult;
 import graphql.schema.DataFetchingEnvironment;
 
@@ -7,14 +8,15 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static com.atlassian.braid.java.util.BraidObjects.cast;
+
 /**
  * A list of utility methods useful when building a new {@link org.dataloader.BatchLoader}
  */
 public class BatchLoaderUtils {
+
     public static String getTargetIdFromEnvironment(Link link, DataFetchingEnvironment environment) {
-        Map<String, String> source = waitForMapSource(environment);
-        //noinspection unchecked
-        return source.get(link.getSourceFromField());
+        return BraidMaps.get(waitForMapSource(environment), link.getSourceFromField()).orElse(null);
     }
 
     private static Map<String, String> waitForMapSource(DataFetchingEnvironment environment) {
@@ -32,7 +34,6 @@ public class BatchLoaderUtils {
                 throw new IllegalArgumentException("Unexpected parent type");
             }
         }
-        //noinspection unchecked
-        return (Map<String, String>) source;
+        return cast(source);
     }
 }

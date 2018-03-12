@@ -78,6 +78,10 @@ public class BraidTest {
     }
 
     @Test
+    public void testBraidWithLinkOnlyQueryingID() {
+    }
+
+    @Test
     public void testBraidWithLinkFromReplaceField() {
         Optional<GraphQLType> fooType = rule.braid.getSchema().getAllTypesAsList().stream()
                 .filter(t -> t.getName().equals("Foo")).findAny();
