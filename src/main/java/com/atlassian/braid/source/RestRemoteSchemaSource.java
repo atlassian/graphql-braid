@@ -72,7 +72,7 @@ public final class RestRemoteSchemaSource<C extends BraidContext> extends Abstra
 
                 } else {
                     Map<String, Object> source = env.getSource();
-                    RootField field = rootFields.get(link.getTargetField());
+                    RootField field = rootFields.get(link.getTargetQueryField());
                     String id = (String) source.get(link.getSourceFromField());
                     uri = replaceParams(singletonMap(link.getArgumentName(), id), field.uri);
                     mapper = field.mapper;

@@ -108,7 +108,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                 field.setArguments(singletonList(
                         new Argument(link.getArgumentName(), new VariableReference(varName))
                 ));
-                field.setName(link.getTargetField());
+                field.setName(link.getTargetQueryField());
                 String targetId = BatchLoaderUtils.getTargetIdFromEnvironment(link, environment);
                 if (targetId == null && !link.isNullable()) {
                     continue;
@@ -208,7 +208,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
         return findQueryFieldDefinitions(schemaSource.getPrivateSchema())
                 .orElseThrow(IllegalStateException::new)
                 .stream()
-                .filter(f -> f.getName().equals(link.getTargetField()))
+                .filter(f -> f.getName().equals(link.getTargetQueryField()))
                 .findFirst()
                 .map(f -> f.getInputValueDefinitions().stream()
                         .filter(iv -> iv.getName().equals(link.getArgumentName()))

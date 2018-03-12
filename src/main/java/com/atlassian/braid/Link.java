@@ -42,47 +42,67 @@ public final class Link {
     public static LinkBuilder from(SchemaNamespace namespace, String type, String field) {
         return from(namespace, type, field, field);
     }
+
     public static LinkBuilder from(SchemaNamespace namespace, String type, String field, String fromField) {
         return new LinkBuilder(new LinkSource(namespace, type, field, fromField));
     }
 
     /**
-     * @return the type of the source from field
+     * @return the type of the source field from which the link exists
      */
     public String getSourceType() {
         return source.type;
     }
 
     /**
-     * @return the field to store the linked type
+     * @return the field name within the {@link #getSourceType() source type} that the link creates
      */
     public String getSourceField() {
         return source.field;
     }
 
     /**
-     * @return the field to find the id of the linked type
+     * @return the field name within the {@link #getSourceType() source type} that is used to query the linked 'object'
      */
     public String getSourceFromField() {
         return source.fromField;
     }
 
+    /**
+     * @return whether the {@link #getSourceFromField()} should be removed from the final schema, ie. no longer appear
+     * as a separate, standalone field within the {@link #getSourceType() source type}
+     */
     public boolean isReplaceFromField() {
         return source.replaceFromField;
     }
 
+
+    /**
+     * @return the namespace of the schema where the target 'object' should be queried
+     */
     public SchemaNamespace getTargetNamespace() {
         return target.namespace;
     }
 
+    /**
+     * @return the type of the target field to which the link exists
+     * (e.g the output type of the query to the target schema)
+     */
     public String getTargetType() {
         return target.type;
     }
 
-    public String getTargetField() {
+    /**
+     * @return the name of the query field used to retrieve the linked object.
+     */
+    public String getTargetQueryField() {
         return Optional.ofNullable(target.queryField).orElse(source.field);
     }
 
+    /**
+     * @return the name of the query argument used to retrieve the linked object. This argument will be given the value
+     * denoted by the {@link #getSourceFromField() source from field}
+     */
     public String getArgumentName() {
         return argument.name;
     }
@@ -103,7 +123,6 @@ public final class Link {
 
     @Override
     public int hashCode() {
-
         return Objects.hash(source, target, argument);
     }
 
