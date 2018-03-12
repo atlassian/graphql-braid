@@ -101,6 +101,16 @@ public final class Link {
     }
 
     /**
+     * The name of the field in the target object that corresponds to the field used in the query variables.
+     * <p>This allows for example to by pass querying for said field by directly outputting the passed value.
+     *
+     * @return the name of the field in the target object.
+     */
+    public String getTargetVariableQueryField() {
+        return Optional.ofNullable(target.queryVariableField).orElse(argument.name);
+    }
+
+    /**
      * @return the name of the query argument used to retrieve the linked object. This argument will be given the value
      * denoted by the {@link #getSourceFromField() source from field}
      */
@@ -119,7 +129,9 @@ public final class Link {
         Link link = (Link) o;
         return Objects.equals(source, link.source) &&
                 Objects.equals(target, link.target) &&
-                Objects.equals(argument, link.argument);
+                Objects.equals(argument, link.argument) &&
+                Objects.equals(replaceFromField, link.replaceFromField) &&
+                Objects.equals(nullable, link.nullable);
     }
 
     @Override
@@ -159,7 +171,11 @@ public final class Link {
         }
 
         public LinkBuilder to(SchemaNamespace namespace, String type, String queryField) {
-            this.target = new LinkTarget(namespace, type, queryField);
+            return to(namespace, type, queryField, null);
+        }
+
+        public LinkBuilder to(SchemaNamespace namespace, String type, String queryField, String queryVariableArgument) {
+            this.target = new LinkTarget(namespace, type, queryField, queryVariableArgument);
             return this;
         }
 
@@ -221,11 +237,14 @@ public final class Link {
         private final SchemaNamespace namespace;
         private final String type;
         private final String queryField;
+        private final String queryVariableField;
 
-        private LinkTarget(SchemaNamespace namespace, String type, String queryField) {
+        private LinkTarget(SchemaNamespace namespace, String type, String queryField, String queryVariableField) {
             this.namespace = requireNonNull(namespace);
             this.type = requireNonNull(type);
             this.queryField = queryField; // can be null, in which case the value is the same as LinkSource#field
+            this.queryVariableField = queryVariableField; // can be null, in which case the value is the same as Link#getArgument
+
         }
 
         @Override
@@ -235,12 +254,13 @@ public final class Link {
             LinkTarget that = (LinkTarget) o;
             return Objects.equals(namespace, that.namespace) &&
                     Objects.equals(type, that.type) &&
-                    Objects.equals(queryField, that.queryField);
+                    Objects.equals(queryField, that.queryField) &&
+                    Objects.equals(queryVariableField, that.queryVariableField);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(namespace, type, queryField);
+            return Objects.hash(namespace, type, queryField, queryVariableField);
         }
 
         @Override
@@ -249,6 +269,7 @@ public final class Link {
                     "namespace=" + namespace +
                     ", type='" + type + '\'' +
                     ", queryField='" + queryField + '\'' +
+                    ", queryVariableField='" + queryVariableField + '\'' +
                     '}';
         }
     }

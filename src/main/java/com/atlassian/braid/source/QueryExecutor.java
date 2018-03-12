@@ -1,11 +1,11 @@
 package com.atlassian.braid.source;
 
 import com.atlassian.braid.BatchLoaderFactory;
-import com.atlassian.braid.BatchLoaderUtils;
 import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.GraphQLQueryVisitor;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaSource;
+import com.atlassian.braid.java.util.BraidObjects;
 import graphql.ExecutionInput;
 import graphql.execution.DataFetcherResult;
 import graphql.language.Argument;
@@ -27,6 +27,7 @@ import graphql.language.VariableDefinition;
 import graphql.language.VariableReference;
 import graphql.parser.Parser;
 import graphql.schema.DataFetchingEnvironment;
+import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLInterfaceType;
 import graphql.schema.GraphQLModifiedType;
 import graphql.schema.GraphQLObjectType;
@@ -43,7 +44,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
+import static com.atlassian.braid.BatchLoaderUtils.getTargetIdFromEnvironment;
 import static com.atlassian.braid.TypeUtils.findQueryFieldDefinitions;
 import static com.atlassian.braid.java.util.BraidCollectors.singleton;
 import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
@@ -92,30 +96,43 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
 
         // start at 99 so that we can find variables already counter-namespaced via startsWith()
         int counter = 99;
+
+        // this is to gather data we don't need to fetch through batch loaders, e.g. when on the the variable used in
+        // the query is fetched
+        final Map<String, Object> shortCircuitedData = new HashMap<>();
+
         // build batch queryResult
         for (DataFetchingEnvironment environment : environments) {
-            Field field = cloneCurrentField(environment);
+            ++counter;
 
-            field.setAlias(field.getName() + ++counter);
+            final Field field = cloneFieldBeingFetchedWithAlias(environment, createFieldAlias(counter));
+
             clonedFields.put(environment, field);
 
             trimFieldSelection(schemaSource, environment, field);
 
             // add variable and argument for linked field identifier
             if (link != null) {
-                // set the argument from the value of the original field
-                String varName = link.getArgumentName() + counter;
-                field.setArguments(singletonList(
-                        new Argument(link.getArgumentName(), new VariableReference(varName))
-                ));
-                field.setName(link.getTargetQueryField());
-                String targetId = BatchLoaderUtils.getTargetIdFromEnvironment(link, environment);
-                if (targetId == null && !link.isNullable()) {
+                final String targetId = getTargetIdFromEnvironment(link, environment);
+
+                if (isTargetIdNullAndCannotQueryLinkWithNull(targetId, link)) {
                     continue;
                 }
-                Type argumentType = findArgumentType(schemaSource, link);
-                variables.put(varName, targetId);
-                queryOp.getVariableDefinitions().add(new VariableDefinition(varName, argumentType));
+
+                if (isFieldQueryOnlySelectingVariable(field, link)) {
+                    shortCircuitedData.put(field.getAlias(), new HashMap<String, Object>() {{
+                        put(link.getTargetVariableQueryField(), targetId);
+                    }});
+                    continue;
+                }
+
+                final String variableName = link.getArgumentName() + counter;
+
+                field.setName(link.getTargetQueryField());
+                field.setArguments(linkQueryArgumentAsList(link, variableName));
+
+                queryOp.getVariableDefinitions().add(linkQueryVariableDefinition(link, variableName, schemaSource));
+                variables.put(variableName, targetId);
             }
 
             Document queryDoc = new Parser().parseDocument(environment.<BraidContext>getContext().getQuery());
@@ -141,7 +158,37 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                     .query(input, environments.get(0).getContext());
         }
         return queryResult
+                .thenApply(result -> {
+                    final HashMap<String, Object> data = new HashMap<>();
+                    data.putAll(result.getData());
+                    data.putAll(shortCircuitedData);
+                    return new DataFetcherResult<Map<String, Object>>(data, result.getErrors());
+                })
                 .thenApply(result -> transformBatchResultIntoResultList(environments, clonedFields, result));
+    }
+
+    private boolean isTargetIdNullAndCannotQueryLinkWithNull(String targetId, Link link) {
+        return targetId == null && !link.isNullable();
+    }
+
+    private static boolean isFieldQueryOnlySelectingVariable(Field field, Link link) {
+        final List<Selection> selections = field.getSelectionSet().getSelections();
+        return selections.stream().allMatch(s -> s instanceof Field) &&// this means that any fragment will make this return false
+                selections.stream()
+                        .map(BraidObjects::<Field>cast)
+                        .allMatch(f -> f.getName().equals(link.getTargetVariableQueryField()));
+    }
+
+    private static VariableDefinition linkQueryVariableDefinition(Link link, String variableName, SchemaSource<?> schemaSource) {
+        return new VariableDefinition(variableName, findArgumentType(schemaSource, link));
+    }
+
+    private static List<Argument> linkQueryArgumentAsList(Link link, String variableName) {
+        return singletonList(new Argument(link.getArgumentName(), new VariableReference(variableName)));
+    }
+
+    private static Function<Field, String> createFieldAlias(int counter) {
+        return field -> field.getName() + counter;
     }
 
     private OperationDefinition newQueryOperationDefinition(GraphQLOutputType fieldType,
@@ -149,7 +196,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
         return new OperationDefinition(newBulkOperationName(fieldType), operationType, new SelectionSet());
     }
 
-    private Optional<OperationDefinition.Operation> getOperationType(DataFetchingEnvironment env) {
+    private static Optional<OperationDefinition.Operation> getOperationType(DataFetchingEnvironment env) {
         final GraphQLType graphQLType = env.getParentType();
         final GraphQLSchema graphQLSchema = env.getGraphQLSchema();
         if (Objects.equals(graphQLSchema.getQueryType(), graphQLType)) {
@@ -165,9 +212,14 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
         return "Bulk_" + fieldType.getName();
     }
 
-    private Field cloneCurrentField(DataFetchingEnvironment environment) {
-        Field original = findFieldWithName(environment);
-        return DocumentCloners.clone(original);
+    private static Field cloneFieldBeingFetchedWithAlias(DataFetchingEnvironment environment, Function<Field, String> alias) {
+        final Field field = cloneFieldBeingFetched(environment);
+        field.setAlias(alias.apply(field));
+        return field;
+    }
+
+    private static Field cloneFieldBeingFetched(DataFetchingEnvironment environment) {
+        return DocumentCloners.clone(findCurrentFieldBeingFetched(environment));
     }
 
     private ExecutionInput executeBatchQuery(Document doc, String operationName, Map<String, Object> variables) {
@@ -183,7 +235,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
         Map<String, Object> data = result.getData();
         for (DataFetchingEnvironment environment : environments) {
             Field field = clonedFields.get(environment);
-            Map<String, Object> fieldData = (Map<String, Object>) data.getOrDefault(field.getAlias(), null);
+            Map<String, Object> fieldData = BraidObjects.cast(data.getOrDefault(field.getAlias(), null));
 
             queryResults.add(new DataFetcherResult<>(
                     fieldData,
@@ -204,7 +256,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                 .collect(singleton());
     }
 
-    private Type findArgumentType(SchemaSource<C> schemaSource, Link link) {
+    private static Type findArgumentType(SchemaSource<?> schemaSource, Link link) {
         return findQueryFieldDefinitions(schemaSource.getPrivateSchema())
                 .orElseThrow(IllegalStateException::new)
                 .stream()
@@ -218,11 +270,16 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                 .orElseThrow(IllegalArgumentException::new);
     }
 
-    private Field findFieldWithName(DataFetchingEnvironment environment) {
-        return environment.getFields().stream()
-                .filter(f -> environment.getFieldDefinition().getName().equals(f.getName()))
+    private static Field findCurrentFieldBeingFetched(DataFetchingEnvironment environment) {
+        return environment.getFields()
+                .stream()
+                .filter(isFieldMatchingFieldDefinition(environment.getFieldDefinition()))
                 .findFirst()
                 .orElseThrow(IllegalArgumentException::new);
+    }
+
+    private static Predicate<Field> isFieldMatchingFieldDefinition(GraphQLFieldDefinition fieldDefinition) {
+        return field -> Objects.equals(fieldDefinition.getName(), field.getName());
     }
 
     /**
@@ -241,7 +298,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                 } else {
                     getLink(schemaSource.getLinks(), parentType.getName(), node.getName())
                             .ifPresent(l -> node.setSelectionSet(null));
-                    if (TypeNameMetaFieldDef.getName().equals(node.getName())) {
+                    if (isFieldMatchingFieldDefinition(TypeNameMetaFieldDef).test(node)) {
                         type = TypeNameMetaFieldDef.getType();
                     } else if (parentType instanceof GraphQLInterfaceType) {
                         type = ((GraphQLInterfaceType) parentType).getFieldDefinition(node.getName()).getType();

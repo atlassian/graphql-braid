@@ -4,13 +4,13 @@ request:
       foo1: foo(id: $id1) {
         name
         bar {
-          id
+          myid
         }
       }
       foo2: foo(id: $id2) {
         name
         bar {
-          id
+          myid
           title
         }
       }
@@ -25,11 +25,11 @@ response:
     foo1:
       name: Foo1
       bar:
-        id: baz1
+        myid: baz1
     foo2:
       name: Foo2
       bar:
-        id: baz2
+        myid: baz2
         title: Baz2
 
 schemaSources:
@@ -54,6 +54,7 @@ schemaSources:
           namespace: bar
           type: Bar
           field: topbar
+          variableField: myid
           argument: topbarid
     expected:
       query: |
@@ -88,22 +89,14 @@ schemaSources:
           topbar(topbarid: String) : Bar
       }
       type Bar {
-          id: ID
+          myid: ID
           title: String
       }
     expected:
       - query: |
           query Bulk_Bar($topbarid100: String) {
               bar100: topbar(topbarid: $topbarid100) {
-                  id
-              }
-          }
-        variables:
-          topbarid100: baz1
-      - query: |
-          query Bulk_Bar($topbarid100: String) {
-              bar100: topbar(topbarid: $topbarid100) {
-                  id
+                  myid
                   title
               }
           }
@@ -112,10 +105,6 @@ schemaSources:
     response:
       - data:
           bar100:
-            id: baz1
-        errors: []
-      - data:
-          bar100:
-            id: baz2
+            myid: baz2
             title: Baz2
         errors: []

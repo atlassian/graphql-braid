@@ -41,7 +41,6 @@ import static graphql.schema.idl.RuntimeWiring.newRuntimeWiring;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
-import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertEquals;
 
@@ -120,27 +119,30 @@ public class YamlBraidExecutionRule implements MethodRule {
 
     private List<Link> getLinks(TestSchemaSource schemaSource) {
         return schemaSource.getLinks()
-                .map(links -> links.stream().map(l -> this.getLink(schemaSource, l)).collect(toList()))
+                .map(links -> links.stream().map(link -> getLink(schemaSource, link)).collect(toList()))
                 .orElse(emptyList());
     }
 
-    private Link getLink(TestSchemaSource schemaSource, Map<String, Map<String, String>> l) {
+    private static Link getLink(TestSchemaSource schemaSource, Map<String, Map<String, Object>> l) {
+        final Map<String, Object> from = l.get("from");
+        final Map<String, Object> to = l.get("to");
+
         Link.LinkBuilder link = Link.from(
                 schemaSource.getNamespace(),
-                l.get("from").get("type"),
-                l.get("from").get("field"),
-                l.get("from").getOrDefault("fromField",
-                        l.get("from").get("field")))
-                .to(SchemaNamespace.of(l.get("to").get("namespace")),
-                        l.get("to").get("type"),
-                        l.get("to").get("field")
-                );
+                getString(from, "type"),
+                getString(from, "field"),
+                BraidMaps.get(from, "fromField").map(BraidObjects::<String>cast).orElseGet(() -> getString(from, "field")))
+                .to(SchemaNamespace.of(getString(to, "namespace")),
+                        getString(to, "type"),
+                        getStringOrNull(to, "field"),
+                        getStringOrNull(to, "variableField"));
         if (getReplaceFromField(l)) {
             link.replaceFromField();
         }
-        ofNullable(l.get("to").get("argument")).ifPresent(link::argument);
-        String nullable = String.valueOf(l.get("to").get("nullable"));
-        ofNullable(nullable).map(String::valueOf).map(Boolean::valueOf).ifPresent(link::setNullable);
+
+        BraidMaps.get(to, "argument").map(BraidObjects::<String>cast).ifPresent(link::argument);
+        BraidMaps.get(to, "nullable").map(BraidObjects::<Boolean>cast).ifPresent(link::setNullable);
+
         return link.build();
     }
 
@@ -252,7 +254,7 @@ public class YamlBraidExecutionRule implements MethodRule {
             return getString(schemaSourceMap, "schema");
         }
 
-        Optional<List<Map<String, Map<String, String>>>> getLinks() {
+        Optional<List<Map<String, Map<String, Object>>>> getLinks() {
             return BraidMaps.get(schemaSourceMap, "links").map(BraidObjects::cast);
         }
 
@@ -279,6 +281,10 @@ public class YamlBraidExecutionRule implements MethodRule {
 
     private static String getString(Map<String, Object> map, String key) {
         return BraidMaps.get(map, key).map(BraidObjects::<String>cast).orElseThrow(IllegalStateException::new);
+    }
+
+    private static String getStringOrNull(Map<String, Object> map, String key) {
+        return BraidMaps.get(map, key).map(BraidObjects::<String>cast).orElse(null);
     }
 
     private static class TestResponse {
