@@ -4,7 +4,7 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Improved batching when querying linked sources
 
 0.7.4 (2018-03-13)
 -------------------

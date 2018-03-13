@@ -94,17 +94,17 @@ schemaSources:
       }
     expected:
       - query: |
-          query Bulk_Bar($topbarid100: String) {
-              bar100: topbar(topbarid: $topbarid100) {
+          query Bulk_Bar($topbarid101: String) {
+              bar101: topbar(topbarid: $topbarid101) {
                   myid
                   title
               }
           }
         variables:
-          topbarid100: baz2
+          topbarid101: baz2
     response:
       - data:
-          bar100:
+          bar101:
             myid: baz2
             title: Baz2
         errors: []

@@ -5,9 +5,11 @@ import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLType;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.util.Optional;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -15,7 +17,10 @@ import static org.junit.Assert.assertTrue;
 public class BraidTest {
 
     @Rule
-    public YamlBraidExecutionRule rule = new YamlBraidExecutionRule();
+    public final Timeout timeoutRule = new Timeout(500, MILLISECONDS);
+
+    @Rule
+    public final YamlBraidExecutionRule braidRule = new YamlBraidExecutionRule();
 
     @Test
     public void testBraidWithMutation() {
@@ -87,7 +92,7 @@ public class BraidTest {
 
     @Test
     public void testBraidWithLinkFromReplaceField() {
-        Optional<GraphQLType> fooType = rule.braid.getSchema().getAllTypesAsList().stream()
+        Optional<GraphQLType> fooType = braidRule.braid.getSchema().getAllTypesAsList().stream()
                 .filter(t -> t.getName().equals("Foo")).findAny();
         assertEquals(true, fooType.isPresent());
         assertTrue(fooType.get() instanceof GraphQLObjectType);
@@ -107,7 +112,7 @@ public class BraidTest {
 
     @Test
     public void testBraidWithInterface() {
-        assertThat(rule.braid.getSchema().getObjectType("Foo")
+        assertThat(braidRule.braid.getSchema().getObjectType("Foo")
                 .getInterfaces().get(0).getName()).isEqualTo("Fooable");
     }
 }
