@@ -4,6 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- 
+
+0.7.4 (2018-03-13)
+-------------------
+
 - Do not query linked schema when fields are all query variables  
 
 0.7.3 (2018-03-09)
