@@ -12,6 +12,7 @@ public interface GraphQLRemoteRetriever<C> {
 
     /**
      * @param executionInput the query to execute
+     * @param context        the GraphQL execution context
      * @return the response body of the query
      */
     CompletableFuture<Map<String, Object>> queryGraphQL(ExecutionInput executionInput, C context);
