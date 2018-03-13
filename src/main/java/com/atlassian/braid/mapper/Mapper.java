@@ -25,8 +25,9 @@ public interface Mapper extends UnaryOperator<Map<String, Object>> {
      * Copies the value at a key to the same key in the target map if present, otherwise puts the supplied default value
      * in the target map
      *
-     * @param key The key to copy
-     * @param <T> the type of the (default) value
+     * @param key          The key to copy
+     * @param defaultValue the supplier of default value
+     * @param <T>          the type of the (default) value
      * @return the mapper with the copy operation, this is <em>not</em> necessarily the same mapper
      */
     default <T> Mapper copy(String key, Supplier<T> defaultValue) {
@@ -91,6 +92,7 @@ public interface Mapper extends UnaryOperator<Map<String, Object>> {
      *
      * @param key   the key
      * @param value the value
+     * @param <V>   the type of the value
      * @return the mapper with the put operation, this is <em>not</em> necessarily the same mapper
      */
     <V> Mapper put(String key, V value);
@@ -131,8 +133,9 @@ public interface Mapper extends UnaryOperator<Map<String, Object>> {
     /**
      * Creates a list of a single map
      *
-     * @param key    the key to store the list at
-     * @param mapper a mapper for the new map
+     * @param key       the key to store the list at
+     * @param predicate a predicate based on which the list will be added to the output (or not)
+     * @param mapper    a mapper for the new map
      * @return the mapper with the list operation, this is <em>not</em> necessarily the same mapper
      */
     Mapper list(String key, Predicate<MapperInputOutput> predicate, Mapper mapper);
@@ -151,8 +154,9 @@ public interface Mapper extends UnaryOperator<Map<String, Object>> {
     /**
      * Creates a new map at a given key
      *
-     * @param key    the key
-     * @param mapper a mapper for the new map
+     * @param key       the key
+     * @param predicate a predicate based on which the list will be added to the output (or not)
+     * @param mapper    a mapper for the new map
      * @return the mapper with the map operation, this is <em>not</em> necessarily the same mapper
      */
     Mapper map(String key, Predicate<MapperInputOutput> predicate, Mapper mapper);

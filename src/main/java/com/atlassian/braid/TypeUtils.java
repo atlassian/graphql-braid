@@ -32,6 +32,7 @@ public class TypeUtils {
      * Creates an <em>emtpy</em> schema definition if the registry doesn't have one already
      *
      * @param registry the registry to complete
+     * @return the registry
      */
     static TypeDefinitionRegistry createSchemaDefinitionIfNecessary(TypeDefinitionRegistry registry) {
         if (!registry.schemaDefinition().isPresent()) {
@@ -145,6 +146,7 @@ public class TypeUtils {
      *
      * @param registry       the types
      * @param topLevelFields the fields to allow or if empty, all of them
+     * @return the registry passed as a parameter, updated
      */
     public static TypeDefinitionRegistry filterQueryType(TypeDefinitionRegistry registry, String... topLevelFields) {
         List<String> topFields = asList(topLevelFields);
