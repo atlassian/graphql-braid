@@ -42,7 +42,6 @@ schemaSources:
         }
       variables:
         myid100: FooId
-      operation: Bulk_Foo
     response:
       data:
         foo100:
