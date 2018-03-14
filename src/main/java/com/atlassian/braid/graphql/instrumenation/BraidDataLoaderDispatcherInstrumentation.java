@@ -36,6 +36,9 @@ import static java.util.Objects.requireNonNull;
  * <p>
  * <strong>Note:</strong> the base implementation of the loader is
  * {@link graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation}
+ * <p>
+ * <strong>Experimental</strong> this dataloader dispatcher is known to be causing timeouts, do NOT use in production
+ * (yet): https://bitbucket.org/atlassian/cc-graphql/pull-requests/279/wip-confdev-59015-update-graphql-braid-to
  */
 public final class BraidDataLoaderDispatcherInstrumentation extends NoOpInstrumentation {
 
