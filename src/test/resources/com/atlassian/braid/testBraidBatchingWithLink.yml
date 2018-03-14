@@ -5,6 +5,7 @@ request:
         name
         bar {
           myid
+          title
         }
       }
       foo2: foo(id: $id2) {
@@ -26,6 +27,7 @@ response:
       name: Foo1
       bar:
         myid: baz1
+        title: Baz1
     foo2:
       name: Foo2
       bar:
@@ -57,6 +59,7 @@ schemaSources:
           variableField: myid
           argument: topbarid
     expected:
+      # batching happens here
       query: |
         query Bulk_Foo($id1100: String!, $id2101: String!) {
             foo100: foo(id: $id1100) {
@@ -93,18 +96,27 @@ schemaSources:
           title: String
       }
     expected:
-      - query: |
-          query Bulk_Bar($topbarid101: String) {
-              bar101: topbar(topbarid: $topbarid101) {
-                  myid
-                  title
-              }
-          }
-        variables:
-          topbarid101: baz2
+      # batching happens here
+      query: |
+        query Bulk_Bar($topbarid100: String, $topbarid101: String) {
+            bar100: topbar(topbarid: $topbarid100) {
+                myid
+                title
+            }
+            bar101: topbar(topbarid: $topbarid101) {
+                myid
+                title
+            }
+        }
+      variables:
+        topbarid100: baz1
+        topbarid101: baz2
     response:
-      - data:
-          bar101:
-            myid: baz2
-            title: Baz2
-        errors: []
+      data:
+        bar100:
+          myid: baz1
+          title: Baz1
+        bar101:
+          myid: baz2
+          title: Baz2
+      errors: []

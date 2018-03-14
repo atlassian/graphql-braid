@@ -1,5 +1,6 @@
 package com.atlassian.braid;
 
+import com.atlassian.braid.graphql.instrumenation.BraidDataLoaderDispatcherInstrumentation;
 import com.atlassian.braid.java.util.BraidMaps;
 import com.atlassian.braid.java.util.BraidObjects;
 import com.atlassian.braid.source.LocalQueryExecutingSchemaSource;
@@ -10,7 +11,6 @@ import graphql.ExecutionResult;
 import graphql.GraphQL;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
-import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation;
 import graphql.parser.Parser;
 import graphql.schema.idl.SchemaParser;
 import graphql.schema.idl.TypeDefinitionRegistry;
@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.function.Function;
@@ -35,6 +36,7 @@ import static com.atlassian.braid.Util.read;
 import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
 import static com.atlassian.braid.java.util.BraidObjects.cast;
 import static com.atlassian.braid.source.YamlRemoteSchemaSourceFactory.getReplaceFromField;
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Suppliers.memoize;
 import static graphql.GraphQL.newGraphQL;
 import static graphql.schema.idl.RuntimeWiring.newRuntimeWiring;
@@ -42,6 +44,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -73,7 +76,7 @@ public class YamlBraidExecutionRule implements MethodRule {
                     final DataLoaderRegistry dataLoaderRegistry = braid.newDataLoaderRegistry();
 
                     final GraphQL graphql = newGraphQL(braid.getSchema())
-                            .instrumentation(new DataLoaderDispatcherInstrumentation(dataLoaderRegistry))
+                            .instrumentation(new BraidDataLoaderDispatcherInstrumentation(dataLoaderRegistry))
                             .build();
 
                     final TestQuery request = config.getRequest();
@@ -150,19 +153,16 @@ public class YamlBraidExecutionRule implements MethodRule {
         return input -> {
             final TestQuery expected = schemaSource.getExpected().poll();
             if (expected == null) {
-                throw new IllegalArgumentException(schemaSource + " shouldn't be called");
+                throw new IllegalArgumentException(schemaSource + " shouldn't have been called");
             }
 
-            assertEquals(printQuery(expected.getQuery()), printQuery(input.getQuery()));
-            assertEquals(expected.getVariables(), input.getVariables());
-            expected.getOperation().ifPresent(operation -> assertEquals(operation, input.getOperationName()));
+            assertThat(QueryAssertion.from(input)).isEqualTo(QueryAssertion.from(expected));
 
-            TestResponse response = schemaSource.getResponse().poll();
-            return new DataFetcherResult<>(response.getData(), response.getGraphQLErrors());
+            return schemaSource.getResponse().poll().getResult();
         };
     }
 
-    private String printQuery(String query) {
+    private static String printQuery(String query) {
         return printNode(new Parser().parseDocument(query));
     }
 
@@ -294,16 +294,66 @@ public class YamlBraidExecutionRule implements MethodRule {
             this.responseMap = requireNonNull(responseMap);
         }
 
-        Map<String, Object> getData() {
+        private Map<String, Object> getData() {
             return getMapValue(responseMap, "data");
         }
 
-        List<Map<String, Object>> getErrors() {
+        private List<Map<String, Object>> getErrors() {
             return getListValue(responseMap, "errors");
         }
 
-        List<GraphQLError> getGraphQLErrors() {
+        private List<GraphQLError> getGraphQLErrors() {
             return getErrors().stream().map(MapGraphQLError::new).collect(toList());
+        }
+
+        DataFetcherResult<Map<String, Object>> getResult() {
+            return new DataFetcherResult<>(this.getData(), this.getGraphQLErrors());
+        }
+    }
+
+    private static class QueryAssertion {
+        private final String query;
+        private final Map<String, Object> variables;
+        private final String operationName;
+
+        private QueryAssertion(String query, Map<String, Object> variables, String operationName) {
+            this.query = query;
+            this.variables = variables;
+            this.operationName = operationName;
+        }
+
+        static QueryAssertion from(ExecutionInput input) {
+            return new QueryAssertion(printQuery(input.getQuery()), input.getVariables(), input.getOperationName());
+        }
+
+        static QueryAssertion from(TestQuery testQuery) {
+            return new QueryAssertion(printQuery(testQuery.getQuery()), testQuery.getVariables(), testQuery.getOperation().orElse(null));
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            QueryAssertion that = (QueryAssertion) o;
+            return Objects.equals(query, that.query) &&
+                    Objects.equals(variables, that.variables) &&
+                    // operation name is check only if both are non-null
+                    (operationName == null || that.operationName == null
+                            || Objects.equals(operationName, that.operationName));
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(query, variables, operationName);
+        }
+
+        @Override
+        public String toString() {
+            return toStringHelper(this)
+                    .add("query", query)
+                    .add("variables", variables)
+                    .add("operationName", operationName)
+                    .toString();
         }
     }
 }
