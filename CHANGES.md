@@ -4,7 +4,7 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Fix detection of source type if query name is different
 
 0.8.0 (2018-03-15)
 -------------------

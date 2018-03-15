@@ -16,7 +16,7 @@ response:
   data:
     foo:
       name: Foo
-      bar: []
+      bar: null
 
 schemaSources:
   - name: foo

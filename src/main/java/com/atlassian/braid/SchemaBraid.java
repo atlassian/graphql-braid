@@ -245,12 +245,10 @@ public class SchemaBraid<C extends BraidContext> {
 
     private ObjectTypeDefinition getObjectTypeDefinition(ObjectTypeDefinition queryObjectTypeDefinition, ObjectTypeDefinition mutationObjectTypeDefinition, TypeDefinitionRegistry typeRegistry, HashMap<String, TypeDefinition> dsTypes, Link link) {
         ObjectTypeDefinition typeDefinition = (ObjectTypeDefinition) dsTypes.get(link.getSourceType());
-        if (typeDefinition == null) {
-            if (link.getSourceType().equals(queryObjectTypeDefinition.getName())) {
-                typeDefinition = findQueryType(typeRegistry).orElse(null);
-                if (link.getSourceType().equals(mutationObjectTypeDefinition.getName())) {
-                    typeDefinition = findMutationType(typeRegistry).orElse(null);
-                }
+        if (typeDefinition == null && link.getSourceType().equals(queryObjectTypeDefinition.getName())) {
+            typeDefinition = findQueryType(typeRegistry).orElse(null);
+            if (typeDefinition == null && link.getSourceType().equals(mutationObjectTypeDefinition.getName())) {
+                typeDefinition = findMutationType(typeRegistry).orElse(null);
             }
         }
 

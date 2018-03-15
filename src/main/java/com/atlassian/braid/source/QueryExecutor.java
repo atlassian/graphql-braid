@@ -294,16 +294,18 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
         for (DataFetchingEnvironment environment : environments) {
             List<FieldKey> fields = clonedFields.get(environment);
             Object fieldData;
-            if (environment.getFieldType() instanceof GraphQLList) {
-                fieldData = fields.stream()
-                        .map(f -> BraidObjects.cast(data.getOrDefault(f, null)))
-                        .collect(toList());
-            } else if (!fields.isEmpty()){
-                if (fields.size() > 1) {
-                    throw new IllegalStateException("Can't query for multiple fields if the target type isn't a list");
-                }
+
+            if (!fields.isEmpty()){
                 FieldKey field = fields.get(0);
                 fieldData = BraidObjects.cast(data.getOrDefault(field, null));
+
+                if (environment.getFieldType() instanceof GraphQLList && !(fieldData instanceof List)) {
+                    fieldData = fields.stream()
+                            .map(f -> BraidObjects.cast(data.getOrDefault(f, null)))
+                            .collect(toList());
+                } else if (fields.size() > 1) {
+                    throw new IllegalStateException("Can't query for multiple fields if the target type isn't a list");
+                }
             } else {
                 fieldData = null;
             }
