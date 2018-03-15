@@ -4,6 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- 
+
+0.8.0 (2018-03-15)
+-------------------
+
 - Added support for resolving lists of ids
 - Added support for non-string ids
 - Added support for linking top level fields
