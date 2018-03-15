@@ -4,7 +4,7 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Remove `BraidDataLoaderDispatcherInstrumentation` introduced in 0.7.5 
 
 0.7.5 (2018-03-14)
 -------------------
