@@ -1,0 +1,95 @@
+request:
+  query: |
+    query($id: String!) {
+      foo(id: $id) {
+        name
+        bar {
+          title
+        }
+      }
+    }
+  variables:
+    id: fooid
+
+response:
+  errors: []
+  data:
+    foo:
+      name: Foo
+      bar:
+        - title: Bar
+        - title: Bar2
+
+schemaSources:
+  - name: foo
+    schema: |
+      schema {
+          query: Query
+      }
+      type Query {
+          foo(id: String) : Foo
+      }
+      type Foo {
+          id: String
+          name: String
+          bar: [String]
+      }
+    links:
+      - from:
+          type: Foo
+          field: bar
+        to:
+          namespace: bar
+          type: Bar
+    expected:
+      query: |
+        query Bulk_Foo($id100: String!) {
+            foo100: foo(id: $id100) {
+                name
+                bar
+            }
+        }
+      variables:
+        id100: fooid
+    response:
+      data:
+        foo100:
+          name: Foo
+          bar:
+            - barid
+            - barid2
+      errors: []
+  - name: bar
+    schema: |
+      schema {
+          query: Query
+      }
+      type Query {
+          bar(id: String) : Bar
+      }
+      type Bar {
+          title: String
+      }
+    expected:
+      query: |
+        query Bulk_Bar($id100: String, $id101: String) {
+            bar100: bar(id: $id100) {
+                title
+            }
+            bar101: bar(id: $id101) {
+                title
+            }
+        }
+      variables:
+        id100: barid
+        id101: barid2
+    response:
+      data:
+        bar100:
+          title: Bar
+        bar101:
+          title: Bar2
+      errors: []
+
+
+

@@ -3,21 +3,17 @@ package com.atlassian.braid;
 import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLType;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 
 import java.util.Optional;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class BraidTest {
-
-    @Rule
-    public final Timeout timeoutRule = new Timeout(500, MILLISECONDS);
 
     @Rule
     public final YamlBraidExecutionRule braidRule = new YamlBraidExecutionRule();
@@ -87,8 +83,30 @@ public class BraidTest {
     }
 
     @Test
-    public void testBraidBatchingWithLink() {
+    public void testBraidBatchingWithLink() {}
+
+    @Test
+    public void testBraidWithLinkOfIds() {
     }
+
+    @Test
+    public void testBraidWithLinkOfNullIds() {
+    }
+
+    @Test
+    public void testBraidWithNonStringId() {}
+
+    @Test
+    public void testBraidWithLinkFromReplaceTopLevelField() {}
+
+    @Test
+    public void testBraidWithLinkFromReplaceTopLevelFieldOfList() {}
+
+    @Test
+    public void testBraidWithLinkFromReplaceTopLevelFieldWithDifferentQueryNames() {}
+
+    @Test
+    public void testBraidWithLinkFromReplaceTopLevelFieldSameSource() {}
 
     @Test
     public void testBraidWithLinkFromReplaceField() {

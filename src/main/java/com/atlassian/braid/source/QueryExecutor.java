@@ -29,6 +29,7 @@ import graphql.parser.Parser;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLInterfaceType;
+import graphql.schema.GraphQLList;
 import graphql.schema.GraphQLModifiedType;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLOutputType;
@@ -45,13 +46,14 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import static com.atlassian.braid.BatchLoaderUtils.getTargetIdFromEnvironment;
+import static com.atlassian.braid.BatchLoaderUtils.getTargetIdsFromEnvironment;
 import static com.atlassian.braid.TypeUtils.findQueryFieldDefinitions;
-import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
 import static com.atlassian.braid.java.util.BraidCollectors.singleton;
+import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
 import static graphql.introspection.Introspection.TypeNameMetaFieldDef;
 import static graphql.language.OperationDefinition.Operation.MUTATION;
 import static graphql.language.OperationDefinition.Operation.QUERY;
@@ -60,6 +62,7 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 /**
  * Executes a query against the data source
@@ -73,26 +76,27 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
     }
 
     @Override
-    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
-        return new QueryExecutorBatchLoader(schemaSource, link, queryFunction);
+    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
+        return new QueryExecutorBatchLoader<>(schemaSource, link, queryFunction);
     }
 
-    private static class QueryExecutorBatchLoader implements BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> {
+    private static class QueryExecutorBatchLoader<C extends BraidContext> implements BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> {
 
-        private final SchemaSource<?> schemaSource;
+        private final SchemaSource<C> schemaSource;
 
         private final Link link; // nullable
 
         private final QueryFunction<?> queryFunction;
 
-        private QueryExecutorBatchLoader(SchemaSource<?> schemaSource, Link link, QueryFunction<?> queryFunction) {
+        private QueryExecutorBatchLoader(SchemaSource<C> schemaSource, Link link, QueryFunction<?> queryFunction) {
             this.schemaSource = requireNonNull(schemaSource);
-            this.link = link; // may be null
+            this.link = link;  // may be null
             this.queryFunction = requireNonNull(queryFunction);
         }
 
         @Override
-        public CompletionStage<List<DataFetcherResult<Map<String, Object>>>> load(List<DataFetchingEnvironment> environments) {
+        public CompletionStage<List<DataFetcherResult<Object>>> load(List<DataFetchingEnvironment> environments) {
+
             final DataFetchingEnvironment firstEnv = environments.stream().findFirst()
                     .orElseThrow(IllegalStateException::new);
 
@@ -106,63 +110,82 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
             doc.getDefinitions().add(queryOp);
 
             Map<String, Object> variables = new HashMap<>();
-            Map<DataFetchingEnvironment, Field> clonedFields = new HashMap<>();
+            Map<DataFetchingEnvironment, List<FieldKey>> clonedFields = new HashMap<>();
 
             // start at 99 so that we can find variables already counter-namespaced via startsWith()
-            int counter = 99;
+            AtomicInteger counter = new AtomicInteger(99);
 
             // this is to gather data we don't need to fetch through batch loaders, e.g. when on the the variable used in
             // the query is fetched
-            final Map<String, Object> shortCircuitedData = new HashMap<>();
+            final Map<FieldKey, Object> shortCircuitedData = new HashMap<>();
 
             // build batch queryResult
             for (DataFetchingEnvironment environment : environments) {
-                ++counter;
-
-                final Field field = cloneFieldBeingFetchedWithAlias(environment, createFieldAlias(counter));
-
-                clonedFields.put(environment, field);
-
-                trimFieldSelection(schemaSource, environment, field);
-
-                // add variable and argument for linked field identifier
-                if (link != null) {
-                    final String targetId = getTargetIdFromEnvironment(link, environment);
-
-                    if (isTargetIdNullAndCannotQueryLinkWithNull(targetId, link)) {
-                        continue;
-                    }
-
-                    if (isFieldQueryOnlySelectingVariable(field, link)) {
-                        shortCircuitedData.put(field.getAlias(), new HashMap<String, Object>() {{
-                            put(link.getTargetVariableQueryField(), targetId);
-                        }});
-                        continue;
-                    }
-
-                    final String variableName = link.getArgumentName() + counter;
-
-                    field.setName(link.getTargetQueryField());
-                    field.setArguments(linkQueryArgumentAsList(link, variableName));
-
-                    queryOp.getVariableDefinitions().add(linkQueryVariableDefinition(link, variableName, schemaSource));
-                    variables.put(variableName, targetId);
-                }
+                List<FieldRequest> fields = new ArrayList<>();
+                List<Integer> usedCounterIds = new ArrayList<>();
 
                 Document queryDoc = new Parser().parseDocument(environment.<BraidContext>getContext().getQuery());
                 OperationDefinition operationDefinition = findSingleOperationDefinition(queryDoc);
-                final GraphQLQueryVisitor variableNameSpacer =
-                        new VariableNamespacingGraphQLQueryVisitor(counter, operationDefinition, variables, environment, queryOp);
 
-                processForFragments(environment, field).forEach(d -> {
-                    variableNameSpacer.visit(d);
-                    doc.getDefinitions().add(d);
-                });
+                // add variable and argument for linked field identifier
+                if (link != null) {
+                    final List targetIds = getTargetIdsFromEnvironment(link, environment);
 
-                variableNameSpacer.visit(field);
-                queryOp.getSelectionSet().getSelections().add(field);
+                    boolean fieldQueryOnlySelectingVariable = isFieldQueryOnlySelectingVariable(cloneFieldBeingFetched(environment), link);
+                    for (Object targetId : targetIds) {
+                        final FieldRequest field = cloneField(schemaSource, counter, usedCounterIds, environment);
+                        if (isTargetIdNullAndCannotQueryLinkWithNull(targetId, link)) {
+                            shortCircuitedData.put(new FieldKey(field.field.getAlias()), null);
+                        } else if (fieldQueryOnlySelectingVariable) {
+                            shortCircuitedData.put(new FieldKey(field.field.getAlias()), new HashMap<String, Object>() {{
+                                put(link.getTargetVariableQueryField(), targetId);
+                            }});
+                        } else {
+                            addQueryVariable(queryOp, variables, counter, targetId, field);
+                            addFieldToQuery(doc, queryOp, variables, environment, operationDefinition, field);
+                        }
+
+                        fields.add(field);
+                    }
+                } else {
+                    FieldRequest field = cloneField(schemaSource, counter, usedCounterIds, environment);
+                    fields.add(field);
+                    addFieldToQuery(doc, queryOp, variables, environment, operationDefinition, field);
+                }
+                clonedFields.put(environment, fields.stream()
+                        .map(f -> f.field.getAlias())
+                        .map(FieldKey::new)
+                        .collect(toList()));
             }
 
+            CompletableFuture<DataFetcherResult<Map<String, Object>>> queryResult = executeQuery(environments, doc, queryOp, variables);
+            return queryResult
+                    .thenApply(result -> {
+                        final HashMap<FieldKey, Object> data = new HashMap<>();
+                        Map<FieldKey, Object> dataByKey = result.getData().entrySet().stream()
+                                .collect(toMap(
+                                        e -> new FieldKey(e.getKey()),
+                                        Map.Entry::getValue));
+                        data.putAll(dataByKey);
+                        data.putAll(shortCircuitedData);
+                        return new DataFetcherResult<Map<FieldKey, Object>>(data, result.getErrors());
+                    })
+                    .thenApply(result -> transformBatchResultIntoResultList(environments, clonedFields, result));
+        }
+
+        private void addFieldToQuery(Document doc, OperationDefinition queryOp, Map<String, Object> variables, DataFetchingEnvironment environment, OperationDefinition operationDefinition, FieldRequest field) {
+            final GraphQLQueryVisitor variableNameSpacer =
+                    new VariableNamespacingGraphQLQueryVisitor(field.counter, operationDefinition, variables, environment, queryOp);
+            processForFragments(environment, field.field).forEach(d -> {
+                variableNameSpacer.visit(d);
+                doc.getDefinitions().add(d);
+            });
+
+            variableNameSpacer.visit(field.field);
+            queryOp.getSelectionSet().getSelections().add(field.field);
+        }
+
+        private CompletableFuture<DataFetcherResult<Map<String, Object>>> executeQuery(List<DataFetchingEnvironment> environments, Document doc, OperationDefinition queryOp, Map<String, Object> variables) {
             CompletableFuture<DataFetcherResult<Map<String, Object>>> queryResult;
             if (queryOp.getSelectionSet().getSelections().isEmpty()) {
                 queryResult = CompletableFuture.completedFuture(new DataFetcherResult<>(emptyMap(), emptyList()));
@@ -171,18 +194,29 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                 queryResult = queryFunction
                         .query(input, environments.get(0).getContext());
             }
-            return queryResult
-                    .thenApply(result -> {
-                        final HashMap<String, Object> data = new HashMap<>();
-                        data.putAll(result.getData());
-                        data.putAll(shortCircuitedData);
-                        return new DataFetcherResult<Map<String, Object>>(data, result.getErrors());
-                    })
-                    .thenApply(result -> transformBatchResultIntoResultList(environments, clonedFields, result));
+            return queryResult;
+        }
+
+        private void addQueryVariable(OperationDefinition queryOp, Map<String, Object> variables, AtomicInteger counter, Object targetId, FieldRequest field) {
+            final String variableName = link.getArgumentName() + counter;
+
+            field.field.setName(link.getTargetQueryField());
+            field.field.setArguments(linkQueryArgumentAsList(link, variableName));
+
+            queryOp.getVariableDefinitions().add(linkQueryVariableDefinition(link, variableName, schemaSource));
+            variables.put(variableName, targetId);
+        }
+
+        private FieldRequest cloneField(SchemaSource<C> schemaSource, AtomicInteger counter, List<Integer> usedCounterIds,
+                                               DataFetchingEnvironment environment) {
+            final Field field = cloneFieldBeingFetchedWithAlias(environment, createFieldAlias(counter.incrementAndGet()));
+            usedCounterIds.add(counter.get());
+            trimFieldSelection(schemaSource, environment, field);
+            return new FieldRequest(field, counter.get());
         }
     }
 
-    private static boolean isTargetIdNullAndCannotQueryLinkWithNull(String targetId, Link link) {
+    private static boolean isTargetIdNullAndCannotQueryLinkWithNull(Object targetId, Link link) {
         return targetId == null && !link.isNullable();
     }
 
@@ -207,7 +241,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
     }
 
     private static OperationDefinition newQueryOperationDefinition(GraphQLOutputType fieldType,
-                                                                   OperationDefinition.Operation operationType) {
+                                                            OperationDefinition.Operation operationType) {
         return new OperationDefinition(newBulkOperationName(fieldType), operationType, new SelectionSet());
     }
 
@@ -224,7 +258,13 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
     }
 
     private static String newBulkOperationName(GraphQLOutputType fieldType) {
-        return "Bulk_" + fieldType.getName();
+        String type;
+        if (fieldType instanceof GraphQLList) {
+            type = ((GraphQLList)fieldType).getWrappedType().getName();
+        } else {
+            type = fieldType.getName();
+        }
+        return "Bulk_" + type;
     }
 
     private static Field cloneFieldBeingFetchedWithAlias(DataFetchingEnvironment environment, Function<Field, String> alias) {
@@ -245,18 +285,34 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                 .build();
     }
 
-    private static List<DataFetcherResult<Map<String, Object>>> transformBatchResultIntoResultList(List<DataFetchingEnvironment> environments, Map<DataFetchingEnvironment, Field> clonedFields, DataFetcherResult<Map<String, Object>> result) {
-        List<DataFetcherResult<Map<String, Object>>> queryResults = new ArrayList<>();
-        Map<String, Object> data = result.getData();
+    private static List<DataFetcherResult<Object>> transformBatchResultIntoResultList(
+            List<DataFetchingEnvironment> environments,
+            Map<DataFetchingEnvironment, List<FieldKey>> clonedFields,
+            DataFetcherResult<Map<FieldKey, Object>> result) {
+        List<DataFetcherResult<Object>> queryResults = new ArrayList<>();
+        Map<FieldKey, Object> data = result.getData();
         for (DataFetchingEnvironment environment : environments) {
-            Field field = clonedFields.get(environment);
-            Map<String, Object> fieldData = BraidObjects.cast(data.getOrDefault(field.getAlias(), null));
+            List<FieldKey> fields = clonedFields.get(environment);
+            Object fieldData;
+            if (environment.getFieldType() instanceof GraphQLList) {
+                fieldData = fields.stream()
+                        .map(f -> BraidObjects.cast(data.getOrDefault(f, null)))
+                        .collect(toList());
+            } else if (!fields.isEmpty()){
+                if (fields.size() > 1) {
+                    throw new IllegalStateException("Can't query for multiple fields if the target type isn't a list");
+                }
+                FieldKey field = fields.get(0);
+                fieldData = BraidObjects.cast(data.getOrDefault(field, null));
+            } else {
+                fieldData = null;
+            }
 
             queryResults.add(new DataFetcherResult<>(
                     fieldData,
                     result.getErrors().stream()
                             .filter(e -> e.getPath() == null || e.getPath().isEmpty()
-                                    || field.getAlias().equals(e.getPath().get(0)))
+                                    || fields.contains(new FieldKey(String.valueOf(e.getPath().get(0)))))
                             .map(RelativeGraphQLError::new)
                             .collect(toList())
             ));
@@ -300,7 +356,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
     /**
      * Ensures we only ask for fields the data source supports
      */
-    static void trimFieldSelection(SchemaSource<?> schemaSource, DataFetchingEnvironment environment, Field field) {
+    static <C extends BraidContext> void trimFieldSelection(SchemaSource<C> schemaSource, DataFetchingEnvironment environment, Field field) {
         new GraphQLQueryVisitor() {
             GraphQLOutputType parentType = null;
             GraphQLOutputType lastFieldType = null;
@@ -310,6 +366,12 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                 GraphQLType type;
                 if (node == field) {
                     type = environment.getFieldType();
+                    parentType = (GraphQLObjectType) environment.getParentType();
+                    Optional<Link> linkWithDifferentFromField = getLinkWithDifferentFromField(schemaSource.getLinks(), parentType.getName(), field.getName());
+                    if (linkWithDifferentFromField.isPresent() && environment.getSource() == null) {
+                        field.setSelectionSet(null);
+                        field.setName(linkWithDifferentFromField.get().getSourceFromField());
+                    }
                 } else {
                     getLink(schemaSource.getLinks(), parentType.getName(), node.getName())
                             .ifPresent(l -> node.setSelectionSet(null));
@@ -404,6 +466,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                 .findFirst();
     }
 
+
     private static class VariableNamespacingGraphQLQueryVisitor extends GraphQLQueryVisitor {
         private final int counter;
         private final OperationDefinition queryType;
@@ -479,6 +542,38 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                     .map(VariableDefinition::getType)
                     .findFirst()
                     .orElseThrow(IllegalArgumentException::new);
+        }
+    }
+
+    private static class FieldRequest {
+        private final Field field;
+        private final int counter;
+
+        private FieldRequest(Field field, int counter) {
+            this.field = field;
+            this.counter = counter;
+        }
+    }
+
+    // The unique key of a id that is being requested
+    private static class FieldKey {
+        private final String value;
+
+        private FieldKey(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            FieldKey fieldKey = (FieldKey) o;
+            return Objects.equals(value, fieldKey.value);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(value);
         }
     }
 }

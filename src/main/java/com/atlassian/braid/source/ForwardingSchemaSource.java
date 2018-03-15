@@ -10,7 +10,6 @@ import graphql.schema.idl.TypeDefinitionRegistry;
 import org.dataloader.BatchLoader;
 
 import java.util.List;
-import java.util.Map;
 
 abstract class ForwardingSchemaSource<C extends BraidContext> implements SchemaSource<C> {
     protected abstract SchemaSource<C> getDelegate();
@@ -36,7 +35,7 @@ abstract class ForwardingSchemaSource<C extends BraidContext> implements SchemaS
     }
 
     @Override
-    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
+    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
         return getDelegate().newBatchLoader(schemaSource, link);
     }
 }

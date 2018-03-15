@@ -11,7 +11,6 @@ import org.dataloader.BatchLoader;
 
 import java.io.Reader;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 
 import static com.atlassian.braid.source.SchemaUtils.loadPublicSchema;
@@ -32,7 +31,7 @@ public final class LocalBatchLoadingSchemaSource<C extends BraidContext> extends
     }
 
     @Override
-    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
+    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
         return batchLoaderFactory.newBatchLoader(schemaSource, link);
     }
 }

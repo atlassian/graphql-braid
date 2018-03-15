@@ -1,0 +1,73 @@
+request:
+  query: |
+    query {
+      bars {
+        title
+      }
+    }
+  variables: {}
+
+response:
+  errors: []
+  data:
+    bars:
+      - title: Bar
+
+schemaSources:
+  - name: foo
+    schema: |
+      schema {
+          query: Query
+      }
+      type Query {
+          barIds : [String]
+      }
+    links:
+      - from:
+          type: Query
+          field: bars
+          fromField: barIds
+          replaceFromField: true
+        to:
+          namespace: bar
+          type: Bar
+          field: topbar
+          argument: id
+    expected:
+      query: |
+        query Bulk_Bar {
+            bars100: barIds
+        }
+      variables: {}
+    response:
+      data:
+        bars100: barIdValue
+      errors: []
+  - name: bar
+    schema: |
+      schema {
+          query: Query
+      }
+      type Query {
+          topbar(id: String) : Bar
+      }
+      type Bar {
+          title: String
+      }
+    expected:
+      query: |
+        query Bulk_Bar($id100: String) {
+            bars100: topbar(id: $id100) {
+                title
+            }
+        }
+      variables:
+        id100: barIdValue
+    response:
+      data:
+        bars100:
+          title: Bar
+      errors: []
+
+
+

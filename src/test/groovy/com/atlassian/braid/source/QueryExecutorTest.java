@@ -53,6 +53,7 @@ public class QueryExecutorTest {
         TypeDefinitionRegistry registry = parseRegistry("/com/atlassian/braid/not-null-fields.graphql");
         GraphQLSchema schema = new SchemaGenerator().makeExecutableSchema(registry, RuntimeWiring.newRuntimeWiring().build());
         when(env.getFieldType()).thenReturn(schema.getObjectType("Bar"));
+        when(env.getParentType()).thenReturn(schema.getObjectType("Blah"));
         QueryExecutor<BraidContext> queryExecutor = new QueryExecutor<>(queryFunction);
 
         Document query = new Parser().parseDocument("query {foo(id:fooid){id, title, baz, mylist {name}}}");

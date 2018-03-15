@@ -10,7 +10,6 @@ import graphql.schema.idl.TypeDefinitionRegistry;
 import org.dataloader.BatchLoader;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 final class QueryExecutorSchemaSource<C extends BraidContext> extends AbstractSchemaSource<C> {
@@ -29,7 +28,7 @@ final class QueryExecutorSchemaSource<C extends BraidContext> extends AbstractSc
                               TypeDefinitionRegistry privateSchema,
                               List<Link> links,
                               QueryFunction<C> queryFunction) {
-        this(namespace, schema, privateSchema, links, new QueryExecutor<C>(queryFunction));
+        this(namespace, schema, privateSchema, links, new QueryExecutor<>(queryFunction));
 
     }
 
@@ -44,7 +43,7 @@ final class QueryExecutorSchemaSource<C extends BraidContext> extends AbstractSc
     }
 
     @Override
-    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
+    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
         return queryExecutor.newBatchLoader(schemaSource, link);
     }
 }

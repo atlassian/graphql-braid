@@ -19,7 +19,7 @@ public interface BatchLoaderFactory<C extends BraidContext> {
      * @param link         the link, may be null
      * @return a new loader instance
      */
-    BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(
+    BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(
             SchemaSource<C> schemaSource,
             Link link);
 }

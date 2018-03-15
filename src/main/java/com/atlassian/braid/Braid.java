@@ -5,7 +5,7 @@ import org.dataloader.BatchLoader;
 import org.dataloader.DataLoader;
 import org.dataloader.DataLoaderRegistry;
 
-import java.util.List;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
@@ -15,9 +15,9 @@ import static java.util.Objects.requireNonNull;
 @SuppressWarnings("WeakerAccess")
 public class Braid {
     private final GraphQLSchema schema;
-    private final List<BatchLoader> batchLoaders;
+    private final Map<String, BatchLoader> batchLoaders;
 
-    public Braid(GraphQLSchema schema, List<BatchLoader> batchLoaders) {
+    public Braid(GraphQLSchema schema, Map<String, BatchLoader> batchLoaders) {
         this.schema = requireNonNull(schema);
         this.batchLoaders = requireNonNull(batchLoaders);
     }
@@ -28,9 +28,7 @@ public class Braid {
 
     public DataLoaderRegistry newDataLoaderRegistry() {
         DataLoaderRegistry registry = new DataLoaderRegistry();
-        for (BatchLoader loader : batchLoaders) {
-            registry.register(loader.toString(), new DataLoader(loader));
-        }
+        batchLoaders.forEach((key, loader) -> registry.register(key, new DataLoader(loader)));
         return registry;
     }
 }

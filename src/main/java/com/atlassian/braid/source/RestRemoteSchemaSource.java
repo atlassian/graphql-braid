@@ -58,9 +58,9 @@ public final class RestRemoteSchemaSource<C extends BraidContext> extends Abstra
     }
 
     @Override
-    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Map<String, Object>>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
+    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
         return environments -> {
-            List<CompletableFuture<DataFetcherResult<Map<String, Object>>>> results = new ArrayList<>();
+            List<CompletableFuture<DataFetcherResult<Object>>> results = new ArrayList<>();
             for (DataFetchingEnvironment env : environments) {
 
                 String uri;
