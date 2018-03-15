@@ -1,6 +1,5 @@
 package com.atlassian.braid;
 
-import com.atlassian.braid.graphql.instrumenation.BraidDataLoaderDispatcherInstrumentation;
 import com.atlassian.braid.java.util.BraidMaps;
 import com.atlassian.braid.java.util.BraidObjects;
 import com.atlassian.braid.source.LocalQueryExecutingSchemaSource;
@@ -11,6 +10,7 @@ import graphql.ExecutionResult;
 import graphql.GraphQL;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
+import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation;
 import graphql.parser.Parser;
 import graphql.schema.idl.SchemaParser;
 import graphql.schema.idl.TypeDefinitionRegistry;
@@ -76,7 +76,7 @@ public class YamlBraidExecutionRule implements MethodRule {
                     final DataLoaderRegistry dataLoaderRegistry = braid.newDataLoaderRegistry();
 
                     final GraphQL graphql = newGraphQL(braid.getSchema())
-                            .instrumentation(new BraidDataLoaderDispatcherInstrumentation(dataLoaderRegistry))
+                            .instrumentation(new DataLoaderDispatcherInstrumentation(dataLoaderRegistry))
                             .build();
 
                     final TestQuery request = config.getRequest();
