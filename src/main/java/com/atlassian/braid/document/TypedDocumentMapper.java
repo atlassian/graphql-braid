@@ -91,7 +91,7 @@ public class TypedDocumentMapper implements DocumentMapper {
         return new MappedDocument(output, Mappers.mapper(reduce));
     }
 
-    private ObjectTypeDefinition findOutputTypeForField(TypeDefinitionRegistry schema,
+    static ObjectTypeDefinition findOutputTypeForField(TypeDefinitionRegistry schema,
                                                         ObjectTypeDefinition parent, Field field) {
         return parent.getFieldDefinitions().stream()
                 .filter(fd -> fd.getName().equals(field.getName())).findFirst()
@@ -101,7 +101,7 @@ public class TypedDocumentMapper implements DocumentMapper {
     }
 
     private FieldOperation.OperationResult mapField(ObjectTypeDefinition definition, Field field) {
-        final MappingContext mappingContext = MappingContext.of(field, field.getAlias() != null ? field.getAlias() : field.getName());
+        final MappingContext mappingContext = MappingContext.of(schema, typeMappers, definition, field, field.getAlias() != null ? field.getAlias() : field.getName());
 
         return typeMappers.stream()
                 .filter(tm -> tm.test(definition))
