@@ -3,21 +3,23 @@ package com.atlassian.braid;
 import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLType;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.rules.DisableOnDebug;
+import org.junit.rules.TestRule;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.rules.Timeout.millis;
+import static org.junit.rules.Timeout.seconds;
 
 public class BraidTest {
 
-//    @Rule
-    public final Timeout timeoutRule = millis(500);
+    @Rule
+    public final TestRule timeoutRule = new DisableOnDebug(seconds(1));
 
     @Rule
     public final YamlBraidExecutionRule braidRule = new YamlBraidExecutionRule();
@@ -151,4 +153,15 @@ public class BraidTest {
     @Test
     public void testBraidWithDocumentMapper() {
     }
+
+    @Test
+    public void testBraidWithDocumentMapperWithPut() {
+    }
+
+    @Test
+    @Ignore
+    public void testBraidWithDocumentMapper2() {
+    }
+
+
 }

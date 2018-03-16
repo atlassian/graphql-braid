@@ -32,6 +32,10 @@ public final class MapperOperations {
         return new CopyOperation<T, T>(sourceKey, targetKey, () -> null, identity());
     }
 
+    public static MapperOperation put(String key, String value) {
+        return new PutOperation<>(key, value);
+    }
+
     static MapperOperation composed(List<MapperOperation> operations) {
         return new ComposedOperation(operations);
     }

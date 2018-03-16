@@ -14,7 +14,7 @@ response:
   data:
     foo:
       id: FooId
-      name: Foo
+      name: myFoo
 
 schemaSources:
   - name: foo
@@ -32,20 +32,20 @@ schemaSources:
         name: String
       }
     mapper:
-      - key: /.*/
-        op: copyMatching
-        mapper:
-          id:
+      - type: Foo
+        operations:
+          - key: id
             op: copy
             target: fooId
-          name: copy
+          - key: name
+            op: put
+            value: myFoo
 
     expected:
       query: |
         query Bulk_Foo($myid100: String) {
-          foo100: bar(id: $myid100) {
+          foo100: foo(id: $myid100) {
             fooId
-            name
           }
         }
       variables:
@@ -53,8 +53,7 @@ schemaSources:
     response:
       data:
         foo100:
-          id: FooId
-          name: Foo
+          fooId: FooId
       errors: []
 
 

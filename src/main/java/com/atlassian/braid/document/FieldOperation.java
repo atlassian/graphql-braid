@@ -26,6 +26,10 @@ public interface FieldOperation extends Predicate<Field>, BiFunction<MappingCont
         return result(field, null);
     }
 
+    static OperationResult result(MapperOperation mapper) {
+        return result(null, mapper);
+    }
+
     static OperationResult result(Field field, MapperOperation mapper) {
         return new OperationResultImpl(field, mapper);
     }

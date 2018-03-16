@@ -83,7 +83,8 @@ final class YamlTypeMappers {
 
     @SuppressWarnings("unused") // those are mapped dynamically
     private enum YamlFieldOperationType implements BiFunction<String, Map<String, Object>, FieldOperation> {
-        COPY((key, props) -> new CopyFieldOperation(key, BraidYaml.getTargetKey(props, key)));
+        COPY((key, props) -> new CopyFieldOperation(key, BraidYaml.getTargetKey(props, key))),
+        PUT((key, props) -> new PutFieldOperation(key, BraidObjects.cast(props.get("value"))));
 
         private final BiFunction<String, Map<String, Object>, FieldOperation> getOperation;
 
