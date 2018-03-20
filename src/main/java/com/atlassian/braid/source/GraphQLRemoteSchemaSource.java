@@ -63,7 +63,7 @@ public final class GraphQLRemoteSchemaSource<C extends BraidContext> extends For
     }
 
     // visible for testing
-    CompletableFuture<DataFetcherResult<Map<String, Object>>> query(ExecutionInput query, C context) {
+    public CompletableFuture<DataFetcherResult<Map<String, Object>>> query(ExecutionInput query, C context) {
         return graphQLRemoteRetriever.queryGraphQL(query, context).thenApply(response -> {
 
             Map<String, Object> data = castNullableMap(response.get("data"), String.class, Object.class)

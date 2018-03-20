@@ -1,7 +1,8 @@
-package com.atlassian.braid.source
+package com.atlassian.braid.source.yaml
 
 import com.atlassian.braid.Link
 import com.atlassian.braid.SchemaNamespace
+import com.atlassian.braid.source.GraphQLRemoteRetriever
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLFieldDefinition
 import okhttp3.mockwebserver.MockResponse

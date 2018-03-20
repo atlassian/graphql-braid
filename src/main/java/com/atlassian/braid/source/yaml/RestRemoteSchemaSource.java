@@ -1,9 +1,10 @@
-package com.atlassian.braid.source;
+package com.atlassian.braid.source.yaml;
 
 import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
+import com.atlassian.braid.source.AbstractSchemaSource;
 import graphql.execution.DataFetcherResult;
 import graphql.schema.DataFetchingEnvironment;
 import org.dataloader.BatchLoader;

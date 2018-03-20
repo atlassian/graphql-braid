@@ -1,4 +1,4 @@
-package com.atlassian.braid.source;
+package com.atlassian.braid.source.yaml;
 
 import java.net.URL;
 import java.util.Map;

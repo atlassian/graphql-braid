@@ -8,16 +8,16 @@ import java.util.function.Supplier;
 
 import static com.atlassian.braid.TypeUtils.filterQueryType;
 
-final class SchemaUtils {
+public final class SchemaUtils {
 
     private SchemaUtils() {
     }
 
-    static TypeDefinitionRegistry loadPublicSchema(Supplier<Reader> schemaProvider, String... topLevelFields) {
+    public static TypeDefinitionRegistry loadPublicSchema(Supplier<Reader> schemaProvider, String... topLevelFields) {
         return filterQueryType(loadSchema(schemaProvider), topLevelFields);
     }
 
-    static TypeDefinitionRegistry loadSchema(Supplier<Reader> schema) {
+    public static TypeDefinitionRegistry loadSchema(Supplier<Reader> schema) {
         SchemaParser parser = new SchemaParser();
         return parser.parse(schema.get());
     }
