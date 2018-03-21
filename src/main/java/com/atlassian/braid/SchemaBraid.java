@@ -1,9 +1,9 @@
 package com.atlassian.braid;
 
 import graphql.execution.DataFetcherResult;
-import graphql.language.Field;
 import graphql.language.FieldDefinition;
 import graphql.language.ListType;
+import graphql.language.NonNullType;
 import graphql.language.ObjectTypeDefinition;
 import graphql.language.Type;
 import graphql.language.TypeDefinition;
@@ -214,6 +214,9 @@ public class SchemaBraid<C extends BraidContext> {
                 }
 
                 Source<C> targetSource = sources.get(link.getTargetNamespace());
+                if (targetSource == null) {
+                    throw new IllegalArgumentException("Can't find target schema source: " + link.getTargetNamespace());
+                }
                 if (!targetSource.registry.getType(link.getTargetType()).isPresent()) {
                     throw new IllegalArgumentException("Can't find target type: " + link.getTargetType());
 
@@ -222,13 +225,17 @@ public class SchemaBraid<C extends BraidContext> {
                 Type targetType = new TypeName(link.getTargetType());
                 if (!sourceField.isPresent()) {
                     // Add source field to schema if not already there
-                    if (sourceFromField.isPresent() && sourceFromField.get().getType() instanceof ListType) {
+                    if (sourceFromField.isPresent() && isListType(sourceFromField.get().getType())) {
                         targetType = new ListType(targetType);
                     }
                     FieldDefinition field = new FieldDefinition(link.getSourceField(), targetType);
                     typeDefinition.getFieldDefinitions().add(field);
-                } else if (sourceField.get().getType() instanceof ListType) {
-                    sourceField.get().setType(new ListType(targetType));
+                } else if (isListType(sourceField.get().getType())) {
+                    if (sourceField.get().getType() instanceof NonNullType) {
+                        sourceField.get().setType(new NonNullType(new ListType(targetType)));
+                    } else {
+                        sourceField.get().setType(new ListType(targetType));
+                    }
                 } else {
                     // Change source field type to the braided type
                     sourceField.get().setType(targetType);
@@ -241,6 +248,11 @@ public class SchemaBraid<C extends BraidContext> {
             }
         }
         return fieldDataLoaderRegistrations;
+    }
+
+    private boolean isListType(Type type) {
+        return type instanceof ListType ||
+                (type instanceof NonNullType && ((NonNullType)type).getType() instanceof ListType);
     }
 
     private ObjectTypeDefinition getObjectTypeDefinition(ObjectTypeDefinition queryObjectTypeDefinition, ObjectTypeDefinition mutationObjectTypeDefinition, TypeDefinitionRegistry typeRegistry, HashMap<String, TypeDefinition> dsTypes, Link link) {

@@ -94,6 +94,10 @@ public class BraidTest {
     }
 
     @Test
+    public void testBraidWithLinkOfNotNullIds() {
+    }
+
+    @Test
     public void testBraidWithNonStringId() {}
 
     @Test

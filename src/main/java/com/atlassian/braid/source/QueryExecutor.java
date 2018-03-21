@@ -7,6 +7,7 @@ import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaSource;
 import com.atlassian.braid.java.util.BraidObjects;
 import graphql.ExecutionInput;
+import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
 import graphql.language.Argument;
 import graphql.language.Definition;
@@ -306,20 +307,32 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                 } else if (fields.size() > 1) {
                     throw new IllegalStateException("Can't query for multiple fields if the target type isn't a list");
                 }
+                queryResults.add(new DataFetcherResult<>(
+                        fieldData,
+                        buildDataFetcherResultErrors(result, fields)
+                ));
+            } else if (environment.getSource() instanceof Map &&
+                    environment.<Map<String, Object>>getSource().get(environment.getFieldDefinition().getName()) instanceof List) {
+                queryResults.add(new DataFetcherResult<>(
+                        emptyList(),
+                        buildDataFetcherResultErrors(result, fields)
+                ));
             } else {
-                fieldData = null;
+                queryResults.add(new DataFetcherResult<>(
+                        null,
+                        buildDataFetcherResultErrors(result, fields)
+                ));
             }
-
-            queryResults.add(new DataFetcherResult<>(
-                    fieldData,
-                    result.getErrors().stream()
-                            .filter(e -> e.getPath() == null || e.getPath().isEmpty()
-                                    || fields.contains(new FieldKey(String.valueOf(e.getPath().get(0)))))
-                            .map(RelativeGraphQLError::new)
-                            .collect(toList())
-            ));
         }
         return queryResults;
+    }
+
+    private static List<GraphQLError> buildDataFetcherResultErrors(DataFetcherResult<Map<FieldKey, Object>> result, List<FieldKey> fields) {
+        return result.getErrors().stream()
+                .filter(e -> e.getPath() == null || e.getPath().isEmpty()
+                        || fields.contains(new FieldKey(String.valueOf(e.getPath().get(0)))))
+                .map(RelativeGraphQLError::new)
+                .collect(toList());
     }
 
     private static OperationDefinition findSingleOperationDefinition(Document queryDoc) {
