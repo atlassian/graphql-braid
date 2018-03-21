@@ -4,6 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- 
+
+0.8.2 (2018-03-21)
+-------------------
+
 - Fix support for not null list resolution
 
 0.8.1 (2018-03-15)
