@@ -8,10 +8,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static java.util.Arrays.asList;
+import static com.atlassian.braid.document.Fields.findObjectTypeDefinition;
+import static com.atlassian.braid.document.Fields.getFieldAliasOrName;
+import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.joining;
 
-public class MappingContext {
+final class MappingContext {
 
     private final TypeDefinitionRegistry schema;
     private final List<TypeMapper> typeMappers;
@@ -19,7 +21,7 @@ public class MappingContext {
     private final ObjectTypeDefinition objectTypeDefinition;
     private final Field field;
 
-    public MappingContext(TypeDefinitionRegistry schema, List<TypeMapper> typeMappers, List<String> path, ObjectTypeDefinition objectTypeDefinition, Field field) {
+    private MappingContext(TypeDefinitionRegistry schema, List<TypeMapper> typeMappers, List<String> path, ObjectTypeDefinition objectTypeDefinition, Field field) {
         this.schema = schema;
         this.typeMappers = typeMappers;
         this.path = path;
@@ -27,28 +29,26 @@ public class MappingContext {
         this.field = field;
     }
 
-    public Field getField() {
-        return field;
+    static MappingContext of(TypeDefinitionRegistry schema, List<TypeMapper> typeMappers, ObjectTypeDefinition definition, Field field) {
+        return new MappingContext(schema, typeMappers, singletonList(getFieldAliasOrName(field)), definition, field);
     }
 
-    public static MappingContext of(TypeDefinitionRegistry schema, List<TypeMapper> typeMappers, ObjectTypeDefinition definition, Field field, String... path) {
-        return new MappingContext(schema, typeMappers, asList(path), definition, field);
+    MappingContext to(Field field) {
+        return new MappingContext(
+                this.schema,
+                this.typeMappers,
+                addFieldToPath(this.path, field),
+                findObjectTypeDefinition(this.schema, this.objectTypeDefinition, field),
+                field);
     }
 
-    public static MappingContext from(MappingContext mappingContext, ObjectTypeDefinition objectTypeDefinition, Field field) {
-        final ArrayList<String> paths = new ArrayList<>();
-        paths.addAll(mappingContext.path);
-        paths.add(field.getAlias() != null ? field.getAlias() : field.getName());// TODO do something intelligent here
-        return new MappingContext(mappingContext.schema, mappingContext.typeMappers, paths, objectTypeDefinition, field);
-    }
-
-    public String getSpringPath(String targetKey) {
+    String getSpringPath(String targetKey) {
         return Stream.concat(path.stream(), Stream.of(targetKey))
                 .map(p -> "['" + p + "']")
                 .collect(joining());
     }
 
-    public List<TypeMapper> getTypeMappers() {
+    List<TypeMapper> getTypeMappers() {
         return typeMappers;
     }
 
@@ -56,7 +56,18 @@ public class MappingContext {
         return schema;
     }
 
-    public ObjectTypeDefinition getObjectTypeDefinition() {
+    Field getField() {
+        return field;
+    }
+
+    ObjectTypeDefinition getObjectTypeDefinition() {
         return objectTypeDefinition;
+    }
+
+    private static List<String> addFieldToPath(List<String> path, Field field) {
+        final List<String> paths = new ArrayList<>();
+        paths.addAll(path);
+        paths.add(getFieldAliasOrName(field));
+        return paths;
     }
 }

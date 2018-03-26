@@ -9,7 +9,7 @@ import java.util.function.Predicate;
 
 import static com.atlassian.braid.mapper.MapperOperations.noop;
 
-public interface FieldOperation extends Predicate<Field>, BiFunction<MappingContext, Field, FieldOperation.OperationResult> {
+interface FieldOperation extends Predicate<Field>, BiFunction<MappingContext, Field, FieldOperation.FieldOperationResult> {
 
     @Override
     default boolean test(Field field) {
@@ -17,24 +17,24 @@ public interface FieldOperation extends Predicate<Field>, BiFunction<MappingCont
     }
 
     @Override
-    default OperationResult apply(MappingContext mappingContext, Field field) {
-        return new OperationResult() {
+    default FieldOperationResult apply(MappingContext mappingContext, Field field) {
+        return new FieldOperationResult() {
         };
     }
 
-    static OperationResult result(Field field) {
+    static FieldOperationResult result(Field field) {
         return result(field, null);
     }
 
-    static OperationResult result(MapperOperation mapper) {
+    static FieldOperationResult result(MapperOperation mapper) {
         return result(null, mapper);
     }
 
-    static OperationResult result(Field field, MapperOperation mapper) {
-        return new OperationResultImpl(field, mapper);
+    static FieldOperationResult result(Field field, MapperOperation mapper) {
+        return new FieldOperationResultImpl(field, mapper);
     }
 
-    interface OperationResult {
+    interface FieldOperationResult {
         default Optional<Field> getField() {
             return Optional.empty();
         }
@@ -44,11 +44,11 @@ public interface FieldOperation extends Predicate<Field>, BiFunction<MappingCont
         }
     }
 
-    class OperationResultImpl implements OperationResult {
+    class FieldOperationResultImpl implements FieldOperationResult {
         private final Field field;
         private final MapperOperation mapper;
 
-        public OperationResultImpl(Field field, MapperOperation mapper) {
+        FieldOperationResultImpl(Field field, MapperOperation mapper) {
             this.field = field;
             this.mapper = mapper == null ? noop() : mapper;
         }

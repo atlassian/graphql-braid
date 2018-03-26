@@ -6,7 +6,7 @@ import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
 
-public final class CopyOperation<T, R> implements MapperOperation {
+final class CopyOperation<T, R> implements MapperOperation {
 
     private final String sourceKey;
     private final String targetKey;

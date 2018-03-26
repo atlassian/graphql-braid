@@ -1,11 +1,12 @@
 package com.atlassian.braid.document;
 
-import com.atlassian.braid.mapper.MapperOperations;
 import graphql.language.Field;
 
+import static com.atlassian.braid.document.FieldOperation.result;
+import static com.atlassian.braid.mapper.MapperOperations.put;
 import static java.util.Objects.requireNonNull;
 
-public final class PutFieldOperation implements FieldOperation {
+final class PutFieldOperation implements FieldOperation {
 
     private final String name;
     private final String value;
@@ -21,7 +22,7 @@ public final class PutFieldOperation implements FieldOperation {
     }
 
     @Override
-    public OperationResult apply(MappingContext mappingContext, Field field) {
-        return FieldOperation.result(MapperOperations.put(name, value));
+    public FieldOperationResult apply(MappingContext mappingContext, Field field) {
+        return result(put(name, value));
     }
 }
