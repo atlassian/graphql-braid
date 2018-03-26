@@ -159,9 +159,10 @@ public class BraidTest {
     }
 
     @Test
-    @Ignore
     public void testBraidWithDocumentMapper2() {
     }
 
-
+    @Test
+    public void testBraidWithDocumentMapperWithWildCardCopy() {
+    }
 }

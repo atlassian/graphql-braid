@@ -2,19 +2,19 @@ package com.atlassian.braid.document;
 
 import com.atlassian.braid.java.util.BraidMaps;
 import com.atlassian.braid.java.util.BraidObjects;
-import com.atlassian.braid.yaml.BraidYaml;
 
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
-import static com.atlassian.braid.document.ObjectTypeDefinitionPredicates.typeNamed;
+import static com.atlassian.braid.document.DocumentMapperPredicates.typeNamed;
 import static com.atlassian.braid.java.util.BraidMaps.firstEntry;
 import static com.atlassian.braid.java.util.BraidObjects.cast;
 import static com.atlassian.braid.yaml.BraidYaml.getKey;
 import static com.atlassian.braid.yaml.BraidYaml.getOperationName;
 import static com.atlassian.braid.yaml.BraidYaml.getStringValue;
+import static com.atlassian.braid.yaml.BraidYaml.getTargetKey;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.stream.Collectors.toList;
@@ -83,8 +83,8 @@ final class YamlTypeMappers {
 
     @SuppressWarnings("unused") // those are mapped dynamically
     private enum YamlFieldOperationType implements BiFunction<String, Map<String, Object>, FieldOperation> {
-        COPY((key, props) -> new CopyFieldOperation(key, BraidYaml.getTargetKey(props, key))),
-        PUT((key, props) -> new PutFieldOperation(key, BraidObjects.cast(props.get("value"))));
+        COPY((key, props) -> new CopyFieldOperation(key, getTargetKey(props, key))),
+        PUT((key, props) -> new PutFieldOperation(key, cast(props.get("value"))));
 
         private final BiFunction<String, Map<String, Object>, FieldOperation> getOperation;
 

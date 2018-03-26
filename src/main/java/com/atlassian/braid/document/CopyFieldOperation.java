@@ -3,27 +3,33 @@ package com.atlassian.braid.document;
 import graphql.language.Field;
 import graphql.language.SelectionSet;
 
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
+import static com.atlassian.braid.document.DocumentMapperPredicates.all;
+import static com.atlassian.braid.document.DocumentMapperPredicates.fieldNamed;
 import static com.atlassian.braid.document.FieldOperation.result;
 import static com.atlassian.braid.document.Fields.cloneFieldWithNewName;
+import static com.atlassian.braid.document.Fields.getFieldAliasOrName;
 import static com.atlassian.braid.document.TypedDocumentMapper.mapNode;
 import static com.atlassian.braid.mapper.MapperOperations.copy;
 import static java.util.Objects.requireNonNull;
 
-final class CopyFieldOperation implements FieldOperation {
+final class CopyFieldOperation extends AbstractFieldOperation {
 
-    private final String name;
-    private final String target;
+    private static final String ANY_NAME = "*";
 
-    CopyFieldOperation(String name, String target) {
-        this.name = requireNonNull(name);
-        this.target = requireNonNull(target);
+    private final Function<Field, String> target;
+
+    CopyFieldOperation(String key, String target) {
+        this(copyPredicate(key), copyTarget(target));
     }
 
-    @Override
-    public boolean test(Field field) {
-        return field.getName().equals(name);
+    private CopyFieldOperation(Predicate<Field> predicate, Function<Field, String> target) {
+        super(predicate);
+        this.target = requireNonNull(target);
     }
 
     @Override
@@ -33,18 +39,22 @@ final class CopyFieldOperation implements FieldOperation {
                 .orElseGet(() -> mapLeaf(mappingContext, field)); // graph leaf ('scalar' field)
     }
 
-
     private FieldOperationResult mapLeaf(MappingContext mappingContext, Field field) {
-        final String alias = field.getAlias();
-        final String sourceKey = alias == null ? name : alias;
-        final String targetKey = alias == null ? target : alias;
-
+        final String targetKey = target.apply(field);
         return result(
-                cloneFieldWithNewName(field, target),
-                copy(mappingContext.getSpringPath(targetKey), sourceKey));
+                cloneFieldWithNewName(field, targetKey),
+                copy(mappingContext.getSpringPath(targetKey), getFieldAliasOrName(field)));
     }
 
     private static Optional<SelectionSet> getSelectionSet(Field field) {
         return Optional.ofNullable(field.getSelectionSet());
+    }
+
+    private static Predicate<Field> copyPredicate(String key) {
+        return Objects.equals("*", key) ? all() : fieldNamed(key);
+    }
+
+    private static Function<Field, String> copyTarget(String target) {
+        return Objects.equals(ANY_NAME, target) ? Fields::getFieldAliasOrName : __ -> target;
     }
 }
