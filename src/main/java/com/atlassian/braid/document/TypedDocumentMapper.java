@@ -2,18 +2,14 @@ package com.atlassian.braid.document;
 
 import com.atlassian.braid.document.FieldOperation.FieldOperationResult;
 import com.atlassian.braid.java.util.BraidObjects;
-import com.atlassian.braid.mapper.MapperOperation;
-import com.atlassian.braid.mapper.MapperOperations;
 import graphql.language.Document;
 import graphql.language.Field;
 import graphql.language.ObjectTypeDefinition;
 import graphql.language.OperationDefinition;
 import graphql.language.OperationTypeDefinition;
 import graphql.language.Selection;
-import graphql.language.SelectionSet;
 import graphql.schema.idl.TypeDefinitionRegistry;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,11 +20,19 @@ import java.util.stream.Stream;
 import static com.atlassian.braid.TypeUtils.findOperationDefinitions;
 import static com.atlassian.braid.document.FieldOperation.result;
 import static com.atlassian.braid.document.Fields.findObjectTypeDefinition;
-import static com.atlassian.braid.mapper.Mappers.mapper;
+import static com.atlassian.braid.document.MappedOperations.toMappedDocument;
+import static com.atlassian.braid.document.OperationMappingResult.toOperationMappingResult;
+import static com.atlassian.braid.java.util.BraidObjects.cast;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.groupingBy;
 
+/**
+ * <strong>Internal</strong> implemenation of the {@link DocumentMapper} that maps based on types
+ * using {@link TypeMapper type mappers}
+ *
+ * @see TypeMapper
+ */
 final class TypedDocumentMapper implements DocumentMapper {
 
     private final TypeDefinitionRegistry schema;
@@ -41,44 +45,25 @@ final class TypedDocumentMapper implements DocumentMapper {
 
     @Override
     public MappedDocument apply(Document input) {
-        final Document output = new Document();
-
-        final MapperOperation reduce = getOperationDefinitionStream(input)
-                .map(d -> {
-                    final ObjectTypeDefinition operationTypeDefinition = findOperationTypeDefinition(schema, d);
-
-                    final List<Selection> outputSelections = new ArrayList<>();
-
-                    final Map<Boolean, List<Selection>> fieldsAndNonFields =
-                            d.getSelectionSet().getSelections().stream().collect(groupingBy(s -> s instanceof Field));
-
-                    // take care of all non-Field selection
-                    outputSelections.addAll(fieldsAndNonFields.getOrDefault(false, emptyList()));
-
-                    final MapperOperation mapper =
-                            BraidObjects.<List<Field>>cast(fieldsAndNonFields.getOrDefault(true, emptyList()))
-                                    .stream()
-                                    .map(BraidObjects::<Field>cast)
-                                    .map(field -> getMappingContext(operationTypeDefinition, field))
-                                    .map(TypedDocumentMapper::mapNode)
-                                    .peek(or -> or.getField().ifPresent(outputSelections::add))
-                                    .map(FieldOperationResult::getMapper)
-                                    .reduce(MapperOperation::andThen)
-                                    .orElse(MapperOperations.noop());
-
-                    final SelectionSetMappingResult mapped =
-                            new SelectionSetMappingResult(new SelectionSet(outputSelections), mapper);
-
-                    output.getDefinitions().add(newOperationDefinition(d, mapped));
-                    return mapped.getResultMapper();
-                })
-                .reduce(MapperOperation::andThen)
-                .orElse(MapperOperations.noop());
-
-        return new MappedDocument(output, mapper(reduce));
+        return getOperationDefinitionStream(input)
+                .map(this::mapOperation)
+                .collect(toMappedDocument());
     }
 
-    private MappingContext getMappingContext(ObjectTypeDefinition operationTypeDefinition, Field field) {
+    private OperationMappingResult mapOperation(OperationDefinition operationDefinition) {
+        final ObjectTypeDefinition operationTypeDefinition = findOperationTypeDefinition(schema, operationDefinition);
+        final Map<Boolean, List<Selection>> fieldsAndNonFields = getFieldsAndNonFields(operationDefinition);
+
+        final List<Selection> nonFields = fieldsAndNonFields.getOrDefault(false, emptyList());
+        final List<Field> fields = cast(fieldsAndNonFields.getOrDefault(true, emptyList()));
+
+        return fields.stream()
+                .map(field -> toMappingContext(operationTypeDefinition, field))
+                .map(TypedDocumentMapper::mapNode)
+                .collect(toOperationMappingResult(operationDefinition, nonFields));
+    }
+
+    private MappingContext toMappingContext(ObjectTypeDefinition operationTypeDefinition, Field field) {
         return MappingContext.of(
                 schema,
                 typeMappers,
@@ -105,16 +90,6 @@ final class TypedDocumentMapper implements DocumentMapper {
                 .map(OperationDefinition.class::cast);
     }
 
-    private OperationDefinition newOperationDefinition(OperationDefinition original,
-                                                       SelectionSetMappingResult selectionSetMappingResult) {
-        return new OperationDefinition(
-                original.getName(),
-                original.getOperation(),
-                original.getVariableDefinitions(),
-                original.getDirectives(),
-                selectionSetMappingResult.getSelectionSet());
-    }
-
     private static ObjectTypeDefinition findOperationTypeDefinition(TypeDefinitionRegistry schema, OperationDefinition op) {
         return findOperationDefinitions(schema)
                 .flatMap(maybeFindOperationTypeDefinition(op))
@@ -130,5 +105,18 @@ final class TypedDocumentMapper implements DocumentMapper {
 
     private static Predicate<OperationTypeDefinition> isOperationTypeDefinitionForOperationType(OperationDefinition op) {
         return otd -> otd.getName().equalsIgnoreCase(op.getOperation().name());
+    }
+
+    /**
+     * Groups {@link Selection selections} by type, the key {@code true} for those of type {@link Field}, {@code false}
+     * for any other type
+     *
+     * @param operationDefinition the operation definition for which we care about fields
+     * @return a map of {@link Field fields} and <em>other</em> {@link Selection selection types}
+     */
+    private static Map<Boolean, List<Selection>> getFieldsAndNonFields(OperationDefinition operationDefinition) {
+        return operationDefinition.getSelectionSet().getSelections()
+                .stream()
+                .collect(groupingBy(s -> s instanceof Field));
     }
 }

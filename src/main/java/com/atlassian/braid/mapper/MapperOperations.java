@@ -3,13 +3,13 @@ package com.atlassian.braid.mapper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
 import static java.util.Arrays.asList;
 import static java.util.function.Function.identity;
 
 /**
- * Helper class to deal with common operations handling
+ * This is an <strong>internal</strong> helper class to deal with common {@link MapperOperation mapper operation}
+ * handling
  */
 public final class MapperOperations {
 
@@ -24,6 +24,10 @@ public final class MapperOperations {
         return composed(asList(operations));
     }
 
+    public static MapperOperation composed(List<MapperOperation> operations) {
+        return new ComposedOperation(operations);
+    }
+
     public static MapperOperation map(String key, Mapper mapper) {
         return new MapOperation(key, __ -> true, mapper);
     }
@@ -34,10 +38,6 @@ public final class MapperOperations {
 
     public static MapperOperation put(String key, String value) {
         return new PutOperation<>(key, value);
-    }
-
-    static MapperOperation composed(List<MapperOperation> operations) {
-        return new ComposedOperation(operations);
     }
 
     private static class NoopOperation implements MapperOperation {
