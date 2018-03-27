@@ -14,4 +14,8 @@ public final class MapperException extends RuntimeException {
     MapperException(String message, Object... args) {
         super(format(message, args));
     }
+
+    MapperException(Throwable cause, String message, Object... args) {
+        super(format(message, args), cause);
+    }
 }

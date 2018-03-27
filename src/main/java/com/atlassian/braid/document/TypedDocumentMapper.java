@@ -63,12 +63,8 @@ final class TypedDocumentMapper implements DocumentMapper {
                 .collect(toOperationMappingResult(operationDefinition, nonFields));
     }
 
-    private MappingContext toMappingContext(ObjectTypeDefinition operationTypeDefinition, Field field) {
-        return MappingContext.of(
-                schema,
-                typeMappers,
-                findObjectTypeDefinition(schema, operationTypeDefinition, field),
-                field);
+    private MappingContext toMappingContext(ObjectTypeDefinition parentObjectType, Field field) {
+        return MappingContext.of(schema, typeMappers, parentObjectType, field);
     }
 
     static FieldOperationResult mapNode(MappingContext mappingContext) {
@@ -80,7 +76,7 @@ final class TypedDocumentMapper implements DocumentMapper {
                 .filter(typeMapper -> typeMapper.test(definition))
                 .findFirst()
                 .map(typeMapper -> typeMapper.apply(mappingContext, field.getSelectionSet()))
-                .map(mappingResult -> mappingResult.toFieldOperationResult(field))
+                .map(mappingResult -> mappingResult.toFieldOperationResult(mappingContext))
                 .orElse(result(field));
     }
 

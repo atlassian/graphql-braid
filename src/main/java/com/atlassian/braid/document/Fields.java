@@ -1,9 +1,13 @@
 package com.atlassian.braid.document;
 
 import graphql.language.Field;
+import graphql.language.FieldDefinition;
 import graphql.language.ObjectTypeDefinition;
 import graphql.language.SelectionSet;
 import graphql.schema.idl.TypeDefinitionRegistry;
+import graphql.schema.idl.TypeInfo;
+
+import java.util.Optional;
 
 /**
  * Simple utility class to deal with common field operations
@@ -15,11 +19,24 @@ final class Fields {
 
     static ObjectTypeDefinition findObjectTypeDefinition(
             TypeDefinitionRegistry schema, ObjectTypeDefinition parent, Field field) {
-        return parent.getFieldDefinitions().stream()
-                .filter(fd -> fd.getName().equals(field.getName())).findFirst()
-                .flatMap(fd -> schema.getType(fd.getType()))
-                .map(ObjectTypeDefinition.class::cast)
+        return maybeFindObjectTypeDefinition(schema, maybeGetTypeInfo(parent, field))
                 .orElseThrow(IllegalStateException::new);
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    static Optional<ObjectTypeDefinition> maybeFindObjectTypeDefinition(TypeDefinitionRegistry schema, Optional<TypeInfo> typeInfo) {
+        return typeInfo
+                .map(TypeInfo::getName)
+                .flatMap(schema::getType)
+                .map(ObjectTypeDefinition.class::cast);
+    }
+
+    static Optional<TypeInfo> maybeGetTypeInfo(ObjectTypeDefinition parent, Field field) {
+        return parent.getFieldDefinitions().stream()
+                .filter(fd -> fd.getName().equals(field.getName()))
+                .findFirst()
+                .map(FieldDefinition::getType)
+                .map(TypeInfo::typeInfo);
     }
 
     static String getFieldAliasOrName(Field field) {

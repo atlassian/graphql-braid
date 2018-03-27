@@ -92,16 +92,10 @@ public class YamlBraidExecutionRule implements MethodRule {
 
                     executionResult = graphql.execute(executionInputBuilder);
 
-                    Map<String, Object> data = executionResult.getData();
                     Map<String, Object> response = config.getResponse();
 
                     assertEquals(response.get("errors"), toSpecification(executionResult.getErrors()));
-
-                    final Object expectedData = response.get("data");
-                    System.out.println("Expected data:\n" + expectedData);
-                    System.out.println("Actual data:\n" + data);
-
-                    assertEquals(expectedData, data);
+                    assertEquals(response.get("data"), executionResult.<Map<String, Object>>getData());
 
                     base.evaluate();
                 } catch (IOException e) {

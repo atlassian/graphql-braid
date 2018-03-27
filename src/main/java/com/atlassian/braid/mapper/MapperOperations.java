@@ -36,6 +36,10 @@ public final class MapperOperations {
         return new CopyOperation<T, T>(sourceKey, targetKey, () -> null, identity());
     }
 
+    public static <T> MapperOperation copyList(String key, Mapper mapper) {
+        return new CopyListOperation(key, key, mapper);
+    }
+
     public static MapperOperation put(String key, String value) {
         return new PutOperation<>(key, value);
     }
