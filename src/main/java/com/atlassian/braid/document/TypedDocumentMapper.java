@@ -19,7 +19,6 @@ import java.util.stream.Stream;
 
 import static com.atlassian.braid.TypeUtils.findOperationDefinitions;
 import static com.atlassian.braid.document.FieldOperation.result;
-import static com.atlassian.braid.document.Fields.findObjectTypeDefinition;
 import static com.atlassian.braid.document.MappedOperations.toMappedDocument;
 import static com.atlassian.braid.document.OperationMappingResult.toOperationMappingResult;
 import static com.atlassian.braid.java.util.BraidObjects.cast;
@@ -28,7 +27,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.groupingBy;
 
 /**
- * <strong>Internal</strong> implemenation of the {@link DocumentMapper} that maps based on types
+ * <strong>Internal</strong> implementation of the {@link DocumentMapper} that maps based on types
  * using {@link TypeMapper type mappers}
  *
  * @see TypeMapper

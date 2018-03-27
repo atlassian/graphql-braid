@@ -23,6 +23,10 @@ final class CopyFieldOperation extends AbstractFieldOperation {
 
     private final Function<Field, String> target;
 
+    CopyFieldOperation() {
+        this(ANY_NAME, ANY_NAME);
+    }
+
     CopyFieldOperation(String key, String target) {
         this(copyPredicate(key), copyTarget(target));
     }

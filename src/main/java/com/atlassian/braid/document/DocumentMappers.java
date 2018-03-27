@@ -1,17 +1,21 @@
 package com.atlassian.braid.document;
 
 import com.atlassian.braid.yaml.BraidYaml;
-import graphql.language.ObjectTypeDefinition;
 import graphql.schema.idl.TypeDefinitionRegistry;
 
 import java.io.Reader;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+/**
+ * Helper class to build {@link DocumentMapper document mappers}
+ * and {@link DocumentMapperFactory document mapper factories}
+ *
+ * @see DocumentMapper
+ * @see DocumentMapperFactory
+ */
 public final class DocumentMappers {
 
     private DocumentMappers() {
@@ -21,15 +25,24 @@ public final class DocumentMappers {
         return doc -> new DocumentMapper.MappedDocument(doc, Function.identity());
     }
 
-    public static Function<TypeDefinitionRegistry, DocumentMapper> identity() {
-        return registry -> noop();
+    public static DocumentMapperFactory identity() {
+        return factory();
     }
 
-    public static Function<TypeDefinitionRegistry, DocumentMapper> fromYaml(Supplier<Reader> yaml) {
+    public static DocumentMapperFactory factory() {
+        return new TypedDocumentMapperFactoryFactory() {
+            @Override
+            public DocumentMapper apply(TypeDefinitionRegistry schema) {
+                return noop();
+            }
+        };
+    }
+
+    public static DocumentMapperFactory fromYaml(Supplier<Reader> yaml) {
         return fromYamlList(BraidYaml.loadAsList(yaml));
     }
 
-    public static Function<TypeDefinitionRegistry, DocumentMapper> fromYamlList(List<Map<String, Object>> yamlAsList) {
-        return registry -> new TypedDocumentMapper(registry, YamlTypeMappers.from(yamlAsList));
+    public static DocumentMapperFactory fromYamlList(List<Map<String, Object>> yamlAsList) {
+        return new TypedDocumentMapperFactoryFactory(YamlTypeMappers.from(yamlAsList));
     }
 }

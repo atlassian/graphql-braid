@@ -4,19 +4,17 @@ import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
-import com.atlassian.braid.document.DocumentMapper;
 import com.atlassian.braid.document.DocumentMappers;
+import com.atlassian.braid.document.DocumentMapperFactory;
 import graphql.ExecutionInput;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
-import graphql.schema.idl.TypeDefinitionRegistry;
 
 import java.io.Reader;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -48,7 +46,7 @@ public final class GraphQLRemoteSchemaSource<C extends BraidContext> extends For
                                      Supplier<Reader> schemaProvider,
                                      GraphQLRemoteRetriever<C> graphQLRemoteRetriever,
                                      List<Link> links,
-                                     Function<TypeDefinitionRegistry, DocumentMapper> documentMapper,
+                                     DocumentMapperFactory documentMapper,
                                      String... topLevelFields) {
         this.graphQLRemoteRetriever = requireNonNull(graphQLRemoteRetriever);
         this.delegate = new BaseQueryExecutorSchemaSource<>(namespace,

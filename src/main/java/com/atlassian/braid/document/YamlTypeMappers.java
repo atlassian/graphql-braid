@@ -72,7 +72,7 @@ final class YamlTypeMappers {
     }
 
     private static TypeMapper fromYamlTypeMapper(YamlTypeMapper yamlTypeMapper) {
-        return new TypeMapper(
+        return new TypeMapperImpl(
                 typeNamed(yamlTypeMapper.typeName),
                 fromYamlFieldOperations(yamlTypeMapper.operations));
     }

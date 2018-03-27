@@ -96,6 +96,21 @@ Braid braid = new SchemaBraid().braid(SchemaBraidConfiguration.builder()
 
 Braid currently only supports top-level query aggregation and simple links, but future work to support more link types is expected.
 
+### Mapping the Graph
+
+One can map the expected graph to an actual graph, by instantiating their own `DocumentMapper`
+(via `DocumentMapperFactory`). For example: 
+
+```
+#!java
+
+DocumentMappers.factory()
+    .mapType(TypeMappers.typeNamed("Follower")
+                .copy("name", "displayName") // this means the `name` will be queried as `displayName` to the backend
+                .put("type", "user") // allows easy mocking of field that might not be implemented by the backend (yet)
+                .copyRemaining()); // keep all other fields
+``` 
+
 ### YAML configuration ###
 
 A REST or GraphQL schema source can also be configured via a YAML file.  To create the YAML-based schema source, first

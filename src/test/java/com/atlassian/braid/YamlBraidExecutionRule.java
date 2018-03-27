@@ -1,7 +1,7 @@
 package com.atlassian.braid;
 
-import com.atlassian.braid.document.DocumentMapper;
 import com.atlassian.braid.document.DocumentMappers;
+import com.atlassian.braid.document.DocumentMapperFactory;
 import com.atlassian.braid.java.util.BraidMaps;
 import com.atlassian.braid.java.util.BraidObjects;
 import com.atlassian.braid.source.LocalQueryExecutingSchemaSource;
@@ -269,7 +269,7 @@ public class YamlBraidExecutionRule implements MethodRule {
             return response.get();
         }
 
-        Function<TypeDefinitionRegistry, DocumentMapper> getMapper() {
+        DocumentMapperFactory getMapper() {
             return BraidMaps.get(schemaSourceMap, "mapper")
                     .map(BraidObjects::<List<Map<String, Object>>>cast)
                     .map(DocumentMappers::fromYamlList)

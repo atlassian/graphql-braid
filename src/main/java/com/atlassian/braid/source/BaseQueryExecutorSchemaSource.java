@@ -5,6 +5,7 @@ import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
 import com.atlassian.braid.document.DocumentMapper;
+import com.atlassian.braid.document.DocumentMapperFactory;
 import graphql.execution.DataFetcherResult;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.idl.TypeDefinitionRegistry;
@@ -23,7 +24,7 @@ final class BaseQueryExecutorSchemaSource<C extends BraidContext> extends Abstra
     BaseQueryExecutorSchemaSource(SchemaNamespace namespace,
                                   TypeDefinitionRegistry schema,
                                   List<Link> links,
-                                  Function<TypeDefinitionRegistry, DocumentMapper> documentMapper,
+                                  DocumentMapperFactory documentMapper,
                                   QueryFunction<C> queryFunction) {
         this(namespace, schema, schema, links, documentMapper, queryFunction);
     }
@@ -32,7 +33,7 @@ final class BaseQueryExecutorSchemaSource<C extends BraidContext> extends Abstra
                                   TypeDefinitionRegistry schema,
                                   TypeDefinitionRegistry privateSchema,
                                   List<Link> links,
-                                  Function<TypeDefinitionRegistry, DocumentMapper> documentMapper,
+                                  DocumentMapperFactory documentMapper,
                                   QueryFunction<C> queryFunction) {
         this(namespace, schema, privateSchema, links, documentMapper, new QueryExecutor<C>(queryFunction));
     }

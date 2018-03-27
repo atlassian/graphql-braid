@@ -6,6 +6,7 @@ import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
 import com.atlassian.braid.document.DocumentMapper;
 import com.atlassian.braid.document.DocumentMappers;
+import com.atlassian.braid.document.DocumentMapperFactory;
 import graphql.ExecutionInput;
 import graphql.execution.DataFetcherResult;
 import graphql.schema.idl.TypeDefinitionRegistry;
@@ -18,6 +19,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static com.atlassian.braid.java.util.BraidObjects.cast;
 import static com.atlassian.braid.source.SchemaUtils.loadSchema;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
@@ -40,7 +42,7 @@ public final class LocalQueryExecutingSchemaSource<C extends BraidContext> exten
     public LocalQueryExecutingSchemaSource(SchemaNamespace namespace,
                                            Supplier<Reader> schemaProvider,
                                            List<Link> links,
-                                           Function<TypeDefinitionRegistry, DocumentMapper> documentMapper,
+                                           DocumentMapperFactory documentMapper,
                                            Function<ExecutionInput, Object> queryExecutor) {
         this(namespace, loadSchema(schemaProvider), links, documentMapper, queryExecutor);
     }
@@ -48,7 +50,7 @@ public final class LocalQueryExecutingSchemaSource<C extends BraidContext> exten
     public LocalQueryExecutingSchemaSource(SchemaNamespace namespace,
                                            TypeDefinitionRegistry schema,
                                            List<Link> links,
-                                           Function<TypeDefinitionRegistry, DocumentMapper> documentMapper,
+                                           DocumentMapperFactory documentMapper,
                                            Function<ExecutionInput, Object> queryExecutor) {
         this.queryExecutor = requireNonNull(queryExecutor);
         this.delegate = new BaseQueryExecutorSchemaSource<>(namespace,
@@ -88,10 +90,5 @@ public final class LocalQueryExecutingSchemaSource<C extends BraidContext> exten
 
     private static Class<?> nullSafeGetClass(Object result) {
         return Optional.ofNullable(result).map(Object::getClass).orElse(null);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T> T cast(Object o) {
-        return (T) o;
     }
 }
