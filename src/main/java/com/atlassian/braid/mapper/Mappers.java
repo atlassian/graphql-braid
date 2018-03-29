@@ -5,6 +5,7 @@ import com.atlassian.braid.yaml.BraidYaml;
 import java.io.Reader;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -42,7 +43,7 @@ public final class Mappers {
      * @param key the key to lookup
      * @return a predicate
      * @see Mapper#list(String, Predicate, Mapper)
-     * @see Mapper#map(String, Predicate, Mapper)
+     * @see Mapper#map(String, Predicate, Function)
      */
     public static Predicate<MapperInputOutput> inputContains(String key) {
         return inout -> MapperMaps.get(inout.getInput(), key).isPresent();
