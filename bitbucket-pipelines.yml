@@ -1,4 +1,4 @@
-image: maven:3
+image: maven:3.3.9
 
 pipelines:
   default:
@@ -6,17 +6,18 @@ pipelines:
         caches:
           - maven
         script:
-          - mvn -s ci/settings.xml clean test
+          - mvn -V -s ci/settings.xml clean test
   custom:
     release:
       - step:
           caches:
             - maven
           script:
+            - git --version
             - git config --global user.email "nobody@atlassian.com"
             - git config --global user.name "Release"
             - git checkout -b release_branch
-            - mvn -s ci/settings.xml -B javadoc:javadoc
+            - mvn -V -s ci/settings.xml -B javadoc:javadoc
             - python ci/changelog.py
             - git add CHANGES.md
             - git commit CHANGES.md -m "[skip ci] Update changelog"
