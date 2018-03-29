@@ -37,13 +37,13 @@
         <dependency>
             <groupId>com.graphql-java</groupId>
             <artifactId>graphql-java</artifactId>
-            <version>7.0</version>
+            <version>${graphql.version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.graphql-java</groupId>
             <artifactId>java-dataloader</artifactId>
-            <version>2.0.1</version>
+            <version>${graphql-dataloader.version}</version>
         </dependency>
 
         <dependency>
@@ -144,7 +144,8 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
 
-        <graphql.version>2017-11-14T14-18-29</graphql.version>
+        <graphql.version>8.0</graphql.version>
+        <graphql-dataloader.version>2.0.2</graphql-dataloader.version>
     </properties>
 
     <distributionManagement>

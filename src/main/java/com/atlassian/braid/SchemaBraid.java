@@ -8,6 +8,7 @@ import graphql.language.ObjectTypeDefinition;
 import graphql.language.Type;
 import graphql.language.TypeDefinition;
 import graphql.language.TypeName;
+import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.GraphQLSchema;
 import graphql.schema.idl.RuntimeWiring;
@@ -112,25 +113,48 @@ public class SchemaBraid<C extends BraidContext> {
                 loaders.put(key + "-link", linkBatchLoader);
             }
 
-            runtimeWiringBuilder.type(r.type, wiring -> wiring.dataFetcher(r.field, env -> {
-                BraidContext ctx = env.getContext();
-                DataLoaderRegistry dlRegistry = ctx.getDataLoaderRegistry();
-                Object loadedValue = dlRegistry.getDataLoader(key).load(env);
-                DataLoader linkLoader = dlRegistry.getDataLoader(key + "-link");
-                if (linkLoader != null) {
-                    // allows a top level field to also be linked
-                    return linkLoader.load(newDataFetchingEnvironment(env)
-                            .source(loadedValue)
-                            .fieldDefinition(env.getFieldDefinition())
-                            .build());
-                } else {
-                    return loadedValue;
-                }
-            }));
+            runtimeWiringBuilder.type(r.type, wiring -> wiring.dataFetcher(r.field, new BraidDataFetcher(key)));
             loaders.put(key, r.loader);
         });
         return loaders;
     }
+
+    private static class BraidDataFetcher implements DataFetcher {
+        private final String dataLoaderKey;
+
+        private BraidDataFetcher(String dataLoaderKey) {
+            this.dataLoaderKey = requireNonNull(dataLoaderKey);
+        }
+
+        @Override
+        public Object get(DataFetchingEnvironment env) {
+            final DataLoaderRegistry registry = getDataLoaderRegistry(env);
+            final Object loadedValue = registry.getDataLoader(dataLoaderKey).load(env);
+
+            // allows a top level field to also be linked
+            return Optional.ofNullable(registry.getDataLoader(dataLoaderKey + "-link"))
+                    .map(l -> loadFromLinkLoader(env, loadedValue, l))
+                    .orElse(loadedValue);
+        }
+
+        private static Object loadFromLinkLoader(DataFetchingEnvironment env,
+                                                 Object source,
+                                                 DataLoader<Object, Object> dataLoader) {
+            return dataLoader.load(newDataFetchingEnvironment(env)
+                    .source(source)
+                    .fieldDefinition(env.getFieldDefinition())
+                    .build());
+        }
+
+        private static DataLoaderRegistry getDataLoaderRegistry(DataFetchingEnvironment env) {
+            return getContext(env).getDataLoaderRegistry();
+        }
+
+        private static BraidContext getContext(DataFetchingEnvironment env) {
+            return env.getContext();
+        }
+    }
+
 
     private void addAllNonOperationTypes(Map<SchemaNamespace, Source<C>> dataSources, TypeDefinitionRegistry registry) {
         dataSources.values().forEach(source -> source.getNonOperationTypes().forEach(registry::add));
@@ -252,7 +276,7 @@ public class SchemaBraid<C extends BraidContext> {
 
     private boolean isListType(Type type) {
         return type instanceof ListType ||
-                (type instanceof NonNullType && ((NonNullType)type).getType() instanceof ListType);
+                (type instanceof NonNullType && ((NonNullType) type).getType() instanceof ListType);
     }
 
     private ObjectTypeDefinition getObjectTypeDefinition(ObjectTypeDefinition queryObjectTypeDefinition, ObjectTypeDefinition mutationObjectTypeDefinition, TypeDefinitionRegistry typeRegistry, HashMap<String, TypeDefinition> dsTypes, Link link) {

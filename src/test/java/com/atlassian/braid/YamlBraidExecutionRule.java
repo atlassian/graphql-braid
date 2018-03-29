@@ -12,7 +12,7 @@ import graphql.ExecutionResult;
 import graphql.GraphQL;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
-import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation;
+import graphql.execution.instrumentation.dataloader.LazyRecursiveDataLoaderDispatcherInstrumentation;
 import graphql.parser.Parser;
 import graphql.schema.idl.SchemaParser;
 import graphql.schema.idl.TypeDefinitionRegistry;
@@ -75,7 +75,7 @@ public class YamlBraidExecutionRule implements MethodRule {
                     final DataLoaderRegistry dataLoaderRegistry = braid.newDataLoaderRegistry();
 
                     final GraphQL graphql = newGraphQL(braid.getSchema())
-                            .instrumentation(new DataLoaderDispatcherInstrumentation(dataLoaderRegistry))
+                            .instrumentation(new LazyRecursiveDataLoaderDispatcherInstrumentation(dataLoaderRegistry))
                             .build();
 
                     final TestQuery request = config.getRequest();
@@ -149,14 +149,20 @@ public class YamlBraidExecutionRule implements MethodRule {
 
     private Function<ExecutionInput, Object> mapInputToResult(TestSchemaSource schemaSource) {
         return input -> {
-            final TestQuery expected = schemaSource.getExpected().poll();
-            if (expected == null) {
-                throw new IllegalArgumentException(schemaSource + " shouldn't have been called");
+            try {
+                final TestQuery expected = schemaSource.getExpected().poll();
+                if (expected == null) {
+                    throw new IllegalArgumentException(schemaSource + " shouldn't have been called");
+                }
+
+                assertThat(QueryAssertion.from(input)).isEqualTo(QueryAssertion.from(expected));
+
+                return schemaSource.getResponse().poll().getResult();
+            } catch (Throwable e) {
+                // necessary to make sure assertion error show in the JUnit output, otherwise they're kinda swallowed
+                // by the futures and GaphQL java (since they're Errors and not Exception
+                throw new RuntimeException(e);
             }
-
-            assertThat(QueryAssertion.from(input)).isEqualTo(QueryAssertion.from(expected));
-
-            return schemaSource.getResponse().poll().getResult();
         };
     }
 
