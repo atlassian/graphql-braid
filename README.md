@@ -70,7 +70,7 @@ and this query to bar:
 
 ```
 query {
-  bar(id:$barId {
+  bar(id:$barId) {
     name
   }
 }
@@ -96,6 +96,21 @@ Braid braid = new SchemaBraid().braid(SchemaBraidConfiguration.builder()
 
 Braid currently only supports top-level query aggregation and simple links, but future work to support more link types is expected.
 
+### Mapping the Graph
+
+One can map the expected graph to an actual graph, by instantiating their own `DocumentMapper`
+(via `DocumentMapperFactory`). For example: 
+
+```
+#!java
+
+DocumentMappers.factory()
+    .mapType(TypeMappers.typeNamed("Follower")
+                .copy("name", "displayName") // this means the `name` will be queried as `displayName` to the backend
+                .put("type", "user") // allows easy mocking of field that might not be implemented by the backend (yet)
+                .copyRemaining()); // keep all other fields
+``` 
+
 ### YAML configuration ###
 
 A REST or GraphQL schema source can also be configured via a YAML file.  To create the YAML-based schema source, first
@@ -109,13 +124,12 @@ rootFields:
   followers: 
     uri: https://api.bitbucket.org/2.0/users/{username}/followers
     responseMapping:
-      nodes: 
+      - key: nodes
         op: copyList
-        source: values
-        elements:
-          name: 
+        mapper:
+          - key: display_name 
             op: copy
-            source: display_name
+            target: name
 schema: |
   schema {
     query: Query
@@ -128,8 +142,7 @@ schema: |
   }
   type Follower {
     name: String
-  } 
-
+  }
 ```
 
 This configuration file contains two primary sections: the schema and root field mappings.  The schema specifies the 
@@ -145,6 +158,47 @@ Finally, create this schema source in Java via:
 #!java
 SchemaSource source = YamlRemoteSchemaSourceFactory
         .createRestSource(yamlReader, new HttpRestRemoteRetriever());
+```
+
+### GraphQL mapping ###
+
+The YAML configuration also allows to configure GraphQL mapping based on types, for schema source based on
+`com.atlassian.braid.source.QueryExecutorSchemaSource`:
+
+```
+#!yaml
+- name: foo
+    schema: |
+      schema {
+        query: Query
+      }
+      type Query {
+        followers(username: String) : FollowersSet
+      } 
+      type FollowersSet {
+        nodes : [Follower]
+      }
+      type Follower {
+        name: String
+        type: String
+      }
+    mapper:
+      # mapping the type `Follower`
+      - type: Follower 
+        operations:
+          # this means the `name` will be queried as `displayName` to the backend
+          - key: name
+            op: copy
+            target: displayName 
+          
+          # allows easy mocking of field that might not be implemented by the backend (yet)
+          - key: type
+            op: put
+            value: user 
+          
+          # keep all other fields
+          - key: '*'
+            op: copy 
 ```
 
 ### Add to your project ###

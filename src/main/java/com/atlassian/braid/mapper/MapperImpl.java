@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 import static com.atlassian.braid.mapper.MapperOperations.noop;
 import static java.util.Objects.requireNonNull;
@@ -23,7 +24,6 @@ final class MapperImpl implements Mapper {
     MapperImpl(MapperOperation operation) {
         this.operation = requireNonNull(operation);
     }
-
 
     @Override
     public final Map<String, Object> apply(Map<String, Object> input) {
@@ -53,7 +53,7 @@ final class MapperImpl implements Mapper {
     }
 
     @Override
-    public Mapper map(String key, Predicate<MapperInputOutput> predicate, Mapper mapper) {
+    public Mapper map(String key, Predicate<MapperInputOutput> predicate, Function<Map<String, Object>, Map<String, Object>> mapper) {
         return newMapper(new MapOperation(key, predicate, mapper));
     }
 

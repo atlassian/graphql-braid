@@ -20,7 +20,7 @@ final class SpringExpressions {
         try {
             return PARSER.parseExpression(sourcePath).getValue(source);
         } catch (SpelEvaluationException e) {
-            throw new MapperException(e);
+            throw new MapperException(e, "Exception getting value in %s for path: %s", source, sourcePath);
         }
     }
 }

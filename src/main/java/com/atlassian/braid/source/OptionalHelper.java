@@ -5,11 +5,17 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Helper classes when dealing with nullable objects and needing to cast the result
  */
-class OptionalHelper {
+public class OptionalHelper {
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    public static <T> Stream<T> toStream(Optional<T> optional) {
+        return optional.map(Stream::of).orElse(Stream.empty());
+    }
 
     static <T> Optional<T> castNullable(Object value, Class<T> type) {
         return Optional.ofNullable(value)
@@ -34,7 +40,7 @@ class OptionalHelper {
         return Optional.ofNullable(value)
                 .filter(Map.class::isInstance)
                 .map(Map.class::cast)
-                .map(lst -> ((Set<Map.Entry>)lst.entrySet()).stream()
+                .map(lst -> ((Set<Map.Entry>) lst.entrySet()).stream()
                         .filter(e -> keyType.isInstance(e.getKey()) && valueType.isInstance(e.getValue()))
                         .collect(Collectors.toMap(e -> keyType.cast(e.getKey()), e -> valueType.cast(e.getValue())))
                 );

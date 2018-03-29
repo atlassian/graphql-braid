@@ -4,6 +4,8 @@ import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
+import com.atlassian.braid.document.DocumentMappers;
+import com.atlassian.braid.document.DocumentMapperFactory;
 import graphql.ExecutionInput;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
@@ -28,7 +30,7 @@ import static java.util.Objects.requireNonNull;
 @SuppressWarnings("WeakerAccess")
 public final class GraphQLRemoteSchemaSource<C extends BraidContext> extends ForwardingSchemaSource<C> {
 
-    private final QueryExecutorSchemaSource<C> delegate;
+    private final BaseQueryExecutorSchemaSource<C> delegate;
     private final GraphQLRemoteRetriever<C> graphQLRemoteRetriever;
 
 
@@ -37,11 +39,21 @@ public final class GraphQLRemoteSchemaSource<C extends BraidContext> extends For
                                      GraphQLRemoteRetriever<C> graphQLRemoteRetriever,
                                      List<Link> links,
                                      String... topLevelFields) {
+        this(namespace, schemaProvider, graphQLRemoteRetriever, links, DocumentMappers.identity(), topLevelFields);
+    }
+
+    public GraphQLRemoteSchemaSource(SchemaNamespace namespace,
+                                     Supplier<Reader> schemaProvider,
+                                     GraphQLRemoteRetriever<C> graphQLRemoteRetriever,
+                                     List<Link> links,
+                                     DocumentMapperFactory documentMapper,
+                                     String... topLevelFields) {
         this.graphQLRemoteRetriever = requireNonNull(graphQLRemoteRetriever);
-        this.delegate = new QueryExecutorSchemaSource<>(namespace,
+        this.delegate = new BaseQueryExecutorSchemaSource<>(namespace,
                 loadPublicSchema(schemaProvider, topLevelFields),
                 loadSchema(schemaProvider),
                 links,
+                documentMapper,
                 this::query);
     }
 

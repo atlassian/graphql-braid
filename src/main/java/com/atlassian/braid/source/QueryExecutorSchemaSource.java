@@ -1,49 +1,17 @@
 package com.atlassian.braid.source;
 
 import com.atlassian.braid.BraidContext;
-import com.atlassian.braid.Link;
-import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
-import graphql.execution.DataFetcherResult;
-import graphql.schema.DataFetchingEnvironment;
-import graphql.schema.idl.TypeDefinitionRegistry;
-import org.dataloader.BatchLoader;
+import com.atlassian.braid.document.DocumentMapper;
+import com.atlassian.braid.document.DocumentMappers;
 
-import java.util.List;
-import java.util.Objects;
-
-final class QueryExecutorSchemaSource<C extends BraidContext> extends AbstractSchemaSource<C> {
-
-    private final QueryExecutor<C> queryExecutor;
-
-    QueryExecutorSchemaSource(SchemaNamespace namespace,
-                              TypeDefinitionRegistry schema,
-                              List<Link> links,
-                              QueryFunction<C> queryFunction) {
-        this(namespace, schema, schema, links, queryFunction);
-    }
-
-    QueryExecutorSchemaSource(SchemaNamespace namespace,
-                              TypeDefinitionRegistry schema,
-                              TypeDefinitionRegistry privateSchema,
-                              List<Link> links,
-                              QueryFunction<C> queryFunction) {
-        this(namespace, schema, privateSchema, links, new QueryExecutor<>(queryFunction));
-
-    }
-
-    private QueryExecutorSchemaSource(SchemaNamespace namespace,
-                                      TypeDefinitionRegistry schema,
-                                      TypeDefinitionRegistry privateSchema,
-                                      List<Link> links,
-                                      QueryExecutor<C> queryExecutor) {
-        super(namespace, schema, privateSchema, links);
-        this.queryExecutor = Objects.requireNonNull(queryExecutor);
-
-    }
-
-    @Override
-    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
-        return queryExecutor.newBatchLoader(schemaSource, link);
+/**
+ * Specific schema source that runs an actual GraphQL query
+ *
+ * @param <C> the GraphQL context
+ */
+public interface QueryExecutorSchemaSource<C extends BraidContext> extends SchemaSource<C> {
+    default DocumentMapper getDocumentMapper() {
+        return DocumentMappers.noop();
     }
 }

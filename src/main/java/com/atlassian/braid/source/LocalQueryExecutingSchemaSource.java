@@ -4,6 +4,9 @@ import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
+import com.atlassian.braid.document.DocumentMapper;
+import com.atlassian.braid.document.DocumentMappers;
+import com.atlassian.braid.document.DocumentMapperFactory;
 import graphql.ExecutionInput;
 import graphql.execution.DataFetcherResult;
 import graphql.schema.idl.TypeDefinitionRegistry;
@@ -16,6 +19,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static com.atlassian.braid.java.util.BraidObjects.cast;
 import static com.atlassian.braid.source.SchemaUtils.loadSchema;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
@@ -25,31 +29,34 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
  * Local schema source
  */
 @SuppressWarnings("WeakerAccess")
-public final class LocalQueryExecutingSchemaSource<C extends BraidContext> extends ForwardingSchemaSource<C> {
-    private final QueryExecutorSchemaSource<C> delegate;
+public final class LocalQueryExecutingSchemaSource<C extends BraidContext> extends ForwardingSchemaSource<C> implements QueryExecutorSchemaSource<C> {
+    private final BaseQueryExecutorSchemaSource<C> delegate;
     private final Function<ExecutionInput, Object> queryExecutor;
 
     public LocalQueryExecutingSchemaSource(SchemaNamespace namespace,
                                            Supplier<Reader> schemaProvider,
                                            Function<ExecutionInput, Object> queryExecutor) {
-        this(namespace, schemaProvider, emptyList(), queryExecutor);
+        this(namespace, schemaProvider, emptyList(), DocumentMappers.identity(), queryExecutor);
     }
 
     public LocalQueryExecutingSchemaSource(SchemaNamespace namespace,
                                            Supplier<Reader> schemaProvider,
                                            List<Link> links,
+                                           DocumentMapperFactory documentMapper,
                                            Function<ExecutionInput, Object> queryExecutor) {
-        this(namespace, loadSchema(schemaProvider), links, queryExecutor);
+        this(namespace, loadSchema(schemaProvider), links, documentMapper, queryExecutor);
     }
 
     public LocalQueryExecutingSchemaSource(SchemaNamespace namespace,
                                            TypeDefinitionRegistry schema,
                                            List<Link> links,
+                                           DocumentMapperFactory documentMapper,
                                            Function<ExecutionInput, Object> queryExecutor) {
         this.queryExecutor = requireNonNull(queryExecutor);
-        this.delegate = new QueryExecutorSchemaSource<>(namespace,
+        this.delegate = new BaseQueryExecutorSchemaSource<>(namespace,
                 schema,
                 links,
+                documentMapper,
                 this::query);
 
     }
@@ -57,6 +64,11 @@ public final class LocalQueryExecutingSchemaSource<C extends BraidContext> exten
     @Override
     protected SchemaSource<C> getDelegate() {
         return delegate;
+    }
+
+    @Override
+    public DocumentMapper getDocumentMapper() {
+        return delegate.getDocumentMapper();
     }
 
     private CompletableFuture<DataFetcherResult<Map<String, Object>>> query(ExecutionInput executionInput, C context) {
@@ -78,10 +90,5 @@ public final class LocalQueryExecutingSchemaSource<C extends BraidContext> exten
 
     private static Class<?> nullSafeGetClass(Object result) {
         return Optional.ofNullable(result).map(Object::getClass).orElse(null);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T> T cast(Object o) {
-        return (T) o;
     }
 }

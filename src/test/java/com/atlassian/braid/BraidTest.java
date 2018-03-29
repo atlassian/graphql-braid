@@ -1,19 +1,23 @@
 package com.atlassian.braid;
 
+import com.atlassian.braid.java.util.BraidObjects;
 import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLType;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.DisableOnDebug;
+import org.junit.rules.TestRule;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.rules.Timeout.seconds;
 
 public class BraidTest {
+
+    @Rule
+    public final TestRule timeoutRule = new DisableOnDebug(seconds(1));
 
     @Rule
     public final YamlBraidExecutionRule braidRule = new YamlBraidExecutionRule();
@@ -83,7 +87,8 @@ public class BraidTest {
     }
 
     @Test
-    public void testBraidBatchingWithLink() {}
+    public void testBraidBatchingWithLink() {
+    }
 
     @Test
     public void testBraidWithLinkOfIds() {
@@ -98,30 +103,37 @@ public class BraidTest {
     }
 
     @Test
-    public void testBraidWithNonStringId() {}
+    public void testBraidWithNonStringId() {
+    }
 
     @Test
-    public void testBraidWithLinkFromReplaceTopLevelField() {}
+    public void testBraidWithLinkFromReplaceTopLevelField() {
+    }
 
     @Test
-    public void testBraidWithLinkFromReplaceTopLevelFieldOfList() {}
+    public void testBraidWithLinkFromReplaceTopLevelFieldOfList() {
+    }
 
     @Test
-    public void testBraidWithLinkFromReplaceTopLevelFieldWithDifferentQueryNames() {}
+    public void testBraidWithLinkFromReplaceTopLevelFieldWithDifferentQueryNames() {
+    }
 
     @Test
-    public void testBraidWithLinkFromReplaceTopLevelFieldSameSource() {}
+    public void testBraidWithLinkFromReplaceTopLevelFieldSameSource() {
+    }
 
     @Test
     public void testBraidWithLinkFromReplaceField() {
         Optional<GraphQLType> fooType = braidRule.braid.getSchema().getAllTypesAsList().stream()
                 .filter(t -> t.getName().equals("Foo")).findAny();
-        assertEquals(true, fooType.isPresent());
-        assertTrue(fooType.get() instanceof GraphQLObjectType);
-        GraphQLObjectType foo = (GraphQLObjectType) fooType.get();
-        Optional<GraphQLFieldDefinition> idField = foo.getFieldDefinitions().stream()
-                .filter(f -> f.getName().equals("id")).findAny();
-        assertEquals(false, idField.isPresent());
+
+        assertThat(fooType).isPresent().containsInstanceOf(GraphQLObjectType.class);
+
+        Optional<GraphQLFieldDefinition> idField = fooType
+                .map(BraidObjects::<GraphQLObjectType>cast)
+                .flatMap(t -> t.getFieldDefinitions().stream().filter(f -> f.getName().equals("id")).findAny());
+
+        assertThat(idField).isEmpty();
     }
 
     @Test
@@ -136,5 +148,25 @@ public class BraidTest {
     public void testBraidWithInterface() {
         assertThat(braidRule.braid.getSchema().getObjectType("Foo")
                 .getInterfaces().get(0).getName()).isEqualTo("Fooable");
+    }
+
+    @Test
+    public void testBraidWithDocumentMapper() {
+    }
+
+    @Test
+    public void testBraidWithDocumentMapperWithPut() {
+    }
+
+    @Test
+    public void testBraidWithDocumentMapper2() {
+    }
+
+    @Test
+    public void testBraidWithDocumentMapperWithWildCardCopy() {
+    }
+
+    @Test
+    public void testBraidWithDocumentMapperWithList() {
     }
 }

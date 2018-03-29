@@ -1,6 +1,9 @@
 package com.atlassian.braid.mapper;
 
+import com.atlassian.braid.yaml.BraidYaml;
+
 import java.io.Reader;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -21,11 +24,15 @@ public final class Mappers {
         return new MapperImpl();
     }
 
-    public static Mapper fromYaml(Supplier<Reader> yaml) {
-        return fromYamlMap(YamlMappers.load(yaml));
+    public static Mapper mapper(MapperOperation operation) {
+        return new MapperImpl(operation);
     }
 
-    public static Mapper fromYamlMap(Map<String, Object> yamlAsMap) {
+    public static Mapper fromYaml(Supplier<Reader> yaml) {
+        return fromYamlList(BraidYaml.loadAsList(yaml));
+    }
+
+    public static Mapper fromYamlList(List<Map<String, Object>> yamlAsMap) {
         return new MapperImpl(composed(toMapperOperations(yamlAsMap)));
     }
 
