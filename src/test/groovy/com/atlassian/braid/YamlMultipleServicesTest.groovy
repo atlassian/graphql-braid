@@ -1,6 +1,6 @@
 package com.atlassian.braid
 
-import com.atlassian.braid.source.YamlRemoteSchemaSourceFactory
+import com.atlassian.braid.source.yaml.YamlRemoteSchemaSourceFactory
 import graphql.GraphQL
 import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation
 import org.junit.Ignore

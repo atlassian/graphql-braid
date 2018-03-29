@@ -1,4 +1,4 @@
-package com.atlassian.braid.source;
+package com.atlassian.braid.source.yaml;
 
 import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
@@ -7,6 +7,8 @@ import com.atlassian.braid.SchemaSource;
 import com.atlassian.braid.java.util.BraidMaps;
 import com.atlassian.braid.java.util.BraidObjects;
 import com.atlassian.braid.mapper.Mapper;
+import com.atlassian.braid.source.GraphQLRemoteRetriever;
+import com.atlassian.braid.source.GraphQLRemoteSchemaSource;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.Reader;

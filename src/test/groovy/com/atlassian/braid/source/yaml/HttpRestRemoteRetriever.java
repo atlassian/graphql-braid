@@ -1,4 +1,4 @@
-package com.atlassian.braid.source;
+package com.atlassian.braid.source.yaml;
 
 import com.atlassian.braid.BraidContext;
 import com.fasterxml.jackson.databind.ObjectMapper;

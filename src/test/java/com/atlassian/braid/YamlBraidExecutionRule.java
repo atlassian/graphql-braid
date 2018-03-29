@@ -34,7 +34,7 @@ import java.util.function.Function;
 import static com.atlassian.braid.Util.read;
 import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
 import static com.atlassian.braid.java.util.BraidObjects.cast;
-import static com.atlassian.braid.source.YamlRemoteSchemaSourceFactory.getReplaceFromField;
+import static com.atlassian.braid.source.yaml.YamlRemoteSchemaSourceFactory.getReplaceFromField;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Suppliers.memoize;
 import static graphql.GraphQL.newGraphQL;

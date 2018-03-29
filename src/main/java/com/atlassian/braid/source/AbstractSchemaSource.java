@@ -11,13 +11,13 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-abstract class AbstractSchemaSource<C extends BraidContext> implements SchemaSource<C> {
+public abstract class AbstractSchemaSource<C extends BraidContext> implements SchemaSource<C> {
     private final SchemaNamespace namespace;
     private final TypeDefinitionRegistry schema;
     private final TypeDefinitionRegistry privateSchema;
     private final List<Link> links;
 
-    AbstractSchemaSource(SchemaNamespace namespace,
+    public AbstractSchemaSource(SchemaNamespace namespace,
                          TypeDefinitionRegistry schema,
                          TypeDefinitionRegistry privateSchema,
                          List<Link> links) {
