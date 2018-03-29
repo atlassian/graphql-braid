@@ -4,6 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- 
+
+0.9.0 (2018-03-29)
+-------------------
+
 - Add experimental document mapper 
 - Remove non-production-worthy HTTP retriever implementations
 - Move YAML source loading to its own package
