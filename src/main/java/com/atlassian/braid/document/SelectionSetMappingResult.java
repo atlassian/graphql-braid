@@ -21,15 +21,14 @@ import static java.util.Objects.requireNonNull;
  */
 final class SelectionSetMappingResult {
     final SelectionSet selectionSet;
-     final MapperOperation resultMapper;
+    final MapperOperation resultMapper;
 
     SelectionSetMappingResult(SelectionSet selectionSet, MapperOperation resultMapper) {
         this.selectionSet = requireNonNull(selectionSet);
         this.resultMapper = requireNonNull(resultMapper);
     }
 
-    OperationResult toFieldOperationResult(MappingContext mappingContext) {
-        final Field field = mappingContext.getField();
+    OperationResult toFieldOperationResult(MappingContext mappingContext, Field field) {
         return result(
                 cloneFieldWithNewSelectionSet(field, selectionSet),
                 getMapperOperation(mappingContext).apply(getFieldAliasOrName(field), mapper(resultMapper)));

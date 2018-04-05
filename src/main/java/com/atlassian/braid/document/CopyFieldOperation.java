@@ -39,7 +39,7 @@ final class CopyFieldOperation extends AbstractTypeOperation<Field> {
     @Override
     protected OperationResult applyToType(MappingContext mappingContext, Field field) {
         return getSelectionSet(field)
-                .map(__ -> mapNode(mappingContext.toField(field))) // graph node (object field)
+                .map(__ -> mapNode(mappingContext.forField(field), field)) // graph node (object field)
                 .orElseGet(() -> mapLeaf(mappingContext, field)); // graph leaf ('scalar' field)
     }
 

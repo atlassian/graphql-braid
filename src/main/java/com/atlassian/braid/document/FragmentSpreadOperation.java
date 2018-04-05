@@ -16,7 +16,7 @@ final class FragmentSpreadOperation extends AbstractTypeOperation<FragmentSpread
     protected OperationResult applyToType(MappingContext mappingContext, FragmentSpread selection) {
         final Optional<FragmentDefinition> fragmentMapping = mappingContext.getFragmentMapping(selection.getName());
 
-        final Optional<TypeMapper> first = mappingContext.getTypeMappers().stream().filter(tm -> tm.test(mappingContext.getObjectTypeDefinition())).findFirst();
+        final Optional<TypeMapper> first = mappingContext.getTypeMapper();
 
         final MapperOperation operation = first.map(tm -> tm.apply(mappingContext, fragmentMapping.get().getSelectionSet())).map(m -> m.resultMapper).orElse(null);
 

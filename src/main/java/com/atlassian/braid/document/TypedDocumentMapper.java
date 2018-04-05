@@ -1,14 +1,14 @@
 package com.atlassian.braid.document;
 
-import com.atlassian.braid.document.MappingContexts.OperationDefinitionMappingContext;
-import com.atlassian.braid.document.MappingContexts.RootMappingContext;
+import com.atlassian.braid.document.MappingContext.FragmentDefinitionMappingContext;
+import com.atlassian.braid.document.MappingContext.OperationDefinitionMappingContext;
+import com.atlassian.braid.document.MappingContext.RootMappingContext;
 import com.atlassian.braid.document.SelectionOperation.OperationResult;
 import com.atlassian.braid.java.util.BraidObjects;
 import graphql.language.Definition;
 import graphql.language.Document;
 import graphql.language.Field;
 import graphql.language.FragmentDefinition;
-import graphql.language.ObjectTypeDefinition;
 import graphql.language.OperationDefinition;
 import graphql.language.Selection;
 import graphql.schema.idl.TypeDefinitionRegistry;
@@ -18,10 +18,10 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static com.atlassian.braid.document.MappedDefinitions.toMappedDefinitions;
+import static com.atlassian.braid.document.MappingContext.rootContext;
 import static com.atlassian.braid.document.QueryDocuments.groupRootDefinitionsByType;
 import static com.atlassian.braid.document.RootDefinitionMappingResult.toOperationMappingResult;
 import static com.atlassian.braid.document.SelectionOperation.result;
-import static com.atlassian.braid.document.TypeMappers.maybeFindTypeMapper;
 import static com.atlassian.braid.java.util.BraidLists.concat;
 import static com.atlassian.braid.java.util.BraidObjects.cast;
 import static com.atlassian.braid.mapper.MapperOperations.composed;
@@ -49,7 +49,7 @@ final class TypedDocumentMapper implements DocumentMapper {
 
     @Override
     public MappedDocument apply(Document input) {
-        return apply(MappingContexts.rootContext(schema, typeMappers), input);
+        return apply(rootContext(schema, typeMappers), input);
     }
 
     private MappedDocument apply(RootMappingContext context, Document input) {
@@ -64,9 +64,9 @@ final class TypedDocumentMapper implements DocumentMapper {
                 .map(FragmentDefinition.class::cast)
                 .map(fd -> {
 
-                    final MappingContexts.FragmentDefinitionMappingContext mappingContext = context.forFragment(fd);
+                    final FragmentDefinitionMappingContext mappingContext = context.forFragment(fd);
 
-                    final MappingContext.FragmentMapping o = maybeFindTypeMapper(typeMappers, mappingContext.getObjectTypeDefinition())
+                    final MappingContext.FragmentMapping o = mappingContext.getTypeMapper()
                             .map(tm -> tm.apply(mappingContext, fd.getSelectionSet()))
                             // TODO just below check that the selection set is not empty, if it is we can skip fragment references
                             .map(ssmr -> {
@@ -108,19 +108,14 @@ final class TypedDocumentMapper implements DocumentMapper {
         final List<Field> fields = cast(fieldsAndNonFields.getOrDefault(true, emptyList()));
 
         return fields.stream()
-                // TODO change the mapping context here
-                .map(field -> MappingContext.forField(mappingContext.schema, mappingContext.typeMappers, mappingContext.fragmentMappings, mappingContext.getObjectTypeDefinition(), field))
-                .map(TypedDocumentMapper::mapNode)
+                .map(field -> mapNode(mappingContext.forField(field), field))
                 .collect(toOperationMappingResult(operationDefinition, nonFields));
     }
 
-    static OperationResult mapNode(MappingContext mappingContext) {
-        final ObjectTypeDefinition definition = mappingContext.getObjectTypeDefinition();
-        final Field field = mappingContext.getField();
-
-        return maybeFindTypeMapper(mappingContext.getTypeMappers(), definition)
+    static OperationResult mapNode(MappingContext mappingContext, Field field) {
+        return mappingContext.getTypeMapper()
                 .map(typeMapper -> typeMapper.apply(mappingContext, field.getSelectionSet()))
-                .map(mappingResult -> mappingResult.toFieldOperationResult(mappingContext))
+                .map(mappingResult -> mappingResult.toFieldOperationResult(mappingContext, field))
                 .orElse(result(field));
     }
 
