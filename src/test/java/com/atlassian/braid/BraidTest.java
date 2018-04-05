@@ -169,4 +169,8 @@ public class BraidTest {
     @Test
     public void testBraidWithDocumentMapperWithList() {
     }
+
+    @Test
+    public void testBraidWithDocumentMapperWithFragment() {
+    }
 }

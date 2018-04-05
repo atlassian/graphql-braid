@@ -2,6 +2,8 @@ package com.atlassian.braid.document;
 
 import graphql.language.ObjectTypeDefinition;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
@@ -28,5 +30,12 @@ public final class TypeMappers {
 
     static TypeMapper matching(Predicate<ObjectTypeDefinition> predicate) {
         return new TypeMapperImpl(predicate);
+    }
+
+    static Optional<TypeMapper> maybeFindTypeMapper(List<TypeMapper> typeMappers, ObjectTypeDefinition definition) {
+        return typeMappers
+                .stream()
+                .filter(typeMapper -> typeMapper.test(definition))
+                .findFirst();
     }
 }

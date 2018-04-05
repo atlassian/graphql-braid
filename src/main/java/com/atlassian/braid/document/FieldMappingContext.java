@@ -1,6 +1,7 @@
 package com.atlassian.braid.document;
 
 import graphql.language.Field;
+import graphql.language.FragmentDefinition;
 import graphql.language.ObjectTypeDefinition;
 import graphql.schema.idl.TypeDefinitionRegistry;
 import graphql.schema.idl.TypeInfo;
@@ -19,23 +20,21 @@ import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 
-final class MappingContextImpl implements MappingContext {
+final class FieldMappingContext extends MappingContext {
 
-    private final TypeDefinitionRegistry schema;
-    private final List<TypeMapper> typeMappers;
     private final Field field;
 
     private final Supplier<Optional<TypeInfo>> typeInfo;
     private final Supplier<Optional<ObjectTypeDefinition>> objectTypeDefinition;
     private final Supplier<List<String>> path;
 
-    MappingContextImpl(TypeDefinitionRegistry schema,
-                       List<TypeMapper> typeMappers,
-                       List<String> parentPath,
-                       ObjectTypeDefinition parentObjectTypeDefinition,
-                       Field field) {
-        this.schema = requireNonNull(schema);
-        this.typeMappers = requireNonNull(typeMappers);
+    FieldMappingContext(TypeDefinitionRegistry schema,
+                        List<TypeMapper> typeMappers,
+                        List<FragmentDefinition> fragmentMappings,
+                        List<String> parentPath,
+                        ObjectTypeDefinition parentObjectTypeDefinition,
+                        Field field) {
+        super(schema, typeMappers, fragmentMappings);
         this.field = requireNonNull(field);
 
         this.typeInfo = memoize(() -> maybeGetTypeInfo(parentObjectTypeDefinition, field));
@@ -43,11 +42,11 @@ final class MappingContextImpl implements MappingContext {
         this.path = memoize(() -> getTypeInfo().isList() ? emptyList() : appendToList(parentPath, getFieldAliasOrName(field)));
     }
 
-
     public MappingContext toField(Field field) {
-        return new com.atlassian.braid.document.MappingContextImpl(
+        return new FieldMappingContext(
                 this.schema,
                 this.typeMappers,
+                this.fragmentMappings,
                 this.getPath(),
                 this.getObjectTypeDefinition(),
                 field);
@@ -59,14 +58,6 @@ final class MappingContextImpl implements MappingContext {
 
     public String getSpringPath(String targetKey) {
         return appendAsStream(getPath(), targetKey).map(p -> "['" + p + "']").collect(joining());
-    }
-
-    public List<TypeMapper> getTypeMappers() {
-        return typeMappers;
-    }
-
-    public TypeDefinitionRegistry getSchema() {
-        return schema;
     }
 
     public Field getField() {

@@ -20,8 +20,8 @@ import static java.util.Objects.requireNonNull;
  * mapping results
  */
 final class SelectionSetMappingResult {
-    private final SelectionSet selectionSet;
-    private final MapperOperation resultMapper;
+    final SelectionSet selectionSet;
+     final MapperOperation resultMapper;
 
     SelectionSetMappingResult(SelectionSet selectionSet, MapperOperation resultMapper) {
         this.selectionSet = requireNonNull(selectionSet);

@@ -1,30 +1,35 @@
 package com.atlassian.braid.document;
 
+import com.atlassian.braid.document.MappingContexts.OperationDefinitionMappingContext;
+import com.atlassian.braid.document.MappingContexts.RootMappingContext;
 import com.atlassian.braid.document.SelectionOperation.OperationResult;
 import com.atlassian.braid.java.util.BraidObjects;
+import graphql.language.Definition;
 import graphql.language.Document;
 import graphql.language.Field;
+import graphql.language.FragmentDefinition;
 import graphql.language.ObjectTypeDefinition;
 import graphql.language.OperationDefinition;
-import graphql.language.OperationTypeDefinition;
 import graphql.language.Selection;
 import graphql.schema.idl.TypeDefinitionRegistry;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import static com.atlassian.braid.TypeUtils.findOperationDefinitions;
+import static com.atlassian.braid.document.MappedDefinitions.toMappedDefinitions;
+import static com.atlassian.braid.document.QueryDocuments.groupRootDefinitionsByType;
+import static com.atlassian.braid.document.RootDefinitionMappingResult.toOperationMappingResult;
 import static com.atlassian.braid.document.SelectionOperation.result;
-import static com.atlassian.braid.document.MappedOperations.toMappedDocument;
-import static com.atlassian.braid.document.OperationMappingResult.toOperationMappingResult;
+import static com.atlassian.braid.document.TypeMappers.maybeFindTypeMapper;
+import static com.atlassian.braid.java.util.BraidLists.concat;
 import static com.atlassian.braid.java.util.BraidObjects.cast;
+import static com.atlassian.braid.mapper.MapperOperations.composed;
+import static com.atlassian.braid.mapper.Mappers.mapper;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
 
 /**
  * <strong>Internal</strong> implementation of the {@link DocumentMapper} that maps based on types
@@ -44,63 +49,81 @@ final class TypedDocumentMapper implements DocumentMapper {
 
     @Override
     public MappedDocument apply(Document input) {
-        return getOperationDefinitionStream(input)
-                .map(this::mapOperation)
-                .collect(toMappedDocument());
+        return apply(MappingContexts.rootContext(schema, typeMappers), input);
     }
 
-    private OperationMappingResult mapOperation(OperationDefinition operationDefinition) {
-        final ObjectTypeDefinition operationTypeDefinition = findOperationTypeDefinition(schema, operationDefinition);
+    private MappedDocument apply(RootMappingContext context, Document input) {
+
+        final Map<Class<?>, List<Definition>> rootDefinitions = groupRootDefinitionsByType(input);
+
+
+        final List<FragmentDefinition> originalFragmentDefinitions = BraidObjects.cast(rootDefinitions.getOrDefault(FragmentDefinition.class, emptyList()));
+
+        final List<MappingContext.FragmentMapping> fragmentDefinitions = originalFragmentDefinitions
+                .stream()
+                .map(FragmentDefinition.class::cast)
+                .map(fd -> {
+
+                    final MappingContexts.FragmentDefinitionMappingContext mappingContext = context.forFragment(fd);
+
+                    final MappingContext.FragmentMapping o = maybeFindTypeMapper(typeMappers, mappingContext.getObjectTypeDefinition())
+                            .map(tm -> tm.apply(mappingContext, fd.getSelectionSet()))
+                            // TODO just below check that the selection set is not empty, if it is we can skip fragment references
+                            .map(ssmr -> {
+
+                                final FragmentDefinition fragmentDefinition = new FragmentDefinition(fd.getName(), fd.getTypeCondition(), fd.getDirectives(), ssmr.selectionSet);
+                                return new MappingContext.FragmentMapping(fragmentDefinition, ssmr.resultMapper);
+                            }).orElse(new MappingContext.FragmentMapping(fd, null));
+
+                    return o;
+                })
+                .collect(toList());
+
+        // TODO here we need to keep the mapping info about processed fragments
+
+        RootMappingContext contextWithFragments = context.withFragments(originalFragmentDefinitions);
+
+        final Stream<RootDefinitionMappingResult> rootDefinitionMappingResultStream = rootDefinitions.getOrDefault(OperationDefinition.class, emptyList())
+                .stream()
+                .map(OperationDefinition.class::cast)
+                .map(od -> mapOperation(contextWithFragments.forOperationDefinition(od), od));
+        final MappedDefinitions operationDefinitions = rootDefinitionMappingResultStream
+                .collect(toMappedDefinitions());
+
+        return new MappedDocument(
+                getDocument(concat(operationDefinitions.getDefinitions(), fragmentDefinitions.stream().map(fm -> fm.fragmentDefinition).collect(toList()))),
+                mapper(composed(operationDefinitions.getMappers())));
+    }
+
+    private static Document getDocument(List<? extends Definition> rootDefinitions) {
+        final Document document = new Document();
+        document.getDefinitions().addAll(rootDefinitions);
+        return document;
+    }
+
+    private RootDefinitionMappingResult mapOperation(OperationDefinitionMappingContext mappingContext, OperationDefinition operationDefinition) {
         final Map<Boolean, List<Selection>> fieldsAndNonFields = getFieldsAndNonFields(operationDefinition);
 
         final List<Selection> nonFields = fieldsAndNonFields.getOrDefault(false, emptyList());
         final List<Field> fields = cast(fieldsAndNonFields.getOrDefault(true, emptyList()));
 
         return fields.stream()
-                .map(field -> toMappingContext(operationTypeDefinition, field))
+                // TODO change the mapping context here
+                .map(field -> MappingContext.forField(mappingContext.schema, mappingContext.typeMappers, mappingContext.fragmentMappings, mappingContext.getObjectTypeDefinition(), field))
                 .map(TypedDocumentMapper::mapNode)
                 .collect(toOperationMappingResult(operationDefinition, nonFields));
-    }
-
-    private MappingContext toMappingContext(ObjectTypeDefinition parentObjectType, Field field) {
-        return MappingContext.of(schema, typeMappers, parentObjectType, field);
     }
 
     static OperationResult mapNode(MappingContext mappingContext) {
         final ObjectTypeDefinition definition = mappingContext.getObjectTypeDefinition();
         final Field field = mappingContext.getField();
 
-        return mappingContext.getTypeMappers()
-                .stream()
-                .filter(typeMapper -> typeMapper.test(definition))
-                .findFirst()
+        return maybeFindTypeMapper(mappingContext.getTypeMappers(), definition)
                 .map(typeMapper -> typeMapper.apply(mappingContext, field.getSelectionSet()))
                 .map(mappingResult -> mappingResult.toFieldOperationResult(mappingContext))
                 .orElse(result(field));
     }
 
-    private static Stream<OperationDefinition> getOperationDefinitionStream(Document input) {
-        return input.getDefinitions().stream()
-                .filter(d -> d instanceof OperationDefinition)
-                .map(OperationDefinition.class::cast);
-    }
-
-    private static ObjectTypeDefinition findOperationTypeDefinition(TypeDefinitionRegistry schema, OperationDefinition op) {
-        return findOperationDefinitions(schema)
-                .flatMap(maybeFindOperationTypeDefinition(op))
-                .map(OperationTypeDefinition::getType)
-                .flatMap(schema::getType)
-                .map(BraidObjects::<ObjectTypeDefinition>cast)
-                .orElseThrow(IllegalStateException::new);
-    }
-
-    private static Function<List<OperationTypeDefinition>, Optional<OperationTypeDefinition>> maybeFindOperationTypeDefinition(OperationDefinition op) {
-        return ops -> ops.stream().filter(isOperationTypeDefinitionForOperationType(op)).findFirst();
-    }
-
-    private static Predicate<OperationTypeDefinition> isOperationTypeDefinitionForOperationType(OperationDefinition op) {
-        return otd -> otd.getName().equalsIgnoreCase(op.getOperation().name());
-    }
 
     /**
      * Groups {@link Selection selections} by type, the key {@code true} for those of type {@link Field}, {@code false}
