@@ -1,6 +1,6 @@
 package com.atlassian.braid.document;
 
-import com.atlassian.braid.document.FieldOperation.FieldOperationResult;
+import com.atlassian.braid.document.SelectionOperation.OperationResult;
 import com.atlassian.braid.mapper.MapperOperation;
 import graphql.language.OperationDefinition;
 import graphql.language.Selection;
@@ -21,7 +21,7 @@ import static java.util.Objects.requireNonNull;
  * <p>It collects both the operation selections and the {@link MapperOperation mapper operations} used to process
  * the queried data
  * <p>The main entry point of this class is its {@link #toOperationMappingResult(OperationDefinition, List) collector} that allows collecting
- * {@link FieldOperationResult}s into an {@link OperationMappingResult}
+ * {@link OperationResult}s into an {@link OperationMappingResult}
  */
 final class OperationMappingResult {
     private final OperationDefinition operationDefinition;
@@ -63,8 +63,8 @@ final class OperationMappingResult {
         return unmodifiableList(mappers);
     }
 
-    private void add(FieldOperationResult result) {
-        result.getField().ifPresent(selections::add);
+    private void add(OperationResult result) {
+        result.getSelection().ifPresent(selections::add);
         mappers.add(result.getMapper());
     }
 
@@ -84,14 +84,14 @@ final class OperationMappingResult {
     }
 
     /**
-     * Returns a collector used to collect {@link FieldOperationResult}s into an {@link OperationMappingResult}
+     * Returns a collector used to collect {@link OperationResult}s into an {@link OperationMappingResult}
      *
      * @param operation  the operation definition being collected
      * @param selections the initial selections to add, i.e. if only fields are being mapped, other selections can
      *                   be added directly here
-     * @return a {@link Collector} of {@link FieldOperationResult} to {@link OperationMappingResult}
+     * @return a {@link Collector} of {@link OperationResult} to {@link OperationMappingResult}
      */
-    static Collector<FieldOperationResult, OperationMappingResult, OperationMappingResult> toOperationMappingResult(
+    static Collector<OperationResult, OperationMappingResult, OperationMappingResult> toOperationMappingResult(
             OperationDefinition operation, List<Selection> selections) {
         return Collector.of(
                 () -> new OperationMappingResult(operation, selections),

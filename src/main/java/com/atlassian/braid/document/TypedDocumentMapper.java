@@ -1,6 +1,6 @@
 package com.atlassian.braid.document;
 
-import com.atlassian.braid.document.FieldOperation.FieldOperationResult;
+import com.atlassian.braid.document.SelectionOperation.OperationResult;
 import com.atlassian.braid.java.util.BraidObjects;
 import graphql.language.Document;
 import graphql.language.Field;
@@ -18,7 +18,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static com.atlassian.braid.TypeUtils.findOperationDefinitions;
-import static com.atlassian.braid.document.FieldOperation.result;
+import static com.atlassian.braid.document.SelectionOperation.result;
 import static com.atlassian.braid.document.MappedOperations.toMappedDocument;
 import static com.atlassian.braid.document.OperationMappingResult.toOperationMappingResult;
 import static com.atlassian.braid.java.util.BraidObjects.cast;
@@ -66,7 +66,7 @@ final class TypedDocumentMapper implements DocumentMapper {
         return MappingContext.of(schema, typeMappers, parentObjectType, field);
     }
 
-    static FieldOperationResult mapNode(MappingContext mappingContext) {
+    static OperationResult mapNode(MappingContext mappingContext) {
         final ObjectTypeDefinition definition = mappingContext.getObjectTypeDefinition();
         final Field field = mappingContext.getField();
 

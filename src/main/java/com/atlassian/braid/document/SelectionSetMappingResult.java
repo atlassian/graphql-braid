@@ -1,6 +1,6 @@
 package com.atlassian.braid.document;
 
-import com.atlassian.braid.document.FieldOperation.FieldOperationResult;
+import com.atlassian.braid.document.SelectionOperation.OperationResult;
 import com.atlassian.braid.mapper.Mapper;
 import com.atlassian.braid.mapper.MapperOperation;
 import com.atlassian.braid.mapper.MapperOperations;
@@ -9,7 +9,7 @@ import graphql.language.SelectionSet;
 
 import java.util.function.BiFunction;
 
-import static com.atlassian.braid.document.FieldOperation.result;
+import static com.atlassian.braid.document.SelectionOperation.result;
 import static com.atlassian.braid.document.Fields.cloneFieldWithNewSelectionSet;
 import static com.atlassian.braid.document.Fields.getFieldAliasOrName;
 import static com.atlassian.braid.mapper.Mappers.mapper;
@@ -28,7 +28,7 @@ final class SelectionSetMappingResult {
         this.resultMapper = requireNonNull(resultMapper);
     }
 
-    FieldOperationResult toFieldOperationResult(MappingContext mappingContext) {
+    OperationResult toFieldOperationResult(MappingContext mappingContext) {
         final Field field = mappingContext.getField();
         return result(
                 cloneFieldWithNewSelectionSet(field, selectionSet),
@@ -36,6 +36,6 @@ final class SelectionSetMappingResult {
     }
 
     private static BiFunction<String, Mapper, MapperOperation> getMapperOperation(MappingContext mappingContext) {
-        return mappingContext.getTypeInfo().isList() ? MapperOperations::copyList : MapperOperations::map;
+        return mappingContext.inList() ? MapperOperations::copyList : MapperOperations::map;
     }
 }

@@ -10,14 +10,14 @@ import java.util.function.Predicate;
 
 import static com.atlassian.braid.document.DocumentMapperPredicates.all;
 import static com.atlassian.braid.document.DocumentMapperPredicates.fieldNamed;
-import static com.atlassian.braid.document.FieldOperation.result;
+import static com.atlassian.braid.document.SelectionOperation.result;
 import static com.atlassian.braid.document.Fields.cloneFieldWithNewName;
 import static com.atlassian.braid.document.Fields.getFieldAliasOrName;
 import static com.atlassian.braid.document.TypedDocumentMapper.mapNode;
 import static com.atlassian.braid.mapper.MapperOperations.copy;
 import static java.util.Objects.requireNonNull;
 
-final class CopyFieldOperation extends AbstractFieldOperation {
+final class CopyFieldOperation extends AbstractTypeOperation<Field> {
 
     private static final String ANY_NAME = "*";
 
@@ -32,18 +32,18 @@ final class CopyFieldOperation extends AbstractFieldOperation {
     }
 
     private CopyFieldOperation(Predicate<Field> predicate, Function<Field, String> target) {
-        super(predicate);
+        super(Field.class, predicate);
         this.target = requireNonNull(target);
     }
 
     @Override
-    public FieldOperationResult apply(MappingContext mappingContext, Field field) {
+    protected OperationResult applyToType(MappingContext mappingContext, Field field) {
         return getSelectionSet(field)
-                .map(__ -> mapNode(mappingContext.to(field))) // graph node (object field)
+                .map(__ -> mapNode(mappingContext.toField(field))) // graph node (object field)
                 .orElseGet(() -> mapLeaf(mappingContext, field)); // graph leaf ('scalar' field)
     }
 
-    private FieldOperationResult mapLeaf(MappingContext mappingContext, Field field) {
+    private OperationResult mapLeaf(MappingContext mappingContext, Field field) {
         final String targetKey = target.apply(field);
         return result(
                 cloneFieldWithNewName(field, targetKey),
