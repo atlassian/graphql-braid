@@ -8,6 +8,7 @@ import graphql.language.EnumValue;
 import graphql.language.Field;
 import graphql.language.FloatValue;
 import graphql.language.FragmentSpread;
+import graphql.language.InlineFragment;
 import graphql.language.IntValue;
 import graphql.language.NullValue;
 import graphql.language.ObjectField;
@@ -28,7 +29,8 @@ import java.util.stream.Collectors;
 @SuppressWarnings("WeakerAccess")
 class DocumentCloners {
 
-    private DocumentCloners() {}
+    private DocumentCloners() {
+    }
 
     static Field clone(Field original) {
         if (original == null) {
@@ -57,8 +59,20 @@ class DocumentCloners {
             return clone((Field) original);
         } else if (original instanceof FragmentSpread) {
             return clone((FragmentSpread) original);
+        } else if ((original instanceof InlineFragment)) {
+            return clone((InlineFragment) original);
         }
-        throw new IllegalArgumentException("Unexpected type: " + original);
+        throw new IllegalArgumentException("Unexpected type for selection: " + original.getClass());
+    }
+
+    static InlineFragment clone(InlineFragment original) {
+        if (original == null) {
+            return null;
+        }
+        InlineFragment fragment = new InlineFragment(original.getTypeCondition());
+        fragment.setDirectives(cloneList(original.getDirectives(), DocumentCloners::clone));
+        fragment.setSelectionSet(clone(original.getSelectionSet()));
+        return fragment;
     }
 
     static FragmentSpread clone(FragmentSpread original) {

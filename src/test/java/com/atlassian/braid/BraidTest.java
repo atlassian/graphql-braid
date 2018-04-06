@@ -181,4 +181,8 @@ public class BraidTest {
     @Test
     public void testBraidWithDocumentMapperWithMultipleFragments() {
     }
+
+    @Test
+    public void testBraidWithDocumentMapperWithInlineFragment() {
+    }
 }

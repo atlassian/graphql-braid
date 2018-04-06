@@ -6,6 +6,7 @@ import com.atlassian.braid.mapper.MapperOperation;
 import com.atlassian.braid.mapper.MapperOperations;
 import graphql.language.Field;
 import graphql.language.FragmentSpread;
+import graphql.language.InlineFragment;
 import graphql.language.SelectionSet;
 
 import java.util.function.BiFunction;
@@ -37,6 +38,12 @@ final class SelectionSetMappingResult {
         return result(
                 cloneFieldWithNewSelectionSet(field, selectionSet),
                 getMapperOperation(mappingContext).apply(getFieldAliasOrName(field), mapper(resultMapper)));
+    }
+
+    OperationResult toOperationResult(InlineFragment inlineFragment) {
+        return result(
+                new InlineFragment(inlineFragment.getTypeCondition(), inlineFragment.getDirectives(), selectionSet),
+                resultMapper);
     }
 
     OperationResult toOperationResult(FragmentSpread fragmentSpread) {

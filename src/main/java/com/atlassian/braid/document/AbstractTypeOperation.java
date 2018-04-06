@@ -4,6 +4,7 @@ import graphql.language.Selection;
 
 import java.util.function.Predicate;
 
+import static com.atlassian.braid.document.SelectionMapper.getSelectionMapper;
 import static com.atlassian.braid.java.util.BraidObjects.cast;
 import static java.util.Objects.requireNonNull;
 
@@ -32,6 +33,6 @@ abstract class AbstractTypeOperation<S extends Selection> implements SelectionOp
     }
 
     protected OperationResult applyToType(MappingContext mappingContext, S selection) {
-        return SelectionOperation.result(selection);
+        return getSelectionMapper(selection).map(mappingContext);
     }
 }

@@ -18,9 +18,9 @@ abstract class SelectionMapper {
         } else if (selection instanceof FragmentSpread) {
             return new FragmentSpreadMapper((FragmentSpread) selection);
         } else if (selection instanceof InlineFragment) {
-            throw new IllegalStateException("Inline fragments are not supported with document mapping! (yet)");
+            return new InlineFragmentMapper((InlineFragment) selection);
         } else {
-            throw new IllegalStateException();
+            throw new IllegalStateException("Unknown selection type: " + selection.getClass());
         }
     }
 
@@ -57,6 +57,24 @@ abstract class SelectionMapper {
                     .map(tm -> tm.apply(mappingContext, fragmentDefinition.getSelectionSet()))
                     .map(mappingResult -> mappingResult.toOperationResult(fragmentSpread))
                     .orElseGet(() -> result(fragmentSpread));
+        }
+    }
+
+    private static class InlineFragmentMapper extends SelectionMapper {
+        private final InlineFragment inlineFragment;
+
+        public InlineFragmentMapper(InlineFragment inlineFragment) {
+            this.inlineFragment = requireNonNull(inlineFragment);
+        }
+
+        @Override
+        OperationResult map(MappingContext mappingContext) {
+            final MappingContext inlineFragmentMappingContext = mappingContext.forInlineFragment(inlineFragment);
+
+            return inlineFragmentMappingContext.getTypeMapper()
+                    .map(typeMapper -> typeMapper.apply(inlineFragmentMappingContext, inlineFragment.getSelectionSet()))
+                    .map(mappingResult -> mappingResult.toOperationResult(inlineFragment))
+                    .orElseGet(() -> result(inlineFragment));
         }
     }
 }

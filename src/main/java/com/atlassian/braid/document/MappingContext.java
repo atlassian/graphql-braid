@@ -4,6 +4,7 @@ import com.atlassian.braid.java.util.BraidObjects;
 import graphql.language.Field;
 import graphql.language.FragmentDefinition;
 import graphql.language.FragmentSpread;
+import graphql.language.InlineFragment;
 import graphql.language.ObjectTypeDefinition;
 import graphql.language.OperationDefinition;
 import graphql.language.OperationTypeDefinition;
@@ -76,6 +77,10 @@ abstract class MappingContext {
         throw new IllegalStateException();
     }
 
+    MappingContext forInlineFragment(InlineFragment inlineFragment) {
+        throw new IllegalStateException();
+    }
+
     static RootMappingContext rootContext(TypeDefinitionRegistry schema, List<TypeMapper> typeMappers) {
         return new RootMappingContext(schema, typeMappers, emptyList());
     }
@@ -136,6 +141,11 @@ abstract class MappingContext {
         @Override
         NodeMappingContext forField(Field field) {
             return new FieldMappingContext(this, field);
+        }
+
+        @Override
+        MappingContext forInlineFragment(InlineFragment inlineFragment) {
+            return new InlineFragmentMappingContext(this, inlineFragment);
         }
     }
 
@@ -198,6 +208,33 @@ abstract class MappingContext {
         @Override
         boolean inList() {
             return typeInfo.isList();
+        }
+    }
+
+    private static class InlineFragmentMappingContext extends NodeMappingContext {
+
+        private final List<String> parentPath;
+        private final ObjectTypeDefinition objectTypeDefinition;
+
+        InlineFragmentMappingContext(MappingContext parentContext, InlineFragment inlineFragment) {
+            super(parentContext);
+            this.parentPath = parentContext.getPath();
+            this.objectTypeDefinition = parentContext.schema.getType(inlineFragment.getTypeCondition().getName()).map(ObjectTypeDefinition.class::cast).orElseThrow(IllegalStateException::new);
+        }
+
+        @Override
+        protected ObjectTypeDefinition getObjectTypeDefinition() {
+            return objectTypeDefinition;
+        }
+
+        @Override
+        protected List<String> getPath() {
+            return parentPath;
+        }
+
+        @Override
+        boolean inList() {
+            return false;
         }
     }
 }
