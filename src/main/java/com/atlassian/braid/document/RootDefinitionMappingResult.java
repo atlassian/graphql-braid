@@ -3,7 +3,6 @@ package com.atlassian.braid.document;
 import com.atlassian.braid.document.SelectionOperation.OperationResult;
 import com.atlassian.braid.mapper.MapperOperation;
 import graphql.language.Definition;
-import graphql.language.FragmentDefinition;
 import graphql.language.OperationDefinition;
 import graphql.language.Selection;
 import graphql.language.SelectionSet;
@@ -14,7 +13,6 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collector;
 
-import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.requireNonNull;
 
@@ -23,7 +21,7 @@ import static java.util.Objects.requireNonNull;
  * mapping results, i.e. the mapped {@link Selection selections} for a given {@link OperationDefinition}
  * <p>It collects both the operation selections and the {@link MapperOperation mapper operations} used to process
  * the queried data
- * <p>The main entry point of this class is its {@link #toOperationMappingResult(OperationDefinition, List) collector} that allows collecting
+ * <p>The main entry point of this class is its {@link #toOperationMappingResult(OperationDefinition)} collector} that allows collecting
  * {@link OperationResult}s into an {@link RootDefinitionMappingResult}
  */
 abstract class RootDefinitionMappingResult<D extends Definition> {
@@ -31,8 +29,8 @@ abstract class RootDefinitionMappingResult<D extends Definition> {
     protected final List<Selection> selections;
     protected final List<MapperOperation> mappers;
 
-    private RootDefinitionMappingResult(D definition, List<Selection> selections) {
-        this(definition, new ArrayList<>(selections), new ArrayList<>());
+    private RootDefinitionMappingResult(D definition) {
+        this(definition, new ArrayList<>(), new ArrayList<>());
     }
 
     private RootDefinitionMappingResult(D definition,
@@ -78,35 +76,21 @@ abstract class RootDefinitionMappingResult<D extends Definition> {
     /**
      * Returns a collector used to collect {@link OperationResult}s into an {@link RootDefinitionMappingResult}
      *
-     * @param operation  the operation definition being collected
-     * @param selections the initial selections to add, i.e. if only fields are being mapped, other selections can
-     *                   be added directly here
+     * @param operation the operation definition being collected
      * @return a {@link Collector} of {@link OperationResult} to {@link RootDefinitionMappingResult}
      */
     static Collector<OperationResult, RootDefinitionMappingResult<OperationDefinition>, RootDefinitionMappingResult<OperationDefinition>> toOperationMappingResult(
-            OperationDefinition operation, List<Selection> selections) {
+            OperationDefinition operation) {
         return Collector.of(
-                () -> new OperationMappingResult(operation, selections),
+                () -> new OperationMappingResult(operation),
                 RootDefinitionMappingResult::add,
                 (omr1, omr2) -> combine(OperationMappingResult::new, omr1, omr2));
-    }
-
-    static Collector<OperationResult, RootDefinitionMappingResult<FragmentDefinition>, RootDefinitionMappingResult<FragmentDefinition>> toFragmentMappingResult(
-            FragmentDefinition fragment, List<Selection> selections) {
-        return Collector.of(
-                () -> new FragmentMappingResult(fragment, selections),
-                RootDefinitionMappingResult::add,
-                (omr1, omr2) -> combine(FragmentMappingResult::new, omr1, omr2));
     }
 
     private static class OperationMappingResult extends RootDefinitionMappingResult<OperationDefinition> {
 
         private OperationMappingResult(OperationDefinition definition) {
-            this(definition, emptyList());
-        }
-
-        private OperationMappingResult(OperationDefinition definition, List<Selection> selections) {
-            super(definition, selections);
+            super(definition);
         }
 
         @Override
@@ -115,27 +99,6 @@ abstract class RootDefinitionMappingResult<D extends Definition> {
                     definition.getName(),
                     definition.getOperation(),
                     definition.getVariableDefinitions(),
-                    definition.getDirectives(),
-                    new SelectionSet(selections));
-        }
-    }
-
-    private static class FragmentMappingResult extends RootDefinitionMappingResult<FragmentDefinition> {
-
-        private FragmentMappingResult(FragmentDefinition definition) {
-            this(definition, emptyList());
-        }
-
-        private FragmentMappingResult(FragmentDefinition definition, List<Selection> selections) {
-            super(definition, selections);
-        }
-
-
-        @Override
-        FragmentDefinition toDefinition() {
-            return new FragmentDefinition(
-                    definition.getName(),
-                    definition.getTypeCondition(),
                     definition.getDirectives(),
                     new SelectionSet(selections));
         }

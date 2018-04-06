@@ -1,9 +1,8 @@
 package com.atlassian.braid.document;
 
-import graphql.language.FragmentDefinition;
 import graphql.language.FragmentSpread;
 
-import static com.atlassian.braid.document.SelectionOperation.result;
+import static com.atlassian.braid.document.SelectionMapper.getSelectionMapper;
 
 final class FragmentSpreadOperation extends AbstractTypeOperation<FragmentSpread> {
 
@@ -13,10 +12,6 @@ final class FragmentSpreadOperation extends AbstractTypeOperation<FragmentSpread
 
     @Override
     protected OperationResult applyToType(MappingContext mappingContext, FragmentSpread fragmentSpread) {
-        final FragmentDefinition fragmentDefinition = mappingContext.getFragmentDefinition(fragmentSpread);
-        return mappingContext.getTypeMapper()
-                .map(tm -> tm.apply(mappingContext, fragmentDefinition.getSelectionSet()))
-                .map(mappingResult -> mappingResult.toOperationResult(fragmentSpread))
-                .orElseGet(() -> result(fragmentSpread));
+        return getSelectionMapper(fragmentSpread).map(mappingContext);
     }
 }

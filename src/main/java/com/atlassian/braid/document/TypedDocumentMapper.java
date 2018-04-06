@@ -3,14 +3,10 @@ package com.atlassian.braid.document;
 import com.atlassian.braid.document.MappingContext.FragmentDefinitionMappingContext;
 import com.atlassian.braid.document.MappingContext.OperationDefinitionMappingContext;
 import com.atlassian.braid.document.MappingContext.RootMappingContext;
-import com.atlassian.braid.document.SelectionOperation.OperationResult;
-import com.atlassian.braid.java.util.BraidObjects;
 import graphql.language.Definition;
 import graphql.language.Document;
-import graphql.language.Field;
 import graphql.language.FragmentDefinition;
 import graphql.language.OperationDefinition;
-import graphql.language.Selection;
 import graphql.schema.idl.TypeDefinitionRegistry;
 
 import java.util.List;
@@ -20,14 +16,12 @@ import static com.atlassian.braid.document.MappedDefinitions.toMappedDefinitions
 import static com.atlassian.braid.document.MappingContext.rootContext;
 import static com.atlassian.braid.document.QueryDocuments.groupRootDefinitionsByType;
 import static com.atlassian.braid.document.RootDefinitionMappingResult.toOperationMappingResult;
-import static com.atlassian.braid.document.SelectionOperation.result;
 import static com.atlassian.braid.java.util.BraidLists.concat;
 import static com.atlassian.braid.java.util.BraidObjects.cast;
 import static com.atlassian.braid.mapper.MapperOperations.composed;
 import static com.atlassian.braid.mapper.Mappers.mapper;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
 /**
@@ -109,8 +103,13 @@ final class TypedDocumentMapper implements DocumentMapper {
                 .collect(toMappedDefinitions());
     }
 
-    private static <D extends Definition> List<D> getDefinitionsOfType(Map<Class<?>, List<Definition>> rootDefinitions, Class<D> type) {
-        return BraidObjects.cast(rootDefinitions.getOrDefault(type, emptyList()));
+    private static RootDefinitionMappingResult mapOperation(OperationDefinitionMappingContext mappingContext,
+                                                            OperationDefinition operationDefinition) {
+        return operationDefinition.getSelectionSet().getSelections()
+                .stream()
+                .map(SelectionMapper::getSelectionMapper)
+                .map(selectionMapper -> selectionMapper.map(mappingContext))
+                .collect(toOperationMappingResult(operationDefinition));
     }
 
     private static Document getDocument(List<? extends Definition> rootDefinitions) {
@@ -119,28 +118,8 @@ final class TypedDocumentMapper implements DocumentMapper {
         return document;
     }
 
-    private static RootDefinitionMappingResult mapOperation(OperationDefinitionMappingContext mappingContext, OperationDefinition operationDefinition) {
-        final Map<Boolean, List<Selection>> fieldsAndNonFields = getFieldsAndNonFields(operationDefinition);
-
-        final List<Selection> nonFields = fieldsAndNonFields.getOrDefault(false, emptyList());
-        final List<Field> fields = cast(fieldsAndNonFields.getOrDefault(true, emptyList()));
-
-        return fields.stream()
-                .map(SelectionMapper::getSelectionMapper)
-                .map(selectionMapper -> selectionMapper.map(mappingContext))
-                .collect(toOperationMappingResult(operationDefinition, nonFields));
-    }
-
-    /**
-     * Groups {@link Selection selections} by type, the key {@code true} for those of type {@link Field}, {@code false}
-     * for any other type
-     *
-     * @param operationDefinition the operation definition for which we care about fields
-     * @return a map of {@link Field fields} and <em>other</em> {@link Selection selection types}
-     */
-    private static Map<Boolean, List<Selection>> getFieldsAndNonFields(OperationDefinition operationDefinition) {
-        return operationDefinition.getSelectionSet().getSelections()
-                .stream()
-                .collect(groupingBy(s -> s instanceof Field));
+    private static <D extends Definition> List<D> getDefinitionsOfType(
+            Map<Class<?>, List<Definition>> rootDefinitions, Class<D> type) {
+        return cast(rootDefinitions.getOrDefault(type, emptyList()));
     }
 }
