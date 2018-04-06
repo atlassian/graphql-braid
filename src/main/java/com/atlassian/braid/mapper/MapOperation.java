@@ -3,8 +3,11 @@ package com.atlassian.braid.mapper;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
 
+import static com.atlassian.braid.java.util.BraidObjects.cast;
+import static com.atlassian.braid.java.util.BraidPreconditions.checkState;
+import static com.atlassian.braid.mapper.MapperMaps.mergeMaps;
+import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 
 final class MapOperation implements MapperOperation {
@@ -22,7 +25,17 @@ final class MapOperation implements MapperOperation {
     @Override
     public void accept(Map<String, Object> input, Map<String, Object> output) {
         if (predicate.test(MapperInputOutputPair.of(input, output))) {
-            output.put(key, mapper.apply(input));
+            output.put(key, mergeMaps(getExistingMapValue(output, key), mapper.apply(input)));
+        }
+    }
+
+    private static Map<String, Object> getExistingMapValue(Map<String, Object> map, String key) {
+        final Object existingValue = map.get(key);
+        if (existingValue != null) {
+            checkState(existingValue instanceof Map);
+            return cast(existingValue);
+        } else {
+            return emptyMap();
         }
     }
 }

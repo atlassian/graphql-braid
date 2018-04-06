@@ -89,7 +89,7 @@ final class TypeMapperImpl implements TypeMapper {
 
     private Optional<OperationResult> applyOperation(MappingContext mappingContext, Selection selection) {
         return newSelectionOperationsStream()
-                .filter(operation1 -> operation1.test(selection))
+                .filter(operation -> operation.test(selection))
                 .findFirst()
                 .map(operation -> operation.apply(mappingContext, selection));
     }

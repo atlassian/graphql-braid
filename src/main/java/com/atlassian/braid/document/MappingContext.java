@@ -108,7 +108,7 @@ abstract class MappingContext {
         }
     }
 
-    static final class FragmentDefinitionMappingContext extends MappingContext {
+    static final class FragmentDefinitionMappingContext extends NodeMappingContext {
 
         private final ObjectTypeDefinition objectTypeDefinition;
 

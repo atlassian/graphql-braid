@@ -167,7 +167,11 @@ public class YamlBraidExecutionRule implements MethodRule {
     }
 
     private static String printQuery(String query) {
-        return printNode(new Parser().parseDocument(query));
+        try {
+            return printNode(new Parser().parseDocument(query));
+        } catch (Exception e) {
+            throw new IllegalStateException("Exception while printing query:\n" + query + "\n", e);
+        }
     }
 
     private List<Map<String, Object>> toSpecification(List<GraphQLError> errors) {

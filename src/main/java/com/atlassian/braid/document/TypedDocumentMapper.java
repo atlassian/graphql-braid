@@ -60,13 +60,24 @@ final class TypedDocumentMapper implements DocumentMapper {
         final List<FragmentDefinition> fragmentDefinitions =
                 getDefinitionsOfType(rootDefinitions, FragmentDefinition.class);
 
+        final List<OperationDefinition> operationDefinitions =
+                getDefinitionsOfType(rootDefinitions, OperationDefinition.class);
+
+        // keep the original fragment definitions for building mappers
+        // see com.atlassian.braid.document.FragmentSpreadOperation#applyToType
+        final RootMappingContext contextWithFragmentDefinitions = context.withFragments(fragmentDefinitions);
+
+        return apply(contextWithFragmentDefinitions, operationDefinitions, fragmentDefinitions);
+    }
+
+    private MappedDocument apply(RootMappingContext context,
+                                 List<OperationDefinition> operationDefinitions,
+                                 List<FragmentDefinition> fragmentDefinitions) {
         final List<? extends Definition> mappedFragmentDefinitions = mapFragmentDefinitions(context, fragmentDefinitions);
 
         final MappedDefinitions mappedOperationDefinitions = mapOperationDefinitions(
-                // keep the original fragment definitions for building mappers
-                // see com.atlassian.braid.document.FragmentSpreadOperation#applyToType
-                context.withFragments(fragmentDefinitions),
-                getDefinitionsOfType(rootDefinitions, OperationDefinition.class));
+                context,
+                operationDefinitions);
 
         return new MappedDocument(
                 getDocument(concat(mappedOperationDefinitions.getDefinitions(), mappedFragmentDefinitions)),
@@ -115,17 +126,10 @@ final class TypedDocumentMapper implements DocumentMapper {
         final List<Field> fields = cast(fieldsAndNonFields.getOrDefault(true, emptyList()));
 
         return fields.stream()
-                .map(field -> mapNode(mappingContext.forField(field), field))
+                .map(SelectionMapper::getSelectionMapper)
+                .map(selectionMapper -> selectionMapper.map(mappingContext))
                 .collect(toOperationMappingResult(operationDefinition, nonFields));
     }
-
-    static OperationResult mapNode(MappingContext mappingContext, Field field) {
-        return mappingContext.getTypeMapper()
-                .map(typeMapper -> typeMapper.apply(mappingContext, field.getSelectionSet()))
-                .map(mappingResult -> mappingResult.toOperationResult(field, mappingContext))
-                .orElseGet(() -> result(field));
-    }
-
 
     /**
      * Groups {@link Selection selections} by type, the key {@code true} for those of type {@link Field}, {@code false}

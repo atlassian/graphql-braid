@@ -10,10 +10,10 @@ import java.util.function.Predicate;
 
 import static com.atlassian.braid.document.DocumentMapperPredicates.all;
 import static com.atlassian.braid.document.DocumentMapperPredicates.fieldNamed;
+import static com.atlassian.braid.document.SelectionMapper.getSelectionMapper;
 import static com.atlassian.braid.document.SelectionOperation.result;
 import static com.atlassian.braid.document.Fields.cloneFieldWithNewName;
 import static com.atlassian.braid.document.Fields.getFieldAliasOrName;
-import static com.atlassian.braid.document.TypedDocumentMapper.mapNode;
 import static com.atlassian.braid.mapper.MapperOperations.copy;
 import static java.util.Objects.requireNonNull;
 
@@ -39,7 +39,7 @@ final class CopyFieldOperation extends AbstractTypeOperation<Field> {
     @Override
     protected OperationResult applyToType(MappingContext mappingContext, Field field) {
         return getSelectionSet(field)
-                .map(__ -> mapNode(mappingContext.forField(field), field)) // graph node (object field)
+                .map(__ -> getSelectionMapper(field).map(mappingContext)) // graph node (object field)
                 .orElseGet(() -> mapLeaf(mappingContext, field)); // graph leaf ('scalar' field)
     }
 
