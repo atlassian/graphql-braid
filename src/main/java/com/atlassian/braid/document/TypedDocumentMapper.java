@@ -15,7 +15,6 @@ import graphql.schema.idl.TypeDefinitionRegistry;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 
 import static com.atlassian.braid.document.MappedDefinitions.toMappedDefinitions;
 import static com.atlassian.braid.document.MappingContext.rootContext;
@@ -53,46 +52,54 @@ final class TypedDocumentMapper implements DocumentMapper {
     }
 
     private MappedDocument apply(RootMappingContext context, Document input) {
+        return apply(context, groupRootDefinitionsByType(input));
+    }
 
-        final Map<Class<?>, List<Definition>> rootDefinitions = groupRootDefinitionsByType(input);
+    private MappedDocument apply(RootMappingContext context, Map<Class<?>, List<Definition>> rootDefinitions) {
 
+        final List<FragmentDefinition> fragmentDefinitions =
+                getDefinitionsOfType(rootDefinitions, FragmentDefinition.class);
 
-        final List<FragmentDefinition> originalFragmentDefinitions = BraidObjects.cast(rootDefinitions.getOrDefault(FragmentDefinition.class, emptyList()));
+        final List<? extends Definition> mappedFragmentDefinitions = mapFragmentDefinitions(context, fragmentDefinitions);
 
-        final List<MappingContext.FragmentMapping> fragmentDefinitions = originalFragmentDefinitions
-                .stream()
-                .map(FragmentDefinition.class::cast)
-                .map(fd -> {
-
-                    final FragmentDefinitionMappingContext mappingContext = context.forFragment(fd);
-
-                    final MappingContext.FragmentMapping o = mappingContext.getTypeMapper()
-                            .map(tm -> tm.apply(mappingContext, fd.getSelectionSet()))
-                            // TODO just below check that the selection set is not empty, if it is we can skip fragment references
-                            .map(ssmr -> {
-
-                                final FragmentDefinition fragmentDefinition = new FragmentDefinition(fd.getName(), fd.getTypeCondition(), fd.getDirectives(), ssmr.selectionSet);
-                                return new MappingContext.FragmentMapping(fragmentDefinition, ssmr.resultMapper);
-                            }).orElse(new MappingContext.FragmentMapping(fd, null));
-
-                    return o;
-                })
-                .collect(toList());
-
-        // TODO here we need to keep the mapping info about processed fragments
-
-        RootMappingContext contextWithFragments = context.withFragments(originalFragmentDefinitions);
-
-        final Stream<RootDefinitionMappingResult> rootDefinitionMappingResultStream = rootDefinitions.getOrDefault(OperationDefinition.class, emptyList())
-                .stream()
-                .map(OperationDefinition.class::cast)
-                .map(od -> mapOperation(contextWithFragments.forOperationDefinition(od), od));
-        final MappedDefinitions operationDefinitions = rootDefinitionMappingResultStream
-                .collect(toMappedDefinitions());
+        final MappedDefinitions mappedOperationDefinitions = mapOperationDefinitions(
+                // keep the original fragment definitions for building mappers
+                // see com.atlassian.braid.document.FragmentSpreadOperation#applyToType
+                context.withFragments(fragmentDefinitions),
+                getDefinitionsOfType(rootDefinitions, OperationDefinition.class));
 
         return new MappedDocument(
-                getDocument(concat(operationDefinitions.getDefinitions(), fragmentDefinitions.stream().map(fm -> fm.fragmentDefinition).collect(toList()))),
-                mapper(composed(operationDefinitions.getMappers())));
+                getDocument(concat(mappedOperationDefinitions.getDefinitions(), mappedFragmentDefinitions)),
+                mapper(composed(mappedOperationDefinitions.getMappers())));
+    }
+
+    private List<FragmentDefinition> mapFragmentDefinitions(RootMappingContext context,
+                                                            List<FragmentDefinition> fragmentDefinitions) {
+        return fragmentDefinitions
+                .stream()
+                .map(fd -> mapFragment(context.forFragment(fd), fd))
+                .collect(toList());
+    }
+
+    private static FragmentDefinition mapFragment(FragmentDefinitionMappingContext mappingContext, FragmentDefinition fd) {
+        return mappingContext.getTypeMapper()
+                .map(tm -> tm.apply(mappingContext, fd.getSelectionSet()))
+                // TODO just below check that the selection set is not empty, if it is we can skip fragment references
+                .map(SelectionSetMappingResult::getSelectionSet)
+                .map(ss -> new FragmentDefinition(fd.getName(), fd.getTypeCondition(), fd.getDirectives(), ss))
+                .orElse(fd);
+    }
+
+    private static MappedDefinitions mapOperationDefinitions(RootMappingContext context,
+                                                             List<OperationDefinition> operationDefinitions) {
+        return operationDefinitions
+                .stream()
+                .map(od -> mapOperation(context.forOperationDefinition(od), od))
+                .collect(toMappedDefinitions());
+    }
+
+    private static <D extends Definition> List<D> getDefinitionsOfType(Map<Class<?>, List<Definition>> rootDefinitions, Class<D> type) {
+        return BraidObjects.cast(rootDefinitions.getOrDefault(type, emptyList()));
     }
 
     private static Document getDocument(List<? extends Definition> rootDefinitions) {
@@ -101,7 +108,7 @@ final class TypedDocumentMapper implements DocumentMapper {
         return document;
     }
 
-    private RootDefinitionMappingResult mapOperation(OperationDefinitionMappingContext mappingContext, OperationDefinition operationDefinition) {
+    private static RootDefinitionMappingResult mapOperation(OperationDefinitionMappingContext mappingContext, OperationDefinition operationDefinition) {
         final Map<Boolean, List<Selection>> fieldsAndNonFields = getFieldsAndNonFields(operationDefinition);
 
         final List<Selection> nonFields = fieldsAndNonFields.getOrDefault(false, emptyList());

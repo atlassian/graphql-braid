@@ -1,7 +1,6 @@
 package com.atlassian.braid.document;
 
 import com.atlassian.braid.java.util.BraidObjects;
-import com.atlassian.braid.mapper.MapperOperation;
 import graphql.language.Field;
 import graphql.language.FragmentDefinition;
 import graphql.language.FragmentSpread;
@@ -75,18 +74,6 @@ abstract class MappingContext {
 
     MappingContext forField(Field field) {
         throw new IllegalStateException();
-    }
-
-    public static class FragmentMapping {
-
-        final FragmentDefinition fragmentDefinition;
-        public final MapperOperation resultMapper;
-
-        public FragmentMapping(FragmentDefinition fragmentDefinition, MapperOperation resultMapper) {
-
-            this.fragmentDefinition = fragmentDefinition;
-            this.resultMapper = resultMapper;
-        }
     }
 
     static RootMappingContext rootContext(TypeDefinitionRegistry schema, List<TypeMapper> typeMappers) {

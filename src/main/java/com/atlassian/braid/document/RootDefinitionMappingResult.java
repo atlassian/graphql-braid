@@ -109,7 +109,6 @@ abstract class RootDefinitionMappingResult<D extends Definition> {
             super(definition, selections);
         }
 
-
         @Override
         OperationDefinition toDefinition() {
             return new OperationDefinition(

@@ -21,12 +21,16 @@ import static java.util.Objects.requireNonNull;
  * mapping results
  */
 final class SelectionSetMappingResult {
-    final SelectionSet selectionSet;
-    final MapperOperation resultMapper;
+    private final SelectionSet selectionSet;
+    private final MapperOperation resultMapper;
 
     SelectionSetMappingResult(SelectionSet selectionSet, MapperOperation resultMapper) {
         this.selectionSet = requireNonNull(selectionSet);
         this.resultMapper = requireNonNull(resultMapper);
+    }
+
+    public SelectionSet getSelectionSet() {
+        return selectionSet;
     }
 
     OperationResult toOperationResult(Field field, MappingContext mappingContext) {

@@ -9,9 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collector;
 
-import static com.atlassian.braid.mapper.MapperOperations.composed;
-import static com.atlassian.braid.mapper.Mappers.mapper;
-
 /**
  * <p>This is an intermediary <strong>internal</strong> <em>mutable</em> class used to collect GraphQL operations that
  * have been mapped.
@@ -29,7 +26,7 @@ final class MappedDefinitions {
         this.mappers = new ArrayList<>();
     }
 
-    private void add(RootDefinitionMappingResult result) {
+    private void add(RootDefinitionMappingResult<Definition> result) {
         definitions.add(result.toDefinition());
         mappers.addAll(result.getMapperOperations());
     }
