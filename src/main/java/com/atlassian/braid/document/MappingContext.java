@@ -4,6 +4,7 @@ import com.atlassian.braid.java.util.BraidObjects;
 import com.atlassian.braid.mapper.MapperOperation;
 import graphql.language.Field;
 import graphql.language.FragmentDefinition;
+import graphql.language.FragmentSpread;
 import graphql.language.ObjectTypeDefinition;
 import graphql.language.OperationDefinition;
 import graphql.language.OperationTypeDefinition;
@@ -32,26 +33,30 @@ abstract class MappingContext {
 
     private final TypeDefinitionRegistry schema;
     private final List<TypeMapper> typeMappers;
-    private final List<FragmentDefinition> fragmentMappings;
+    private final List<FragmentDefinition> fragmentDefinitions;
 
     MappingContext(MappingContext mappingContext) {
-        this(mappingContext.schema, mappingContext.typeMappers, mappingContext.fragmentMappings);
+        this(mappingContext.schema, mappingContext.typeMappers, mappingContext.fragmentDefinitions);
     }
 
     MappingContext(TypeDefinitionRegistry schema,
                    List<TypeMapper> typeMappers,
-                   List<FragmentDefinition> fragmentMappings) {
+                   List<FragmentDefinition> fragmentDefinitions) {
         this.schema = requireNonNull(schema);
         this.typeMappers = requireNonNull(typeMappers);
-        this.fragmentMappings = requireNonNull(fragmentMappings);
+        this.fragmentDefinitions = requireNonNull(fragmentDefinitions);
     }
 
     final Optional<TypeMapper> getTypeMapper() {
         return maybeFindTypeMapper(typeMappers, getObjectTypeDefinition());
     }
 
-    final Optional<FragmentDefinition> getFragmentMapping(String name) {
-        return fragmentMappings.stream().filter(fm -> fm.getName().equals(name)).findFirst();
+    private Optional<FragmentDefinition> maybeGetFragmentDefinition(String name) {
+        return fragmentDefinitions.stream().filter(fm -> fm.getName().equals(name)).findFirst();
+    }
+
+    final FragmentDefinition getFragmentDefinition(FragmentSpread fragmentSpread) {
+        return maybeGetFragmentDefinition(fragmentSpread.getName()).orElseThrow(IllegalStateException::new);
     }
 
     protected List<String> getPath() {

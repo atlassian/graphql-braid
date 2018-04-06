@@ -115,8 +115,8 @@ final class TypedDocumentMapper implements DocumentMapper {
     static OperationResult mapNode(MappingContext mappingContext, Field field) {
         return mappingContext.getTypeMapper()
                 .map(typeMapper -> typeMapper.apply(mappingContext, field.getSelectionSet()))
-                .map(mappingResult -> mappingResult.toFieldOperationResult(mappingContext, field))
-                .orElse(result(field));
+                .map(mappingResult -> mappingResult.toOperationResult(field, mappingContext))
+                .orElseGet(() -> result(field));
     }
 
 

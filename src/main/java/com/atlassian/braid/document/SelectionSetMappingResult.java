@@ -5,13 +5,14 @@ import com.atlassian.braid.mapper.Mapper;
 import com.atlassian.braid.mapper.MapperOperation;
 import com.atlassian.braid.mapper.MapperOperations;
 import graphql.language.Field;
+import graphql.language.FragmentSpread;
 import graphql.language.SelectionSet;
 
 import java.util.function.BiFunction;
 
-import static com.atlassian.braid.document.SelectionOperation.result;
 import static com.atlassian.braid.document.Fields.cloneFieldWithNewSelectionSet;
 import static com.atlassian.braid.document.Fields.getFieldAliasOrName;
+import static com.atlassian.braid.document.SelectionOperation.result;
 import static com.atlassian.braid.mapper.Mappers.mapper;
 import static java.util.Objects.requireNonNull;
 
@@ -28,10 +29,14 @@ final class SelectionSetMappingResult {
         this.resultMapper = requireNonNull(resultMapper);
     }
 
-    OperationResult toFieldOperationResult(MappingContext mappingContext, Field field) {
+    OperationResult toOperationResult(Field field, MappingContext mappingContext) {
         return result(
                 cloneFieldWithNewSelectionSet(field, selectionSet),
                 getMapperOperation(mappingContext).apply(getFieldAliasOrName(field), mapper(resultMapper)));
+    }
+
+    OperationResult toOperationResult(FragmentSpread fragmentSpread) {
+        return result(fragmentSpread, resultMapper);
     }
 
     private static BiFunction<String, Mapper, MapperOperation> getMapperOperation(MappingContext mappingContext) {
