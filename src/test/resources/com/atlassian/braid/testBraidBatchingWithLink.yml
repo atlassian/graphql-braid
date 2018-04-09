@@ -98,31 +98,25 @@ schemaSources:
     expected:
       # batching happens here
       - query: |
-          query Bulk_Bar($topbarid100: String) {
+          query Bulk_Bar($topbarid100: String, $topbarid101: String) {
               bar100: topbar(topbarid: $topbarid100) {
+                  myid
+                  title
+              }
+              bar101: topbar(topbarid: $topbarid101) {
                   myid
                   title
               }
           }
         variables:
           topbarid100: baz1
-      - query: |
-          query Bulk_Bar($topbarid100: String) {
-              bar100: topbar(topbarid: $topbarid100) {
-                  myid
-                  title
-              }
-          }
-        variables:
-          topbarid100: baz2
+          topbarid101: baz2
     response:
       - data:
           bar100:
             myid: baz1
             title: Baz1
-        errors: []
-      - data:
-          bar100:
+          bar101:
             myid: baz2
             title: Baz2
         errors: []

@@ -4,8 +4,8 @@ import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
-import com.atlassian.braid.document.DocumentMappers;
 import com.atlassian.braid.document.DocumentMapperFactory;
+import com.atlassian.braid.document.DocumentMappers;
 import graphql.ExecutionInput;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
@@ -28,7 +28,7 @@ import static java.util.Objects.requireNonNull;
  * Data source for an external graphql service.  Loads the schema on construction.
  */
 @SuppressWarnings("WeakerAccess")
-public final class GraphQLRemoteSchemaSource<C extends BraidContext> extends ForwardingSchemaSource<C> {
+public final class GraphQLRemoteSchemaSource<C extends BraidContext> extends ForwardingSchemaSource<C> implements QueryExecutorSchemaSource<C> {
 
     private final BaseQueryExecutorSchemaSource<C> delegate;
     private final GraphQLRemoteRetriever<C> graphQLRemoteRetriever;

@@ -1,10 +1,12 @@
 Changelog for graphql-braid
 ===============================
 
-(Unreleased)
+0.10.0 (Unreleased)
 -------------------
 
-- 
+- Update GraphQL Java to version 8.0 (from 7.0)
+- Update Java Dataloader to version 2.0.2 (from 2.0.1)
+- Add new LazyRecursiveDataLoaderDispatcherInstrumentation that optimises batch loading
 
 0.9.0 (2018-03-29)
 -------------------
