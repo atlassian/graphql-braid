@@ -1,7 +1,12 @@
 Changelog for graphql-braid
 ===============================
 
-0.10.0 (Unreleased)
+(Unreleased)
+-------------------
+
+- 
+
+0.9.1 (2018-04-09)
 -------------------
 
 - Update GraphQL Java to version 8.0 (from 7.0)
