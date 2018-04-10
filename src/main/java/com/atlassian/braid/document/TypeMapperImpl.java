@@ -1,25 +1,22 @@
 package com.atlassian.braid.document;
 
-import com.atlassian.braid.document.FieldOperation.FieldOperationResult;
+import com.atlassian.braid.document.SelectionOperation.OperationResult;
 import com.atlassian.braid.mapper.MapperOperation;
 import com.atlassian.braid.mapper.MapperOperations;
 import com.atlassian.braid.source.OptionalHelper;
-import graphql.language.Field;
 import graphql.language.ObjectTypeDefinition;
 import graphql.language.Selection;
 import graphql.language.SelectionSet;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import static com.atlassian.braid.java.util.BraidLists.concat;
-import static com.atlassian.braid.java.util.BraidObjects.cast;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
 /**
@@ -29,16 +26,19 @@ import static java.util.stream.Collectors.toList;
  */
 final class TypeMapperImpl implements TypeMapper {
 
+    private final static SelectionOperation FRAGMENT_OPERATION = new FragmentSpreadOperation();
+    private final static SelectionOperation INLINE_FRAGMENT_OPERATION = new InlineFragmentOperation();
+
     private final Predicate<ObjectTypeDefinition> predicate;
-    private final List<FieldOperation> fieldOperations;
+    private final List<SelectionOperation> selectionOperations;
 
     TypeMapperImpl(Predicate<ObjectTypeDefinition> predicate) {
         this(predicate, emptyList());
     }
 
-    TypeMapperImpl(Predicate<ObjectTypeDefinition> predicate, List<? extends FieldOperation> fieldOperations) {
+    TypeMapperImpl(Predicate<ObjectTypeDefinition> predicate, List<? extends SelectionOperation> selectionOperations) {
         this.predicate = requireNonNull(predicate);
-        this.fieldOperations = new ArrayList<>(requireNonNull(fieldOperations));
+        this.selectionOperations = new ArrayList<>(requireNonNull(selectionOperations));
     }
 
     @Override
@@ -56,8 +56,8 @@ final class TypeMapperImpl implements TypeMapper {
         return newTypeMapper(new PutFieldOperation(key, value));
     }
 
-    private TypeMapper newTypeMapper(FieldOperation fieldOperation) {
-        return new TypeMapperImpl(predicate, concat(fieldOperations, fieldOperation));
+    private TypeMapper newTypeMapper(SelectionOperation fieldOperation) {
+        return new TypeMapperImpl(predicate, concat(selectionOperations, fieldOperation));
     }
 
     @Override
@@ -69,37 +69,32 @@ final class TypeMapperImpl implements TypeMapper {
     public SelectionSetMappingResult apply(MappingContext mappingContext, SelectionSet selectionSet) {
         final List<Selection> outputSelections = new ArrayList<>();
 
-        final Map<Boolean, List<Selection>> fieldsAndNonFields =
-                selectionSet.getSelections().stream().collect(groupingBy(s -> s instanceof Field));
-
-        // take care of all non-Field selection
-        outputSelections.addAll(fieldsAndNonFields.getOrDefault(false, emptyList()));
-
-        // apply the type mapper to the selection fields
-        final List<FieldOperationResult> fieldOperationResults =
-                applyOperations(mappingContext, cast(fieldsAndNonFields.getOrDefault(true, emptyList())));
-
-        final MapperOperation mapper = fieldOperationResults.stream()
-                .peek(or -> or.getField().ifPresent(outputSelections::add))
-                .map(FieldOperationResult::getMapper)
+        // TODO nicer reduce...
+        final MapperOperation mapper = applyOperations(mappingContext, selectionSet.getSelections())
+                .stream()
+                .peek(or -> or.getSelection().ifPresent(outputSelections::add))
+                .map(OperationResult::getMapper)
                 .reduce((o1, o2) -> MapperOperations.composed(o1, o2))
                 .orElse(MapperOperations.noop());
-
 
         return new SelectionSetMappingResult(new SelectionSet(outputSelections), mapper);
     }
 
-    private List<FieldOperationResult> applyOperations(MappingContext mappingContext, List<Field> fields) {
-        return fields.stream()
-                .map(field -> applyOperation(mappingContext, field))
+    private List<OperationResult> applyOperations(MappingContext mappingContext, List<Selection> selections) {
+        return selections.stream()
+                .map(selection -> applyOperation(mappingContext, selection))
                 .flatMap(OptionalHelper::toStream)
                 .collect(toList());
     }
 
-    private Optional<FieldOperationResult> applyOperation(MappingContext mappingContext, Field field) {
-        return fieldOperations.stream()
-                .filter(operation -> operation.test(field))
+    private Optional<OperationResult> applyOperation(MappingContext mappingContext, Selection selection) {
+        return newSelectionOperationsStream()
+                .filter(operation -> operation.test(selection))
                 .findFirst()
-                .map(operation -> operation.apply(mappingContext, field));
+                .map(operation -> operation.apply(mappingContext, selection));
+    }
+
+    private Stream<SelectionOperation> newSelectionOperationsStream() {
+        return Stream.concat(selectionOperations.stream(), Stream.of(FRAGMENT_OPERATION, INLINE_FRAGMENT_OPERATION));
     }
 }

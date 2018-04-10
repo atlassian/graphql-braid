@@ -17,18 +17,8 @@ final class Fields {
     private Fields() {
     }
 
-    static ObjectTypeDefinition findObjectTypeDefinition(
-            TypeDefinitionRegistry schema, ObjectTypeDefinition parent, Field field) {
-        return maybeFindObjectTypeDefinition(schema, maybeGetTypeInfo(parent, field))
-                .orElseThrow(IllegalStateException::new);
-    }
-
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    static Optional<ObjectTypeDefinition> maybeFindObjectTypeDefinition(TypeDefinitionRegistry schema, Optional<TypeInfo> typeInfo) {
-        return typeInfo
-                .map(TypeInfo::getName)
-                .flatMap(schema::getType)
-                .map(ObjectTypeDefinition.class::cast);
+    static Optional<ObjectTypeDefinition> maybeFindObjectTypeDefinition(TypeDefinitionRegistry schema, TypeInfo typeInfo) {
+        return schema.getType(typeInfo.getName()).map(ObjectTypeDefinition.class::cast);
     }
 
     static Optional<TypeInfo> maybeGetTypeInfo(ObjectTypeDefinition parent, Field field) {

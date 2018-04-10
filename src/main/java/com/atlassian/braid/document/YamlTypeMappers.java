@@ -77,23 +77,23 @@ final class YamlTypeMappers {
                 fromYamlFieldOperations(yamlTypeMapper.operations));
     }
 
-    private static List<FieldOperation> fromYamlFieldOperations(List<YamlFieldOperation> operations) {
+    private static List<SelectionOperation> fromYamlFieldOperations(List<YamlFieldOperation> operations) {
         return operations.stream().map(YamlFieldOperation::get).collect(toList());
     }
 
     @SuppressWarnings("unused") // those are mapped dynamically
-    private enum YamlFieldOperationType implements BiFunction<String, Map<String, Object>, FieldOperation> {
+    private enum YamlFieldOperationType implements BiFunction<String, Map<String, Object>, SelectionOperation> {
         COPY((key, props) -> new CopyFieldOperation(key, getTargetKey(props, key))),
         PUT((key, props) -> new PutFieldOperation(key, cast(props.get("value"))));
 
-        private final BiFunction<String, Map<String, Object>, FieldOperation> getOperation;
+        private final BiFunction<String, Map<String, Object>, SelectionOperation> getOperation;
 
-        YamlFieldOperationType(BiFunction<String, Map<String, Object>, FieldOperation> getOperation) {
+        YamlFieldOperationType(BiFunction<String, Map<String, Object>, SelectionOperation> getOperation) {
             this.getOperation = getOperation;
         }
 
         @Override
-        public FieldOperation apply(String key, Map<String, Object> props) {
+        public SelectionOperation apply(String key, Map<String, Object> props) {
             return getOperation.apply(key, props);
         }
     }
@@ -108,7 +108,7 @@ final class YamlTypeMappers {
         }
     }
 
-    private static class YamlFieldOperation implements Supplier<FieldOperation> {
+    private static class YamlFieldOperation implements Supplier<SelectionOperation> {
 
         private final String key;
         private final String name;
@@ -130,7 +130,7 @@ final class YamlTypeMappers {
         }
 
         @Override
-        public FieldOperation get() {
+        public SelectionOperation get() {
             return getOperation().apply(key, props);
         }
     }
