@@ -1,6 +1,5 @@
 package com.atlassian.braid.source;
 
-import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
@@ -11,8 +10,8 @@ import org.dataloader.BatchLoader;
 
 import java.util.List;
 
-abstract class ForwardingSchemaSource<C extends BraidContext> implements SchemaSource<C> {
-    protected abstract SchemaSource<C> getDelegate();
+abstract class ForwardingSchemaSource implements SchemaSource {
+    protected abstract SchemaSource getDelegate();
 
     @Override
     public TypeDefinitionRegistry getSchema() {
@@ -35,7 +34,7 @@ abstract class ForwardingSchemaSource<C extends BraidContext> implements SchemaS
     }
 
     @Override
-    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
+    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource schemaSource, Link link) {
         return getDelegate().newBatchLoader(schemaSource, link);
     }
 }

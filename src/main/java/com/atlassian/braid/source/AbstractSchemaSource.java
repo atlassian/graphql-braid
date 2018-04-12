@@ -1,6 +1,5 @@
 package com.atlassian.braid.source;
 
-import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
@@ -11,16 +10,16 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-public abstract class AbstractSchemaSource<C extends BraidContext> implements SchemaSource<C> {
+public abstract class AbstractSchemaSource implements SchemaSource {
     private final SchemaNamespace namespace;
     private final TypeDefinitionRegistry schema;
     private final TypeDefinitionRegistry privateSchema;
     private final List<Link> links;
 
     public AbstractSchemaSource(SchemaNamespace namespace,
-                         TypeDefinitionRegistry schema,
-                         TypeDefinitionRegistry privateSchema,
-                         List<Link> links) {
+                                TypeDefinitionRegistry schema,
+                                TypeDefinitionRegistry privateSchema,
+                                List<Link> links) {
         this.namespace = requireNonNull(namespace);
         this.schema = requireNonNull(schema);
         this.privateSchema = requireNonNull(privateSchema);

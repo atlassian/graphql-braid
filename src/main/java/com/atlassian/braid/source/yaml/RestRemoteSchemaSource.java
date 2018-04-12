@@ -1,6 +1,5 @@
 package com.atlassian.braid.source.yaml;
 
-import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
@@ -30,7 +29,7 @@ import static java.util.Objects.requireNonNull;
  * Data source for an external REST service.
  */
 @SuppressWarnings("WeakerAccess")
-public final class RestRemoteSchemaSource<C extends BraidContext> extends AbstractSchemaSource<C> {
+public final class RestRemoteSchemaSource<C> extends AbstractSchemaSource {
 
     private final RestRemoteRetriever<C> remoteRetriever;
     private final Map<String, RootField> rootFields;
@@ -59,7 +58,7 @@ public final class RestRemoteSchemaSource<C extends BraidContext> extends Abstra
     }
 
     @Override
-    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
+    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource schemaSource, Link link) {
         return environments -> {
             List<CompletableFuture<DataFetcherResult<Object>>> results = new ArrayList<>();
             for (DataFetchingEnvironment env : environments) {

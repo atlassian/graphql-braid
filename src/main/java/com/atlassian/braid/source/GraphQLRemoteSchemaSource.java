@@ -1,6 +1,5 @@
 package com.atlassian.braid.source;
 
-import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
@@ -28,7 +27,7 @@ import static java.util.Objects.requireNonNull;
  * Data source for an external graphql service.  Loads the schema on construction.
  */
 @SuppressWarnings("WeakerAccess")
-public final class GraphQLRemoteSchemaSource<C extends BraidContext> extends ForwardingSchemaSource<C> implements QueryExecutorSchemaSource<C> {
+public final class GraphQLRemoteSchemaSource<C> extends ForwardingSchemaSource implements QueryExecutorSchemaSource {
 
     private final BaseQueryExecutorSchemaSource<C> delegate;
     private final GraphQLRemoteRetriever<C> graphQLRemoteRetriever;
@@ -58,7 +57,7 @@ public final class GraphQLRemoteSchemaSource<C extends BraidContext> extends For
     }
 
     @Override
-    protected SchemaSource<C> getDelegate() {
+    protected SchemaSource getDelegate() {
         return delegate;
     }
 

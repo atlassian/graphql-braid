@@ -1,6 +1,5 @@
 package com.atlassian.braid.source.yaml;
 
-import com.atlassian.braid.BraidContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -13,7 +12,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Simple remote retriever that retrieves data using the built-in HTTP client
  */
-public class HttpRestRemoteRetriever<C extends BraidContext> implements RestRemoteRetriever<C> {
+public class HttpRestRemoteRetriever<C> implements RestRemoteRetriever<C> {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Override

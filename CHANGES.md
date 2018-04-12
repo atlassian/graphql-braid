@@ -4,7 +4,9 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- Updates the Braid building and runtime configurations, see the README for more details  
 - Support GraphQL fragments when using document mapping
+
 
 0.9.1 (2018-04-09)
 -------------------

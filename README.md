@@ -17,7 +17,7 @@ For example, this configuration will combine two data sources:
 
 ```
 #!java
-Braid braid = new SchemaBraid().braid(SchemaBraidConfiguration.builder()
+Braid braid = Braid.builder()
         .schemaSource(new GraphQLRemoteSchemaSource(
                 SchemaNamespace.of("foo"),
                 new HttpGraphQLRemoteRetriever(new URL("http://foo.com/graphql")),
@@ -26,13 +26,16 @@ Braid braid = new SchemaBraid().braid(SchemaBraidConfiguration.builder()
                 SchemaNamespace.of("bar"),
                 new HttpGraphQLRemoteRetriever(new URL("http://bar.com/graphql")),
                 emptyList()))
-        .build());
+        .build();
         
 // then per request...
-GraphQL graphql = new GraphQL.Builder(braid.getSchema())
-        .instrumentation(new DataLoaderDispatcherInstrumentation(braid.newDataLoaderRegistry()))
-        .build();
+BraidGraphQL graphql = braid.newGraphQL();
+Object myContext = new Object();
+CompletableFuture<ExecutionResult> result = graphql.execute(newExecutionInput().query(...).context(myContext).build());
 ```
+
+Note that to get your context (`myContext` above) from a `DataFetchingEnvironment` you should now use `BraidContexts.get(env)`  
+as Braid sets (and uses) it own context (`BraidContext`) to run the queries.
 
 ### Using links
 
@@ -80,7 +83,7 @@ The usage of Braid to make this happen is:
 
 ```
 #!java
-Braid braid = new SchemaBraid().braid(SchemaBraidConfiguration.builder()
+Braid braid = Braid.builder()
         .schemaSource(new GraphQLRemoteSchemaSource(
                 SchemaNamespace.of("foo"),
                 new HttpGraphQLRemoteRetriever(new URL("http://foo.com/graphql")),
@@ -91,7 +94,7 @@ Braid braid = new SchemaBraid().braid(SchemaBraidConfiguration.builder()
                 SchemaNamespace.of("bar"),
                 new HttpGraphQLRemoteRetriever(new URL("http://bar.com/graphql")),
                 emptyList()))
-        .build());
+        .build();
 ```
 
 Braid currently only supports top-level query aggregation and simple links, but future work to support more link types is expected.

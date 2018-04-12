@@ -69,7 +69,7 @@ import static java.util.stream.Collectors.toMap;
 /**
  * Executes a query against the data source
  */
-class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
+class QueryExecutor<C> implements BatchLoaderFactory {
 
     private final QueryFunction<C> queryFunction;
 
@@ -78,19 +78,19 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
     }
 
     @Override
-    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
+    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource schemaSource, Link link) {
         return new QueryExecutorBatchLoader<>(BraidObjects.cast(schemaSource), link, queryFunction);
     }
 
-    private static class QueryExecutorBatchLoader<C extends BraidContext> implements BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> {
+    private static class QueryExecutorBatchLoader<C> implements BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> {
 
-        private final QueryExecutorSchemaSource<C> schemaSource;
+        private final QueryExecutorSchemaSource schemaSource;
 
         private final Link link; // nullable
 
-        private final QueryFunction<?> queryFunction;
+        private final QueryFunction<C> queryFunction;
 
-        private QueryExecutorBatchLoader(QueryExecutorSchemaSource<C> schemaSource, Link link, QueryFunction<?> queryFunction) {
+        private QueryExecutorBatchLoader(QueryExecutorSchemaSource schemaSource, Link link, QueryFunction<C> queryFunction) {
             this.schemaSource = requireNonNull(schemaSource);
             this.link = link;  // may be null
             this.queryFunction = requireNonNull(queryFunction);
@@ -126,7 +126,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                 List<FieldRequest> fields = new ArrayList<>();
                 List<Integer> usedCounterIds = new ArrayList<>();
 
-                Document queryDoc = new Parser().parseDocument(environment.<BraidContext>getContext().getQuery());
+                Document queryDoc = new Parser().parseDocument(environment.<BraidContext>getContext().getExecutionContext().getQuery());
                 OperationDefinition operationDefinition = findSingleOperationDefinition(queryDoc);
 
                 // add variable and argument for linked field identifier
@@ -207,8 +207,9 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                 queryResult = CompletableFuture.completedFuture(new DataFetcherResult<>(emptyMap(), emptyList()));
             } else {
                 ExecutionInput input = executeBatchQuery(doc, queryOp.getName(), variables);
+                final C context = BraidObjects.<BraidContext<C>>cast(environments.get(0).getContext()).getContext();
                 queryResult = queryFunction
-                        .query(input, environments.get(0).getContext());
+                        .query(input, context);
             }
             return queryResult;
         }
@@ -223,7 +224,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
             variables.put(variableName, targetId);
         }
 
-        private FieldRequest cloneField(SchemaSource<C> schemaSource, AtomicInteger counter, List<Integer> usedCounterIds,
+        private FieldRequest cloneField(SchemaSource schemaSource, AtomicInteger counter, List<Integer> usedCounterIds,
                                         DataFetchingEnvironment environment) {
             final Field field = cloneFieldBeingFetchedWithAlias(environment, createFieldAlias(counter.incrementAndGet()));
             usedCounterIds.add(counter.get());
@@ -244,7 +245,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                         .allMatch(f -> f.getName().equals(link.getTargetVariableQueryField()));
     }
 
-    private static VariableDefinition linkQueryVariableDefinition(Link link, String variableName, SchemaSource<?> schemaSource) {
+    private static VariableDefinition linkQueryVariableDefinition(Link link, String variableName, SchemaSource schemaSource) {
         return new VariableDefinition(variableName, findArgumentType(schemaSource, link));
     }
 
@@ -363,7 +364,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
                 .collect(singleton());
     }
 
-    private static Type findArgumentType(SchemaSource<?> schemaSource, Link link) {
+    private static Type findArgumentType(SchemaSource schemaSource, Link link) {
         return findQueryFieldDefinitions(schemaSource.getPrivateSchema())
                 .orElseThrow(IllegalStateException::new)
                 .stream()
@@ -392,7 +393,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
     /**
      * Ensures we only ask for fields the data source supports
      */
-    static <C extends BraidContext> void trimFieldSelection(SchemaSource<C> schemaSource, DataFetchingEnvironment environment, Field field) {
+    static void trimFieldSelection(SchemaSource schemaSource, DataFetchingEnvironment environment, Field field) {
         new GraphQLQueryVisitor() {
             GraphQLOutputType parentType = null;
             GraphQLOutputType lastFieldType = null;
@@ -562,7 +563,7 @@ class QueryExecutor<C extends BraidContext> implements BatchLoaderFactory<C> {
             final VariableReference value = new VariableReference(newName);
             final Type type = findVariableType(varRef, queryType);
 
-            variables.put(newName, environment.<BraidContext>getContext().getVariables().get(varRef.getName()));
+            variables.put(newName, environment.<BraidContext>getContext().getExecutionContext().getVariables().get(varRef.getName()));
             queryOp.getVariableDefinitions().add(new VariableDefinition(newName, type));
             return value;
         }

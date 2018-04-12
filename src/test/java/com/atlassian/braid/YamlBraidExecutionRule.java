@@ -1,7 +1,7 @@
 package com.atlassian.braid;
 
-import com.atlassian.braid.document.DocumentMappers;
 import com.atlassian.braid.document.DocumentMapperFactory;
+import com.atlassian.braid.document.DocumentMappers;
 import com.atlassian.braid.java.util.BraidMaps;
 import com.atlassian.braid.java.util.BraidObjects;
 import com.atlassian.braid.source.LocalQueryExecutingSchemaSource;
@@ -9,14 +9,11 @@ import com.atlassian.braid.source.MapGraphQLError;
 import com.google.common.base.Supplier;
 import graphql.ExecutionInput;
 import graphql.ExecutionResult;
-import graphql.GraphQL;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
-import graphql.execution.instrumentation.dataloader.LazyRecursiveDataLoaderDispatcherInstrumentation;
 import graphql.parser.Parser;
 import graphql.schema.idl.SchemaParser;
 import graphql.schema.idl.TypeDefinitionRegistry;
-import org.dataloader.DataLoaderRegistry;
 import org.junit.rules.MethodRule;
 import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.Statement;
@@ -37,8 +34,6 @@ import static com.atlassian.braid.java.util.BraidObjects.cast;
 import static com.atlassian.braid.source.yaml.YamlRemoteSchemaSourceFactory.getReplaceFromField;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Suppliers.memoize;
-import static graphql.GraphQL.newGraphQL;
-import static graphql.schema.idl.RuntimeWiring.newRuntimeWiring;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
@@ -65,32 +60,20 @@ public class YamlBraidExecutionRule implements MethodRule {
                 try {
                     TestConfiguration config = loadFromYaml(getYamlPath(method));
 
-                    braid = new SchemaBraid<>()
-                            .braid(SchemaBraidConfiguration.builder()
-                                    .schemaSources(loadSchemaSources(config))
-                                    .runtimeWiringBuilder(newRuntimeWiring()
-                                            .type("Fooable", wiring -> wiring.typeResolver(__ -> null)))
-                                    .build());
-
-                    final DataLoaderRegistry dataLoaderRegistry = braid.newDataLoaderRegistry();
-
-                    final GraphQL graphql = newGraphQL(braid.getSchema())
-                            .instrumentation(new LazyRecursiveDataLoaderDispatcherInstrumentation(dataLoaderRegistry))
+                    braid = Braid.builder()
+                            .withRuntimeWiring(rwb -> rwb.type("Fooable", wiring -> wiring.typeResolver(__ -> null)))
+                            .schemaSources(loadSchemaSources(config))
                             .build();
 
                     final TestQuery request = config.getRequest();
 
-                    final BraidContext context =
-                            new DefaultBraidContext(dataLoaderRegistry, request.getVariables(), request.getQuery());
-
                     ExecutionInput.Builder executionInputBuilder = ExecutionInput.newExecutionInput()
                             .query(request.getQuery())
-                            .variables(request.getVariables())
-                            .context(context);
+                            .variables(request.getVariables());
 
                     request.getOperation().ifPresent(executionInputBuilder::operationName);
 
-                    executionResult = graphql.execute(executionInputBuilder);
+                    executionResult = braid.newGraphQL().execute(executionInputBuilder.build()).join();
 
                     Map<String, Object> response = config.getResponse();
 
@@ -105,10 +88,10 @@ public class YamlBraidExecutionRule implements MethodRule {
         };
     }
 
-    private List<SchemaSource<BraidContext>> loadSchemaSources(TestConfiguration config) {
+    private List<SchemaSource> loadSchemaSources(TestConfiguration config) {
         return config.getSchemaSources()
                 .stream()
-                .map(schemaSource -> new LocalQueryExecutingSchemaSource<>(
+                .map(schemaSource -> new LocalQueryExecutingSchemaSource(
                         schemaSource.getNamespace(),
                         schemaSource.getTypeDefinitionRegistry(),
                         getLinks(schemaSource),

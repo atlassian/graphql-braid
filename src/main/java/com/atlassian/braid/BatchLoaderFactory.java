@@ -8,9 +8,8 @@ import java.util.Map;
 
 /**
  * Builds a new {@link BatchLoader} instance for a source and optional link
- * @param <C> the context type
  */
-public interface BatchLoaderFactory<C extends BraidContext> {
+public interface BatchLoaderFactory {
 
     /**
      * Builds a new batch loader
@@ -19,7 +18,5 @@ public interface BatchLoaderFactory<C extends BraidContext> {
      * @param link         the link, may be null
      * @return a new loader instance
      */
-    BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(
-            SchemaSource<C> schemaSource,
-            Link link);
+    BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource schemaSource, Link link);
 }

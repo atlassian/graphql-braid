@@ -1,12 +1,11 @@
 package com.atlassian.braid.source;
 
-import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
 import com.atlassian.braid.document.DocumentMapper;
-import com.atlassian.braid.document.DocumentMappers;
 import com.atlassian.braid.document.DocumentMapperFactory;
+import com.atlassian.braid.document.DocumentMappers;
 import graphql.ExecutionInput;
 import graphql.execution.DataFetcherResult;
 import graphql.schema.idl.TypeDefinitionRegistry;
@@ -29,8 +28,8 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
  * Local schema source
  */
 @SuppressWarnings("WeakerAccess")
-public final class LocalQueryExecutingSchemaSource<C extends BraidContext> extends ForwardingSchemaSource<C> implements QueryExecutorSchemaSource<C> {
-    private final BaseQueryExecutorSchemaSource<C> delegate;
+public final class LocalQueryExecutingSchemaSource extends ForwardingSchemaSource implements QueryExecutorSchemaSource {
+    private final BaseQueryExecutorSchemaSource delegate;
     private final Function<ExecutionInput, Object> queryExecutor;
 
     public LocalQueryExecutingSchemaSource(SchemaNamespace namespace,
@@ -62,7 +61,7 @@ public final class LocalQueryExecutingSchemaSource<C extends BraidContext> exten
     }
 
     @Override
-    protected SchemaSource<C> getDelegate() {
+    protected SchemaSource getDelegate() {
         return delegate;
     }
 
@@ -71,7 +70,7 @@ public final class LocalQueryExecutingSchemaSource<C extends BraidContext> exten
         return delegate.getDocumentMapper();
     }
 
-    private CompletableFuture<DataFetcherResult<Map<String, Object>>> query(ExecutionInput executionInput, C context) {
+    private <C> CompletableFuture<DataFetcherResult<Map<String, Object>>> query(ExecutionInput executionInput, C context) {
         final Object result = queryExecutor.apply(transformExecutionInput(executionInput, context));
         if (result instanceof DataFetcherResult) {
             return completedFuture((cast(result)));
@@ -84,7 +83,7 @@ public final class LocalQueryExecutingSchemaSource<C extends BraidContext> exten
         }
     }
 
-    private ExecutionInput transformExecutionInput(ExecutionInput executionInput, C context) {
+    private <C> ExecutionInput transformExecutionInput(ExecutionInput executionInput, C context) {
         return executionInput.transform(builder -> builder.context(context));
     }
 

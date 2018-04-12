@@ -4,12 +4,9 @@ import com.atlassian.braid.source.LocalQueryExecutingSchemaSource;
 import com.google.common.collect.ImmutableMap;
 import graphql.ExecutionInput;
 import graphql.ExecutionResult;
-import graphql.GraphQL;
 import graphql.execution.DataFetcherResult;
-import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation;
 import graphql.schema.idl.TypeDefinitionRegistry;
 import org.dataloader.BatchLoader;
-import org.dataloader.DataLoaderRegistry;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
@@ -26,9 +23,7 @@ import java.util.function.Supplier;
 import static com.atlassian.braid.Util.getResourceAsReader;
 import static com.atlassian.braid.Util.parseRegistry;
 import static graphql.ExecutionInput.newExecutionInput;
-import static graphql.schema.idl.RuntimeWiring.newRuntimeWiring;
 import static java.util.Collections.emptyList;
-import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static org.junit.Assert.assertEquals;
@@ -42,7 +37,7 @@ import static org.mockito.Mockito.withSettings;
 
 
 @SuppressWarnings("unchecked")
-public class SchemaBraidConsumerTest {
+public class BraidSchemaConsumerTest {
 
     private static final SchemaNamespace FOO = SchemaNamespace.of("foo");
 
@@ -54,27 +49,19 @@ public class SchemaBraidConsumerTest {
 
     @Test
     public void testBraidWithExistingTypes() {
-
-
         final TypeDefinitionRegistry existingRegistry = parseRegistry("/com/atlassian/braid/existing.graphql");
         final Supplier<Reader> fooRegistry = () -> getResourceAsReader("/com/atlassian/braid/foo.graphql");
 
-        Braid braid = new SchemaBraid<>()
-                .braid(SchemaBraidConfiguration.builder()
-                        .typeDefinitionRegistry(existingRegistry)
-                        .runtimeWiringBuilder(newRuntimeWiring())
-                        .schemaSource(new LocalQueryExecutingSchemaSource<>(FOO, fooRegistry, queryExecutor))
-                        .build());
-
-        DataLoaderRegistry dataLoaderRegistry = braid.newDataLoaderRegistry();
-
-        GraphQL graphql = new GraphQL.Builder(braid.getSchema())
-                .instrumentation(new DataLoaderDispatcherInstrumentation(dataLoaderRegistry))
+        Braid braid = Braid.builder()
+                .typeDefinitionRegistry(existingRegistry)
+                .schemaSource(new LocalQueryExecutingSchemaSource(FOO, fooRegistry, queryExecutor))
                 .build();
+
+        final Braid.BraidGraphQL graphql = braid.newGraphQL();
 
         String query = "{ foo(id: \"fooid\") { id, name } }";
 
-        final BraidContext context = new DefaultBraidContext(dataLoaderRegistry, emptyMap(), query);
+        final Object context = new Object();
 
         ExecutionInput fooInput = newExecutionInput()
                 .query("query Bulk_Foo {\n" +
@@ -90,7 +77,7 @@ public class SchemaBraidConsumerTest {
         when(queryExecutor.apply(argThat(matchesInput(fooInput))))
                 .thenReturn(singletonMap("foo100", ImmutableMap.of("id", "fooid", "name", "Foo")));
 
-        final ExecutionResult result = graphql.execute(newExecutionInput().query(query).context(context));
+        final ExecutionResult result = graphql.execute(newExecutionInput().query(query).context(context).build()).join();
 
         verify(queryExecutor, times(1)).apply(argThat(matchesInput(fooInput)));
         assertEquals(emptyList(), result.getErrors());
@@ -106,8 +93,7 @@ public class SchemaBraidConsumerTest {
         final TypeDefinitionRegistry existingRegistry = parseRegistry("/com/atlassian/braid/existing.graphql");
         final TypeDefinitionRegistry fooRegistry = parseRegistry("/com/atlassian/braid/foo.graphql");
 
-        SchemaSource localSource = mock(SchemaSource.class, withSettings()
-                .extraInterfaces(BatchLoaderFactory.class));
+        SchemaSource localSource = mock(SchemaSource.class, withSettings().extraInterfaces(BatchLoaderFactory.class));
         when(localSource.getNamespace()).thenReturn(FOO);
         when(localSource.getSchema()).thenReturn(fooRegistry);
         BatchLoader loader = mock(BatchLoader.class);
@@ -115,25 +101,19 @@ public class SchemaBraidConsumerTest {
                 singletonList(new DataFetcherResult(
                         ImmutableMap.of("id", "fooid", "name", "Foo"),
                         emptyList()))));
-        when(((BatchLoaderFactory) localSource).newBatchLoader(any(), any())).thenReturn(loader);
+        when(localSource.newBatchLoader(any(), any())).thenReturn(loader);
 
-        Braid braid = new SchemaBraid<>()
-                .braid(SchemaBraidConfiguration.builder()
-                        .typeDefinitionRegistry(existingRegistry)
-                        .runtimeWiringBuilder(newRuntimeWiring())
-                        .schemaSource(localSource)
-                        .build());
 
-        DataLoaderRegistry dataLoaderRegistry = braid.newDataLoaderRegistry();
-
-        GraphQL graphql = new GraphQL.Builder(braid.getSchema())
-                .instrumentation(new DataLoaderDispatcherInstrumentation(dataLoaderRegistry))
+        Braid braid = Braid.builder()
+                .typeDefinitionRegistry(existingRegistry)
+                .schemaSource(localSource)
                 .build();
+
+        Braid.BraidGraphQL graphql = braid.newGraphQL();
 
         String query = "{ foo(id: \"fooid\") { id, name } }";
 
-        final BraidContext context = new DefaultBraidContext(dataLoaderRegistry, emptyMap(), query);
-        final ExecutionResult result = graphql.execute(newExecutionInput().query(query).context(context));
+        final ExecutionResult result = graphql.execute(newExecutionInput().query(query).build()).join();
 
         assertEquals(emptyList(), result.getErrors());
 

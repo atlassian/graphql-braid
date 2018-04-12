@@ -5,23 +5,33 @@ import org.dataloader.DataLoaderRegistry;
 import java.util.Map;
 
 /**
- * Marks that context that provides access to the {@link DataLoaderRegistry}
+ * <p>Defines the context of Braid GraphQL execution, from which the underlying context can be retrieved.
+ * <p>Note: this class is for Braid's internal usage, and should not be used directly. Use methods on
+ * {@link BraidContexts} to access context information
+ *
+ * @see BraidContexts
  */
-public interface BraidContext {
+public interface BraidContext<C> {
 
-    /**
-     * @return the data loader registry for this request, since new instances may be created per-request.
-     */
-    DataLoaderRegistry getDataLoaderRegistry();
+    BraidExecutionContext getExecutionContext();
 
-    /**
-     * @return the original variables
-     */
-    Map<String, Object> getVariables();
+    C getContext();
 
-    /**
-     * @return the original query
-     */
-    String getQuery();
+    interface BraidExecutionContext {
 
+        /**
+         * @return the data loader registry for this request, since new instances may be created per-request.
+         */
+        DataLoaderRegistry getDataLoaderRegistry();
+
+        /**
+         * @return the original variables
+         */
+        Map<String, Object> getVariables();
+
+        /**
+         * @return the original query
+         */
+        String getQuery();
+    }
 }

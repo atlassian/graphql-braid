@@ -1,6 +1,5 @@
 package com.atlassian.braid.source.yaml;
 
-import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
@@ -29,7 +28,8 @@ import static java.util.stream.Collectors.toMap;
  */
 public class YamlRemoteSchemaSourceFactory {
 
-    public static <C extends BraidContext> RestRemoteSchemaSource<C> createRestSource(Reader source, RestRemoteRetriever<C> restRemoteRetriever) {
+    public static <C> RestRemoteSchemaSource<C> createRestSource(Reader source,
+                                                                 RestRemoteRetriever<C> restRemoteRetriever) {
         final Map<String, Object> m = loadYamlMap(source);
 
         SchemaNamespace namespace = SchemaNamespace.of((String) m.get("name"));
@@ -57,7 +57,7 @@ public class YamlRemoteSchemaSourceFactory {
                 buildTopLevelFields(m));
     }
 
-    public static <C extends BraidContext> SchemaSource<C> createGraphQLSource(Reader source, GraphQLRemoteRetriever<C> graphQLRemoteRetriever) {
+    public static <C> SchemaSource createGraphQLSource(Reader source, GraphQLRemoteRetriever<C> graphQLRemoteRetriever) {
         Map<String, Object> m = loadYamlMap(source);
 
         SchemaNamespace namespace = SchemaNamespace.of((String) m.get("name"));

@@ -1,8 +1,6 @@
 package com.atlassian.braid
 
 import com.atlassian.braid.source.yaml.YamlRemoteSchemaSourceFactory
-import graphql.GraphQL
-import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation
 import org.junit.Ignore
 import org.junit.Test
 
@@ -99,16 +97,10 @@ schema: |
         def bbCommits = YamlRemoteSchemaSourceFactory.createRestSource(new StringReader(bbCommitsYaml))
         def bbFollowers = YamlRemoteSchemaSourceFactory.createRestSource(new StringReader(bbFollowersYaml))
 
-        def braid = new SchemaBraid<>()
-                .braid(SchemaBraidConfiguration.builder()
+
+        def braid = Braid.builder()
                 .schemaSource(bbCommits)
                 .schemaSource(bbFollowers)
-                .build())
-
-        def dataLoaderRegistry = braid.newDataLoaderRegistry();
-
-        def graphql = new GraphQL.Builder(braid.getSchema())
-                .instrumentation(new DataLoaderDispatcherInstrumentation(dataLoaderRegistry))
                 .build()
 
         def query = '''
@@ -124,8 +116,7 @@ schema: |
          } } } } } }
 '''
 
-        def context = new DefaultBraidContext(dataLoaderRegistry, emptyMap(), query)
-        def result = graphql.execute(newExecutionInput().query(query).context(context))
+        def result = braid.newGraphQL().execute(newExecutionInput().query(query).build()).join()
         assert result.errors == new ArrayList()
         println(prettyPrint(toJson(result.data)))
     }

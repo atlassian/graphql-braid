@@ -1,7 +1,6 @@
 package com.atlassian.braid.source;
 
 
-import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.SchemaSource;
 import graphql.language.Argument;
 import graphql.language.Document;
@@ -38,10 +37,10 @@ public class QueryExecutorTest {
     public final MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock
-    private QueryFunction<BraidContext> queryFunction;
+    private QueryFunction<?> queryFunction;
 
     @Mock
-    private SchemaSource<BraidContext> source;
+    private SchemaSource source;
 
     @Mock
     private DataFetchingEnvironment env;
@@ -54,7 +53,7 @@ public class QueryExecutorTest {
         GraphQLSchema schema = new SchemaGenerator().makeExecutableSchema(registry, RuntimeWiring.newRuntimeWiring().build());
         when(env.getFieldType()).thenReturn(schema.getObjectType("Bar"));
         when(env.getParentType()).thenReturn(schema.getObjectType("Blah"));
-        QueryExecutor<BraidContext> queryExecutor = new QueryExecutor<>(queryFunction);
+        QueryExecutor<?> queryExecutor = new QueryExecutor<>(queryFunction);
 
         Document query = new Parser().parseDocument("query {foo(id:fooid){id, title, baz, mylist {name}}}");
         Field fooField = (Field) ((OperationDefinition) query.getDefinitions().get(0)).getSelectionSet().getSelections().stream().filter(d -> d instanceof Field && ((Field) d).getName().equals("foo")).findFirst().get();
@@ -69,7 +68,7 @@ public class QueryExecutorTest {
 
         Field parent = new Field("parent", new SelectionSet(singletonList(new FragmentSpread("Frag"))));
 
-        QueryExecutor<BraidContext> queryExecutor = new QueryExecutor<>(queryFunction);
+        QueryExecutor<?> queryExecutor = new QueryExecutor<>(queryFunction);
         FragmentDefinition clonedFrag = (FragmentDefinition) queryExecutor.processForFragments(env, parent).iterator().next();
         assertEquals(clonedFrag.getName(), frag.getName());
         assertEquals(clonedFrag.toString(), frag.toString());

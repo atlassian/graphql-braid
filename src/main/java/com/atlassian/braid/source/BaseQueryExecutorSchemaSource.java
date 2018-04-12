@@ -1,6 +1,5 @@
 package com.atlassian.braid.source;
 
-import com.atlassian.braid.BraidContext;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
@@ -16,7 +15,7 @@ import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 
-final class BaseQueryExecutorSchemaSource<C extends BraidContext> extends AbstractSchemaSource<C> implements QueryExecutorSchemaSource<C> {
+final class BaseQueryExecutorSchemaSource<C> extends AbstractSchemaSource implements QueryExecutorSchemaSource {
 
     private final QueryExecutor<C> queryExecutor;
     private final Function<TypeDefinitionRegistry, DocumentMapper> documentMapper;
@@ -47,12 +46,10 @@ final class BaseQueryExecutorSchemaSource<C extends BraidContext> extends Abstra
         super(namespace, schema, privateSchema, links);
         this.queryExecutor = requireNonNull(queryExecutor);
         this.documentMapper = requireNonNull(documentMapper);
-
     }
 
-
     @Override
-    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource<C> schemaSource, Link link) {
+    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource schemaSource, Link link) {
         return queryExecutor.newBatchLoader(schemaSource, link);
     }
 

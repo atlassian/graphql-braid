@@ -5,9 +5,9 @@ import graphql.schema.idl.TypeDefinitionRegistry;
 import java.util.List;
 
 /**
- * A data source that contains a schema to be merged via {@link SchemaBraid}
+ * A data source that contains a schema to be merged via {@link BraidSchema}
  */
-public interface SchemaSource<C extends BraidContext> extends BatchLoaderFactory<C> {
+public interface SchemaSource extends BatchLoaderFactory {
 
     /**
      * @return the public schema document to be braided
