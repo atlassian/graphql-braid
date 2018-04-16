@@ -4,7 +4,7 @@ import graphql.execution.DataFetcherResult;
 import graphql.schema.DataFetchingEnvironment;
 import org.dataloader.BatchLoader;
 
-import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Builds a new {@link BatchLoader} instance for a source and optional link
@@ -18,5 +18,6 @@ public interface BatchLoaderFactory {
      * @param link         the link, may be null
      * @return a new loader instance
      */
-    BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource schemaSource, Link link);
+    BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource schemaSource,
+                                                                                   @Nullable Link link);
 }

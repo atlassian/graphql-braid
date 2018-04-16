@@ -20,6 +20,7 @@ import org.dataloader.BatchLoader;
 import org.dataloader.DataLoader;
 import org.dataloader.DataLoaderRegistry;
 
+import javax.annotation.Nonnull;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -68,6 +69,7 @@ public final class Braid {
      *
      * @return a new {@link BraidGraphQL} instance
      */
+    @Nonnull
     public BraidGraphQL newGraphQL() {
         return new BraidGraphQL(
                 () -> dataLoaderRegistryFactory.apply(braidSchema),
@@ -89,6 +91,7 @@ public final class Braid {
          * @param executionInput {@link ExecutionInput}
          * @return a promise to an {@link ExecutionResult} which can include errors
          */
+        @Nonnull
         public CompletableFuture<ExecutionResult> execute(ExecutionInput executionInput) {
             final GraphQL graphQL = this.graphQLFactory.apply(dlr);
 
