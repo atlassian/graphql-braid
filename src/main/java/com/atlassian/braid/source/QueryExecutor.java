@@ -39,6 +39,7 @@ import graphql.schema.GraphQLSchema;
 import graphql.schema.GraphQLType;
 import org.dataloader.BatchLoader;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -78,7 +79,8 @@ class QueryExecutor<C> implements BatchLoaderFactory {
     }
 
     @Override
-    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource schemaSource, Link link) {
+    public BatchLoader<DataFetchingEnvironment, DataFetcherResult<Object>> newBatchLoader(SchemaSource schemaSource,
+                                                                                          @Nullable Link link) {
         return new QueryExecutorBatchLoader<>(BraidObjects.cast(schemaSource), link, queryFunction);
     }
 
@@ -86,13 +88,14 @@ class QueryExecutor<C> implements BatchLoaderFactory {
 
         private final QueryExecutorSchemaSource schemaSource;
 
-        private final Link link; // nullable
+        @Nullable
+        private final Link link;
 
         private final QueryFunction<C> queryFunction;
 
-        private QueryExecutorBatchLoader(QueryExecutorSchemaSource schemaSource, Link link, QueryFunction<C> queryFunction) {
+        private QueryExecutorBatchLoader(QueryExecutorSchemaSource schemaSource, @Nullable Link link, QueryFunction<C> queryFunction) {
             this.schemaSource = requireNonNull(schemaSource);
-            this.link = link;  // may be null
+            this.link = link;
             this.queryFunction = requireNonNull(queryFunction);
         }
 
