@@ -148,7 +148,7 @@ final class BraidSchema {
         }
 
         private static DataLoaderRegistry getDataLoaderRegistry(DataFetchingEnvironment env) {
-            return getContext(env).getExecutionContext().getDataLoaderRegistry();
+            return getContext(env).getDataLoaderRegistry();
         }
 
         private static BraidContext getContext(DataFetchingEnvironment env) {

@@ -271,7 +271,7 @@ class QueryExecutor<C> implements BatchLoaderFactory {
     }
 
     private static Document getQuery(DataFetchingEnvironment environment) {
-        return new Parser().parseDocument(environment.<BraidContext>getContext().getExecutionContext().getQuery());
+        return environment.<BraidContext>getContext().getExecutionContext().getDocument();
     }
 
     private static boolean isTargetIdNullAndCannotQueryLinkWithNull(Object targetId, Link link) {
