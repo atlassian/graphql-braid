@@ -5,12 +5,15 @@ import graphql.ExecutionInput;
 import graphql.ExecutionResult;
 import graphql.GraphQL;
 import graphql.execution.AsyncExecutionStrategy;
+import graphql.execution.ExecutionContext;
 import graphql.execution.ExecutionId;
 import graphql.execution.ExecutionIdProvider;
 import graphql.execution.ExecutionStrategy;
 import graphql.execution.instrumentation.ChainedInstrumentation;
 import graphql.execution.instrumentation.Instrumentation;
+import graphql.execution.instrumentation.SimpleInstrumentation;
 import graphql.execution.instrumentation.dataloader.LazyRecursiveDataLoaderDispatcherInstrumentation;
+import graphql.execution.instrumentation.parameters.InstrumentationExecutionParameters;
 import graphql.execution.preparsed.NoOpPreparsedDocumentProvider;
 import graphql.execution.preparsed.PreparsedDocumentProvider;
 import graphql.schema.GraphQLSchema;
@@ -33,6 +36,7 @@ import java.util.function.Supplier;
 
 import static com.atlassian.braid.java.util.BraidLists.concat;
 import static graphql.schema.idl.RuntimeWiring.newRuntimeWiring;
+import static java.util.Arrays.asList;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -95,9 +99,8 @@ public final class Braid {
         public CompletableFuture<ExecutionResult> execute(ExecutionInput executionInput) {
             final GraphQL graphQL = this.graphQLFactory.apply(dlr);
 
-            final ExecutionInput newInput = executionInput.transform(builder -> {
-                builder.context(new DefaultBraidContext<>(dlr, executionInput.getVariables(), executionInput.getQuery(), executionInput.getContext()));
-            });
+            final ExecutionInput newInput = executionInput
+                    .transform(builder -> builder.context(new MutableBraidContext<>(dlr, executionInput.getContext())));
 
             return graphQL.executeAsync(newInput);
         }
@@ -320,7 +323,9 @@ public final class Braid {
 
     private static ChainedInstrumentation chainInstrumenationsAndAddDataLoaderDispatcher(
             List<Instrumentation> instrumentations, DataLoaderRegistry dlr) {
-        return new ChainedInstrumentation(concat(instrumentations, new LazyRecursiveDataLoaderDispatcherInstrumentation(dlr)));
+        return new ChainedInstrumentation(concat(
+                instrumentations,
+                asList(new LazyRecursiveDataLoaderDispatcherInstrumentation(dlr), new MutableBraidContextInstrumentation())));
     }
 
     private static Function<BraidSchema, DataLoaderRegistry> dataLoaderRegistryFactory() {
@@ -365,6 +370,13 @@ public final class Braid {
 
         public Optional<ExecutionStrategy> getSubscriptionExecutionStrategy() {
             return Optional.ofNullable(subscriptionExecutionStrategy);
+        }
+    }
+
+    private static class MutableBraidContextInstrumentation extends SimpleInstrumentation {
+        @Override
+        public ExecutionContext instrumentExecutionContext(ExecutionContext executionContext, InstrumentationExecutionParameters parameters) {
+            return ((MutableBraidContext<?>) parameters.getContext()).setExecutionContext(executionContext);
         }
     }
 }
