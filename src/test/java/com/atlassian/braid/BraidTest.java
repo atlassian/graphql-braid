@@ -137,6 +137,10 @@ public class BraidTest {
     }
 
     @Test
+    public void testBraidWithLinkWithinFragment() {
+    }
+
+    @Test
     public void testBraidWithNullFromField() {
     }
 

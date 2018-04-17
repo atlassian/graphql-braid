@@ -13,6 +13,9 @@ import graphql.language.StringValue;
 import graphql.language.TypeName;
 import graphql.parser.Parser;
 import graphql.schema.DataFetchingEnvironment;
+import graphql.schema.GraphQLFieldDefinition;
+import graphql.schema.GraphQLObjectType;
+import graphql.schema.GraphQLOutputType;
 import graphql.schema.GraphQLSchema;
 import graphql.schema.idl.RuntimeWiring;
 import graphql.schema.idl.SchemaGenerator;
@@ -29,6 +32,8 @@ import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class QueryExecutorTest {
@@ -65,11 +70,17 @@ public class QueryExecutorTest {
         FragmentDefinition frag = new FragmentDefinition("Frag", new TypeName("OnType"));
         frag.setSelectionSet(new SelectionSet(singletonList(new Field("foo", singletonList(new Argument("id", new StringValue("fooid")))))));
         when(env.getFragmentsByName()).thenReturn(singletonMap("Frag", frag));
-
+        final GraphQLSchema mockSchema = mock(GraphQLSchema.class);
+        final GraphQLObjectType fragmentDefinitionOutputType = mock(GraphQLObjectType.class);
+        final GraphQLFieldDefinition mock = mock(GraphQLFieldDefinition.class);
+        when(fragmentDefinitionOutputType.getFieldDefinition(anyString())).thenReturn(mock);
+        when(env.getGraphQLSchema()).thenReturn(mockSchema);
+        when(mockSchema.getObjectType(anyString())).thenReturn(fragmentDefinitionOutputType);
+        when(fragmentDefinitionOutputType.getName()).thenReturn("OnType");
         Field parent = new Field("parent", new SelectionSet(singletonList(new FragmentSpread("Frag"))));
 
         QueryExecutor<?> queryExecutor = new QueryExecutor<>(queryFunction);
-        FragmentDefinition clonedFrag = (FragmentDefinition) queryExecutor.processForFragments(env, parent).iterator().next();
+        FragmentDefinition clonedFrag = (FragmentDefinition) queryExecutor.processForFragments(source, env, parent).iterator().next();
         assertEquals(clonedFrag.getName(), frag.getName());
         assertEquals(clonedFrag.toString(), frag.toString());
         assertTrue(clonedFrag != frag);

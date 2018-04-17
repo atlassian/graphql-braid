@@ -11,6 +11,7 @@ import com.atlassian.braid.java.util.BraidObjects;
 import graphql.ExecutionInput;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
+import graphql.language.AbstractNode;
 import graphql.language.Argument;
 import graphql.language.Definition;
 import graphql.language.Document;
@@ -130,7 +131,7 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                 List<FieldRequest> fields = new ArrayList<>();
                 List<Integer> usedCounterIds = new ArrayList<>();
 
-                Document queryDoc = new Parser().parseDocument(environment.<BraidContext>getContext().getExecutionContext().getQuery());
+                Document queryDoc = getQuery(environment);
                 OperationDefinition operationDefinition = findSingleOperationDefinition(queryDoc);
 
                 // add variable and argument for linked field identifier
@@ -230,7 +231,7 @@ class QueryExecutor<C> implements BatchLoaderFactory {
         private void addFieldToQuery(Document doc, OperationDefinition queryOp, Map<String, Object> variables, DataFetchingEnvironment environment, OperationDefinition operationDefinition, FieldRequest field) {
             final GraphQLQueryVisitor variableNameSpacer =
                     new VariableNamespacingGraphQLQueryVisitor(field.counter, operationDefinition, variables, environment, queryOp);
-            processForFragments(environment, field.field).forEach(d -> {
+            processForFragments(schemaSource, environment, field.field).forEach(d -> {
                 variableNameSpacer.visit(d);
                 doc.getDefinitions().add(d);
             });
@@ -269,6 +270,10 @@ class QueryExecutor<C> implements BatchLoaderFactory {
         }
     }
 
+    private static Document getQuery(DataFetchingEnvironment environment) {
+        return new Parser().parseDocument(environment.<BraidContext>getContext().getExecutionContext().getQuery());
+    }
+
     private static boolean isTargetIdNullAndCannotQueryLinkWithNull(Object targetId, Link link) {
         return targetId == null && !link.isNullable();
     }
@@ -297,7 +302,6 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                                                                    Operation operationType) {
         return new OperationDefinition(newBulkOperationName(fieldType), operationType, new SelectionSet());
     }
-
 
     private static String newBulkOperationName(GraphQLOutputType fieldType) {
         String type;
@@ -412,15 +416,26 @@ class QueryExecutor<C> implements BatchLoaderFactory {
     /**
      * Ensures we only ask for fields the data source supports
      */
-    static void trimFieldSelection(SchemaSource schemaSource, DataFetchingEnvironment environment, Field field) {
+    static void trimFieldSelection(SchemaSource schemaSource, DataFetchingEnvironment environment, AbstractNode root) {
         new GraphQLQueryVisitor() {
             GraphQLOutputType parentType = null;
             GraphQLOutputType lastFieldType = null;
 
+
+            @Override
+            protected void visitFragmentDefinition(FragmentDefinition node) {
+                if (node == root) {
+                    final FragmentDefinition fd = (FragmentDefinition) root;
+                    parentType = lastFieldType = environment.getGraphQLSchema().getObjectType(fd.getTypeCondition().getName());
+                }
+                super.visitFragmentDefinition(node);
+            }
+
             @Override
             protected void visitField(Field node) {
                 GraphQLType type;
-                if (node == field) {
+                if (node == root) {
+                    final Field field = (Field) root;
                     type = environment.getFieldType();
                     parentType = (GraphQLObjectType) environment.getParentType();
                     Optional<Link> linkWithDifferentFromField = getLinkWithDifferentFromField(schemaSource.getLinks(), parentType.getName(), field.getName());
@@ -458,7 +473,7 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                     parentType = lastFieldType;
                     for (final Node child : node.getChildren()) {
 
-                        // process child to handle cases where the source from field is different than the source field
+                        // process child to handle cases where the source from root is different than the source root
                         if (child instanceof Field) {
                             Optional<Link> linkWithDifferentFromField = getLinkWithDifferentFromField(schemaSource.getLinks(), parentType.getName(), ((Field) child).getName());
                             if (linkWithDifferentFromField.isPresent()) {
@@ -489,19 +504,20 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                         .findAny()
                         .ifPresent(s -> node.getSelections().remove(s));
             }
-        }.visit(field);
+        }.visit(root);
     }
 
     /**
      * Ensures any referenced fragments are included in the query
      */
-    static Collection<Definition> processForFragments(DataFetchingEnvironment environment, Field field) {
+    static Collection<Definition> processForFragments(SchemaSource source, DataFetchingEnvironment environment, Field field) {
         Map<String, Definition> result = new HashMap<>();
         new GraphQLQueryVisitor() {
             @Override
             protected void visitFragmentSpread(FragmentSpread node) {
-                FragmentDefinition fragmentDefinition = environment.getFragmentsByName().get(node.getName());
-                result.put(node.getName(), fragmentDefinition.deepCopy());
+                FragmentDefinition fragmentDefinition = environment.getFragmentsByName().get(node.getName()).deepCopy();
+                trimFieldSelection(source, environment, fragmentDefinition);
+                result.put(node.getName(), fragmentDefinition);
                 super.visitFragmentSpread(node);
             }
         }.visit(field);
