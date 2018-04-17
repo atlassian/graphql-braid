@@ -2,6 +2,7 @@ package com.atlassian.braid.source;
 
 import com.atlassian.braid.BatchLoaderFactory;
 import com.atlassian.braid.BraidContext;
+import com.atlassian.braid.BraidContexts;
 import com.atlassian.braid.GraphQLQueryVisitor;
 import com.atlassian.braid.Link;
 import com.atlassian.braid.SchemaSource;
@@ -21,6 +22,7 @@ import graphql.language.Node;
 import graphql.language.ObjectField;
 import graphql.language.ObjectValue;
 import graphql.language.OperationDefinition;
+import graphql.language.OperationDefinition.Operation;
 import graphql.language.Selection;
 import graphql.language.SelectionSet;
 import graphql.language.Type;
@@ -56,6 +58,7 @@ import java.util.function.Predicate;
 import static com.atlassian.braid.BatchLoaderUtils.getTargetIdsFromEnvironment;
 import static com.atlassian.braid.TypeUtils.findQueryFieldDefinitions;
 import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
+import static com.atlassian.braid.java.util.BraidCollectors.SingletonCharacteristics.ALLOW_MULTIPLE_OCCURRENCES;
 import static com.atlassian.braid.java.util.BraidCollectors.singleton;
 import static graphql.introspection.Introspection.TypeNameMetaFieldDef;
 import static graphql.language.OperationDefinition.Operation.MUTATION;
@@ -64,6 +67,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
@@ -101,16 +105,13 @@ class QueryExecutor<C> implements BatchLoaderFactory {
 
         @Override
         public CompletionStage<List<DataFetcherResult<Object>>> load(List<DataFetchingEnvironment> environments) {
-
-            final DataFetchingEnvironment firstEnv = environments.stream().findFirst()
-                    .orElseThrow(IllegalStateException::new);
-
-            final GraphQLOutputType fieldType = firstEnv.getFieldDefinition().getType();
+            final C context = checkAndGetContext(environments);
+            final Operation operationType = checkAndGetOperationType(environments).orElse(QUERY);
+            final GraphQLOutputType fieldOutputType = checkAndGetFieldOutputType(environments);
 
             Document doc = new Document();
 
-            final OperationDefinition.Operation operationType = getOperationType(firstEnv).orElse(QUERY);
-            OperationDefinition queryOp = newQueryOperationDefinition(fieldType, operationType);
+            OperationDefinition queryOp = newQueryOperationDefinition(fieldOutputType, operationType);
 
             doc.getDefinitions().add(queryOp);
 
@@ -165,7 +166,7 @@ class QueryExecutor<C> implements BatchLoaderFactory {
 
             final MappedDocument mappedDocument = schemaSource.getDocumentMapper().apply(doc);
 
-            CompletableFuture<DataFetcherResult<Map<String, Object>>> queryResult = executeQuery(environments, mappedDocument.getDocument(), queryOp, variables);
+            CompletableFuture<DataFetcherResult<Map<String, Object>>> queryResult = executeQuery(context, mappedDocument.getDocument(), queryOp, variables);
             return queryResult
                     .thenApply(result -> {
                         final HashMap<FieldKey, Object> data = new HashMap<>();
@@ -191,6 +192,41 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                     .thenApply(result -> transformBatchResultIntoResultList(environments, clonedFields, result));
         }
 
+        private static <C> C checkAndGetContext(Collection<DataFetchingEnvironment> environments) {
+            return environments.stream().map(BraidContexts::<C>get).collect(singleton(ALLOW_MULTIPLE_OCCURRENCES));
+        }
+
+        private static Optional<Operation> checkAndGetOperationType(Collection<DataFetchingEnvironment> environments) {
+            return environments.stream()
+                    .map(QueryExecutorBatchLoader::getOperationType)
+                    .collect(singleton(ALLOW_MULTIPLE_OCCURRENCES));
+        }
+
+        private static Optional<Operation> getOperationType(DataFetchingEnvironment env) {
+            final GraphQLType graphQLType = env.getParentType();
+            final GraphQLSchema graphQLSchema = env.getGraphQLSchema();
+            if (Objects.equals(graphQLSchema.getQueryType(), graphQLType)) {
+                return Optional.of(QUERY);
+            } else if (Objects.equals(graphQLSchema.getMutationType(), graphQLType)) {
+                return Optional.of(MUTATION);
+            } else {
+                return Optional.empty();
+            }
+        }
+
+        /**
+         * Checks the field type for all environments is the same and returns it
+         *
+         * @param environments the collection of environments to check
+         * @return the found {@link GraphQLOutputType}
+         */
+        private static GraphQLOutputType checkAndGetFieldOutputType(List<DataFetchingEnvironment> environments) {
+            return environments.stream()
+                    .map(DataFetchingEnvironment::getFieldDefinition)
+                    .map(GraphQLFieldDefinition::getType)
+                    .collect(singleton(ALLOW_MULTIPLE_OCCURRENCES));
+        }
+
         private void addFieldToQuery(Document doc, OperationDefinition queryOp, Map<String, Object> variables, DataFetchingEnvironment environment, OperationDefinition operationDefinition, FieldRequest field) {
             final GraphQLQueryVisitor variableNameSpacer =
                     new VariableNamespacingGraphQLQueryVisitor(field.counter, operationDefinition, variables, environment, queryOp);
@@ -203,16 +239,13 @@ class QueryExecutor<C> implements BatchLoaderFactory {
             queryOp.getSelectionSet().getSelections().add(field.field);
         }
 
-        private CompletableFuture<DataFetcherResult<Map<String, Object>>> executeQuery(List<DataFetchingEnvironment> environments, Document doc, OperationDefinition queryOp, Map<String, Object> variables) {
-
-            CompletableFuture<DataFetcherResult<Map<String, Object>>> queryResult;
+        private CompletableFuture<DataFetcherResult<Map<String, Object>>> executeQuery(C context, Document doc, OperationDefinition queryOp, Map<String, Object> variables) {
+            final CompletableFuture<DataFetcherResult<Map<String, Object>>> queryResult;
             if (queryOp.getSelectionSet().getSelections().isEmpty()) {
-                queryResult = CompletableFuture.completedFuture(new DataFetcherResult<>(emptyMap(), emptyList()));
+                queryResult = completedFuture(new DataFetcherResult<>(emptyMap(), emptyList()));
             } else {
                 ExecutionInput input = executeBatchQuery(doc, queryOp.getName(), variables);
-                final C context = BraidObjects.<BraidContext<C>>cast(environments.get(0).getContext()).getContext();
-                queryResult = queryFunction
-                        .query(input, context);
+                queryResult = queryFunction.query(input, context);
             }
             return queryResult;
         }
@@ -261,21 +294,10 @@ class QueryExecutor<C> implements BatchLoaderFactory {
     }
 
     private static OperationDefinition newQueryOperationDefinition(GraphQLOutputType fieldType,
-                                                                   OperationDefinition.Operation operationType) {
+                                                                   Operation operationType) {
         return new OperationDefinition(newBulkOperationName(fieldType), operationType, new SelectionSet());
     }
 
-    private static Optional<OperationDefinition.Operation> getOperationType(DataFetchingEnvironment env) {
-        final GraphQLType graphQLType = env.getParentType();
-        final GraphQLSchema graphQLSchema = env.getGraphQLSchema();
-        if (Objects.equals(graphQLSchema.getQueryType(), graphQLType)) {
-            return Optional.of(QUERY);
-        } else if (Objects.equals(graphQLSchema.getMutationType(), graphQLType)) {
-            return Optional.of(MUTATION);
-        } else {
-            return Optional.empty();
-        }
-    }
 
     private static String newBulkOperationName(GraphQLOutputType fieldType) {
         String type;
@@ -352,12 +374,6 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                         || fields.contains(new FieldKey(String.valueOf(e.getPath().get(0)))))
                 .map(RelativeGraphQLError::new)
                 .collect(toList());
-    }
-
-    private static Predicate<GraphQLError> isErrorForField(Field field) {
-        return e -> e.getPath() == null
-                || e.getPath().isEmpty()
-                || field.getAlias().equals(e.getPath().get(0));
     }
 
     private static OperationDefinition findSingleOperationDefinition(Document queryDoc) {
