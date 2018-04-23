@@ -2,6 +2,7 @@ package com.atlassian.braid.source;
 
 
 import com.atlassian.braid.SchemaSource;
+import com.google.common.collect.ImmutableMap;
 import graphql.language.Argument;
 import graphql.language.Document;
 import graphql.language.Field;
@@ -15,7 +16,6 @@ import graphql.parser.Parser;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLObjectType;
-import graphql.schema.GraphQLOutputType;
 import graphql.schema.GraphQLSchema;
 import graphql.schema.idl.RuntimeWiring;
 import graphql.schema.idl.SchemaGenerator;
@@ -73,10 +73,10 @@ public class QueryExecutorTest {
         final GraphQLSchema mockSchema = mock(GraphQLSchema.class);
         final GraphQLObjectType fragmentDefinitionOutputType = mock(GraphQLObjectType.class);
         final GraphQLFieldDefinition mock = mock(GraphQLFieldDefinition.class);
+        when(fragmentDefinitionOutputType.getName()).thenReturn("OnType");
         when(fragmentDefinitionOutputType.getFieldDefinition(anyString())).thenReturn(mock);
         when(env.getGraphQLSchema()).thenReturn(mockSchema);
-        when(mockSchema.getObjectType(anyString())).thenReturn(fragmentDefinitionOutputType);
-        when(fragmentDefinitionOutputType.getName()).thenReturn("OnType");
+        when(mockSchema.getTypeMap()).thenReturn(ImmutableMap.of("OnType", fragmentDefinitionOutputType));
         Field parent = new Field("parent", new SelectionSet(singletonList(new FragmentSpread("Frag"))));
 
         QueryExecutor<?> queryExecutor = new QueryExecutor<>(queryFunction);

@@ -4,12 +4,12 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Handle interfaces in fragments 
 
 0.10.1 (2018-04-17)
 -------------------
-
-- 
+ 
+- Handle fragments in document mapping
 
 0.10.0 (2018-04-12)
 -------------------

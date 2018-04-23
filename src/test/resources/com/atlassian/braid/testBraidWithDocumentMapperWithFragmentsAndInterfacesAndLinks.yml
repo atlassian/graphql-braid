@@ -1,0 +1,120 @@
+request:
+  query: |
+    query($myid: String) {
+      foo(id: $myid) {
+        ...fooFrag
+        ...fooableFrag
+        bar {
+          ...barFrag
+        }
+      }
+    }
+    fragment fooFrag on Foo {
+      id
+    }
+    fragment fooableFrag on Fooable {
+      name
+    }
+    fragment barFrag on Bar {
+      id
+      title
+    }
+
+  variables:
+    myid: FooId
+
+response:
+  errors: []
+  data:
+    foo:
+      id: FooId
+      name: Foo
+      bar:
+        id: BarId
+        title: TopBar
+
+schemaSources:
+  - name: foo
+    schema: |
+      schema {
+          query: Query
+      }
+      type Query {
+          foo(id: String) : Foo
+      }
+      type Foo implements Fooable {
+          id: ID
+          name: String
+          barId: ID
+      }
+
+      interface Fooable {
+        name: String
+      }
+    links:
+      - from:
+          type: Foo
+          field: bar
+          fromField: barId
+          replaceFromField: true
+        to:
+          namespace: bar
+          type: Bar
+          field: topbar
+          argument: id
+    expected:
+      query: |
+        query Bulk_Foo($myid100: String) {
+            foo100: foo(id: $myid100) {
+               ...fooFrag
+               ...fooableFrag
+               barId
+            }
+        }
+        fragment fooableFrag on Fooable {
+          name
+        }
+        fragment fooFrag on Foo {
+          id
+        }
+
+      variables:
+        myid100: FooId
+    response:
+      data:
+        foo100:
+          id: FooId
+          name: Foo
+          barId: BarId
+      errors: []
+  - name: bar
+    schema: |
+      schema {
+          query: Query
+      }
+      type Query {
+          topbar(id: String) : Bar
+      }
+      type Bar {
+          id: ID
+          title: String
+      }
+    expected:
+      query: |
+        query Bulk_Bar($id100: String) {
+            bar100: topbar(id: $id100) {
+              ...barFrag
+            }
+        }
+        fragment barFrag on Bar {
+          id
+          title
+        }
+      variables:
+        id100: BarId
+    response:
+      data:
+        bar100:
+          id: BarId
+          title: TopBar
+      errors: []
