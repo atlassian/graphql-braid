@@ -4,6 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- 
+
+0.10.2 (2018-04-23)
+-------------------
+
 - Handle interfaces in fragments 
 
 0.10.1 (2018-04-17)
