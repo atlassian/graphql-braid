@@ -426,7 +426,13 @@ class QueryExecutor<C> implements BatchLoaderFactory {
             protected void visitFragmentDefinition(FragmentDefinition node) {
                 if (node == root) {
                     final FragmentDefinition fd = (FragmentDefinition) root;
-                    parentType = lastFieldType = environment.getGraphQLSchema().getObjectType(fd.getTypeCondition().getName());
+                    final GraphQLType fragmentType = environment.getGraphQLSchema()
+                            .getTypeMap()
+                            .get(fd.getTypeCondition().getName());
+                    if (!(fragmentType instanceof GraphQLOutputType)) {
+                        throw new IllegalStateException("Unexpected GraphQL type: " + fragmentType.getClass());
+                    }
+                    parentType = this.lastFieldType = GraphQLOutputType.class.cast(fragmentType);
                 }
                 super.visitFragmentDefinition(node);
             }
