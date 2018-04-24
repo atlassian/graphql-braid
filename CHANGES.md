@@ -4,7 +4,7 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Handle inline fragments within fragments 
 
 0.10.2 (2018-04-23)
 -------------------

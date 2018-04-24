@@ -18,6 +18,7 @@ import graphql.language.Document;
 import graphql.language.Field;
 import graphql.language.FragmentDefinition;
 import graphql.language.FragmentSpread;
+import graphql.language.InlineFragment;
 import graphql.language.InputValueDefinition;
 import graphql.language.Node;
 import graphql.language.ObjectField;
@@ -27,13 +28,13 @@ import graphql.language.OperationDefinition.Operation;
 import graphql.language.Selection;
 import graphql.language.SelectionSet;
 import graphql.language.Type;
+import graphql.language.TypeName;
 import graphql.language.Value;
 import graphql.language.VariableDefinition;
 import graphql.language.VariableReference;
-import graphql.parser.Parser;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.GraphQLFieldDefinition;
-import graphql.schema.GraphQLInterfaceType;
+import graphql.schema.GraphQLFieldsContainer;
 import graphql.schema.GraphQLList;
 import graphql.schema.GraphQLModifiedType;
 import graphql.schema.GraphQLObjectType;
@@ -55,6 +56,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import static com.atlassian.braid.BatchLoaderUtils.getTargetIdsFromEnvironment;
 import static com.atlassian.braid.TypeUtils.findQueryFieldDefinitions;
@@ -64,6 +66,7 @@ import static com.atlassian.braid.java.util.BraidCollectors.singleton;
 import static graphql.introspection.Introspection.TypeNameMetaFieldDef;
 import static graphql.language.OperationDefinition.Operation.MUTATION;
 import static graphql.language.OperationDefinition.Operation.QUERY;
+import static java.lang.String.format;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
@@ -418,21 +421,14 @@ class QueryExecutor<C> implements BatchLoaderFactory {
      */
     static void trimFieldSelection(SchemaSource schemaSource, DataFetchingEnvironment environment, AbstractNode root) {
         new GraphQLQueryVisitor() {
-            GraphQLOutputType parentType = null;
-            GraphQLOutputType lastFieldType = null;
+            private GraphQLOutputType parentType = null;
+            private GraphQLOutputType lastFieldType = null;
 
 
             @Override
             protected void visitFragmentDefinition(FragmentDefinition node) {
                 if (node == root) {
-                    final FragmentDefinition fd = (FragmentDefinition) root;
-                    final GraphQLType fragmentType = environment.getGraphQLSchema()
-                            .getTypeMap()
-                            .get(fd.getTypeCondition().getName());
-                    if (!(fragmentType instanceof GraphQLOutputType)) {
-                        throw new IllegalStateException("Unexpected GraphQL type: " + fragmentType.getClass());
-                    }
-                    parentType = this.lastFieldType = GraphQLOutputType.class.cast(fragmentType);
+                    this.parentType = this.lastFieldType = getFragmentOutputType(environment, node::getTypeCondition);
                 }
                 super.visitFragmentDefinition(node);
             }
@@ -452,12 +448,15 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                 } else {
                     getLink(schemaSource.getLinks(), parentType.getName(), node.getName())
                             .ifPresent(l -> node.setSelectionSet(null));
-                    if (isFieldMatchingFieldDefinition(TypeNameMetaFieldDef).test(node)) {
+
+                    if (isTypeNameMetaField(node)) {
                         type = TypeNameMetaFieldDef.getType();
-                    } else if (parentType instanceof GraphQLInterfaceType) {
-                        type = ((GraphQLInterfaceType) parentType).getFieldDefinition(node.getName()).getType();
+                    } else if (parentType instanceof GraphQLFieldsContainer) {
+                        type = GraphQLFieldsContainer.class.cast(parentType).getFieldDefinition(node.getName()).getType();
                     } else {
-                        type = ((GraphQLObjectType) parentType).getFieldDefinition(node.getName()).getType();
+                        throw new IllegalStateException(
+                                format("Could not find definition for field %s, with parent of type: %s",
+                                        node.getName(), parentType));
                     }
                 }
 
@@ -466,6 +465,12 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                 }
                 lastFieldType = (GraphQLOutputType) type;
                 super.visitField(node);
+            }
+
+            @Override
+            protected void visitInlineFragment(InlineFragment node) {
+                this.parentType = this.lastFieldType = getFragmentOutputType(environment, node::getTypeCondition);
+                super.visitInlineFragment(node);
             }
 
             @Override
@@ -513,6 +518,21 @@ class QueryExecutor<C> implements BatchLoaderFactory {
         }.visit(root);
     }
 
+    private static boolean isTypeNameMetaField(Field node) {
+        return isFieldMatchingFieldDefinition(TypeNameMetaFieldDef).test(node);
+    }
+
+    private static GraphQLOutputType getFragmentOutputType(DataFetchingEnvironment env, Supplier<TypeName> getTypeCondition) {
+        final GraphQLType type = env.getGraphQLSchema()
+                .getTypeMap()
+                .get(getTypeCondition.get().getName());
+
+        if (!(type instanceof GraphQLOutputType)) {
+            throw new IllegalStateException("Unexpected GraphQL type: " + type.getClass());
+        }
+        return GraphQLOutputType.class.cast(type);
+    }
+
     /**
      * Ensures any referenced fragments are included in the query
      */
@@ -532,7 +552,8 @@ class QueryExecutor<C> implements BatchLoaderFactory {
 
     private static Optional<Link> getLink(Collection<Link> links, String typeName, String fieldName) {
         return links.stream()
-                .filter(l -> l.getSourceType().equals(typeName) && l.getSourceFromField().equals(fieldName))
+                .filter(l -> l.getSourceType().equals(typeName))
+                .filter(l -> l.getSourceFromField().equals(fieldName))
                 .findFirst();
     }
 
