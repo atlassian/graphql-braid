@@ -34,6 +34,13 @@ public final class RestRemoteSchemaSource<C> extends AbstractSchemaSource {
     private final RestRemoteRetriever<C> remoteRetriever;
     private final Map<String, RootField> rootFields;
 
+    /**
+     * A RootField is an entity that is fetched from an invocation to the remoteRetriever. It is looked up
+     * by name from the query and parameters from the environment are templated into the uri using a {} parameter
+     * format.
+     *
+     * The response is converted by the mapper to allow manipulation of fields for example renaming after retrieval.
+     */
     public static final class RootField {
         String name;
         String uri;
@@ -46,6 +53,16 @@ public final class RestRemoteSchemaSource<C> extends AbstractSchemaSource {
         }
     }
 
+    /**
+     * Create a new RestRemoteSchemaSource
+     * @param namespace The namespace used to distinguish this source from others
+     * @param schemaProvider Where to read the graphql definition from
+     * @param remoteRetriever Retriever that will perform the remote retrieval
+     * @param rootFields The root fields that can be populated via a call to the remoteRetriever. These fields should
+     *                   all be topLevelFields if that configuration option is being used
+     * @param links
+     * @param topLevelFields The fields to allow querying of, if not provided then all fields are queryable.
+     */
     public RestRemoteSchemaSource(SchemaNamespace namespace,
                                   Supplier<Reader> schemaProvider,
                                   RestRemoteRetriever<C> remoteRetriever,
