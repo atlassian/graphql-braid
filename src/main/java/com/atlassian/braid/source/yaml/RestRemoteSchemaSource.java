@@ -27,6 +27,8 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * Data source for an external REST service.
+ *
+ * @param <C> The underlying context for the request, wrapped in a {@link com.atlassian.braid.BraidContext}
  */
 @SuppressWarnings("WeakerAccess")
 public final class RestRemoteSchemaSource<C> extends AbstractSchemaSource {

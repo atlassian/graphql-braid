@@ -1,5 +1,6 @@
 package com.atlassian.braid.source.yaml;
 
+import com.atlassian.braid.BraidContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -16,7 +17,7 @@ public class HttpRestRemoteRetriever<C> implements RestRemoteRetriever<C> {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
-    public CompletableFuture<Map<String, Object>> get(URL url, C context) {
+    public CompletableFuture<Map<String, Object>> get(URL url, BraidContext<C> context) {
         return CompletableFuture.completedFuture(queryForJson(url));
     }
 

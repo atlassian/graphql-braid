@@ -1,5 +1,7 @@
 package com.atlassian.braid.source.yaml;
 
+import com.atlassian.braid.BraidContext;
+
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -9,6 +11,8 @@ import java.util.concurrent.CompletableFuture;
  * <p>
  * Typically implementations of this class will need to deal with overall request configuration i.e. authentication
  * as the url will be built and supplied by the {@link RestRemoteSchemaSource}.
+ *
+ * @param <C> The underlying context for the GraphQL request, held within a {@link BraidContext}
  */
 public interface RestRemoteRetriever<C> {
 
@@ -17,5 +21,5 @@ public interface RestRemoteRetriever<C> {
      * @param context the context
      * @return the response body of the query
      */
-    CompletableFuture<Map<String, Object>> get(URL url, C context);
+    CompletableFuture<Map<String, Object>> get(URL url, BraidContext<C> context);
 }

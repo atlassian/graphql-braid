@@ -4,6 +4,7 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 - Updated Javadoc around RestRemoteSchemaSource and related classes, added a test for RestRemoteSchemaSource
+- Changed signature of RestRemoteRetriever to reflect the fact that the Context is wrapped in a BraidContext
 
 0.10.3 (2018-04-24)
 -------------------
