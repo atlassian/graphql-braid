@@ -94,7 +94,11 @@ public class TypeUtils {
      */
 
     static Optional<ObjectTypeDefinition> findQueryType(TypeDefinitionRegistry registry) throws IllegalArgumentException {
-        return findOperationType(registry, TypeUtils::isQueryOperation);
+        Optional<ObjectTypeDefinition> result = findOperationType(registry, TypeUtils::isQueryOperation);
+        if (result.isPresent()) {
+            return result;
+        }
+        return registry.getType("Query").map(ObjectTypeDefinition.class::cast);
     }
 
     /**
@@ -105,7 +109,11 @@ public class TypeUtils {
      */
 
     static Optional<ObjectTypeDefinition> findMutationType(TypeDefinitionRegistry registry) throws IllegalArgumentException {
-        return findOperationType(registry, TypeUtils::isMutationOperation);
+        Optional<ObjectTypeDefinition> result = findOperationType(registry, TypeUtils::isMutationOperation);
+        if (result.isPresent()) {
+            return result;
+        }
+        return registry.getType("Mutation").map(ObjectTypeDefinition.class::cast);
     }
 
     private static Optional<ObjectTypeDefinition> findOperationType(TypeDefinitionRegistry registry, Predicate<OperationTypeDefinition> isQueryOperation) {
