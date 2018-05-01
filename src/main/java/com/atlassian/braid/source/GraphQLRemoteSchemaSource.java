@@ -8,6 +8,7 @@ import com.atlassian.braid.document.DocumentMappers;
 import graphql.ExecutionInput;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
+import graphql.schema.idl.TypeDefinitionRegistry;
 
 import java.io.Reader;
 import java.util.Collections;
@@ -45,16 +46,29 @@ public final class GraphQLRemoteSchemaSource<C> extends ForwardingSchemaSource i
                                      Supplier<Reader> schemaProvider,
                                      GraphQLRemoteRetriever<C> graphQLRemoteRetriever,
                                      List<Link> links,
-                                     DocumentMapperFactory documentMapper,
+                                     DocumentMapperFactory documentMapperFactory,
                                      String... topLevelFields) {
+        this(namespace,
+                loadPublicSchema(schemaProvider, topLevelFields),
+                loadSchema(schemaProvider), graphQLRemoteRetriever, links, documentMapperFactory);
+    }
+
+    public GraphQLRemoteSchemaSource(SchemaNamespace namespace,
+                                     TypeDefinitionRegistry publicSchema,
+                                     TypeDefinitionRegistry privateSchema,
+                                     GraphQLRemoteRetriever<C> graphQLRemoteRetriever,
+                                     List<Link> links,
+                                     DocumentMapperFactory documentMapperFactory) {
         this.graphQLRemoteRetriever = requireNonNull(graphQLRemoteRetriever);
         this.delegate = new BaseQueryExecutorSchemaSource<>(namespace,
-                loadPublicSchema(schemaProvider, topLevelFields),
-                loadSchema(schemaProvider),
+                publicSchema,
+                privateSchema,
                 links,
-                documentMapper,
+                documentMapperFactory,
                 this::query);
+
     }
+
 
     @Override
     protected SchemaSource getDelegate() {
