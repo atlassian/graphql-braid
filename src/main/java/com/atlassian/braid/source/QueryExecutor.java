@@ -141,7 +141,8 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                 if (link != null) {
                     final List targetIds = getTargetIdsFromEnvironment(link, environment);
 
-                    boolean fieldQueryOnlySelectingVariable = isFieldQueryOnlySelectingVariable(cloneFieldBeingFetched(environment), link);
+                    Field cloneOfCurrentField = environment.getField().deepCopy();
+                    boolean fieldQueryOnlySelectingVariable = isFieldQueryOnlySelectingVariable(cloneOfCurrentField, link);
                     for (Object targetId : targetIds) {
                         final FieldRequest field = cloneField(schemaSource, counter, usedCounterIds, environment);
                         if (isTargetIdNullAndCannotQueryLinkWithNull(targetId, link)) {
@@ -317,14 +318,11 @@ class QueryExecutor<C> implements BatchLoaderFactory {
     }
 
     private static Field cloneFieldBeingFetchedWithAlias(DataFetchingEnvironment environment, Function<Field, String> alias) {
-        final Field field = cloneFieldBeingFetched(environment);
+        Field field = environment.getField().deepCopy();
         field.setAlias(alias.apply(field));
         return field;
     }
 
-    private static Field cloneFieldBeingFetched(DataFetchingEnvironment environment) {
-        return DocumentCloners.clone(findCurrentFieldBeingFetched(environment));
-    }
 
     private static ExecutionInput executeBatchQuery(Document doc, String operationName, Map<String, Object> variables) {
         return ExecutionInput.newExecutionInput()
@@ -404,13 +402,6 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                 .orElseThrow(IllegalArgumentException::new);
     }
 
-    private static Field findCurrentFieldBeingFetched(DataFetchingEnvironment environment) {
-        return environment.getFields()
-                .stream()
-                .filter(isFieldMatchingFieldDefinition(environment.getFieldDefinition()))
-                .findFirst()
-                .orElseThrow(IllegalArgumentException::new);
-    }
 
     private static Predicate<Field> isFieldMatchingFieldDefinition(GraphQLFieldDefinition fieldDefinition) {
         return field -> Objects.equals(fieldDefinition.getName(), field.getName());
