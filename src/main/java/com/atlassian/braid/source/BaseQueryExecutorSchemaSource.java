@@ -34,17 +34,8 @@ final class BaseQueryExecutorSchemaSource<C> extends AbstractSchemaSource implem
                                   List<Link> links,
                                   DocumentMapperFactory documentMapper,
                                   QueryFunction<C> queryFunction) {
-        this(namespace, schema, privateSchema, links, documentMapper, new QueryExecutor<C>(queryFunction));
-    }
-
-    private BaseQueryExecutorSchemaSource(SchemaNamespace namespace,
-                                          TypeDefinitionRegistry schema,
-                                          TypeDefinitionRegistry privateSchema,
-                                          List<Link> links,
-                                          Function<TypeDefinitionRegistry, DocumentMapper> documentMapper,
-                                          QueryExecutor<C> queryExecutor) {
         super(namespace, schema, privateSchema, links);
-        this.queryExecutor = requireNonNull(queryExecutor);
+        this.queryExecutor = new QueryExecutor<>(queryFunction);
         this.documentMapper = requireNonNull(documentMapper);
     }
 
