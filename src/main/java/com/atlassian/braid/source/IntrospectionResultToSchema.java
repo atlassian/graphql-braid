@@ -32,6 +32,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.atlassian.braid.TypeUtils.DEFAULT_MUTATION_TYPE_NAME;
+import static com.atlassian.braid.TypeUtils.DEFAULT_QUERY_TYPE_NAME;
+import static com.atlassian.braid.TypeUtils.MUTATION_FIELD_NAME;
+import static com.atlassian.braid.TypeUtils.QUERY_FIELD_NAME;
 import static graphql.Assert.assertNotNull;
 import static graphql.Assert.assertShouldNeverHappen;
 import static graphql.Assert.assertTrue;
@@ -49,7 +53,6 @@ public class IntrospectionResultToSchema {
      * Returns a IDL Document that represents the schema as defined by the introspection execution result
      *
      * @param introspectionResult the result of an introspection query on a schema
-     *
      * @return a IDL Document of the schema
      */
     public Document createSchemaDefinition(ExecutionResult introspectionResult) {
@@ -62,7 +65,6 @@ public class IntrospectionResultToSchema {
      * Returns a IDL Document that reprSesents the schema as defined by the introspection result map
      *
      * @param introspectionResult the result of an introspection query on a schema
-     *
      * @return a IDL Document of the schema
      */
     @SuppressWarnings("unchecked")
@@ -74,17 +76,17 @@ public class IntrospectionResultToSchema {
         Map<String, Object> queryType = (Map<String, Object>) schema.get("queryType");
         assertNotNull(queryType, "queryType expected");
         TypeName query = new TypeName((String) queryType.get("name"));
-        boolean nonDefaultQueryName = !"Query".equals(query.getName());
+        boolean nonDefaultQueryName = !DEFAULT_QUERY_TYPE_NAME.equals(query.getName());
 
         SchemaDefinition schemaDefinition = new SchemaDefinition();
-        schemaDefinition.getOperationTypeDefinitions().add(new OperationTypeDefinition("query", query));
+        schemaDefinition.getOperationTypeDefinitions().add(new OperationTypeDefinition(QUERY_FIELD_NAME, query));
 
         Map<String, Object> mutationType = (Map<String, Object>) schema.get("mutationType");
         boolean nonDefaultMutationName = false;
         if (mutationType != null) {
             TypeName mutation = new TypeName((String) mutationType.get("name"));
-            nonDefaultMutationName = !"Mutation".equals(mutation.getName());
-            schemaDefinition.getOperationTypeDefinitions().add(new OperationTypeDefinition("mutation", mutation));
+            nonDefaultMutationName = !DEFAULT_MUTATION_TYPE_NAME.equals(mutation.getName());
+            schemaDefinition.getOperationTypeDefinitions().add(new OperationTypeDefinition(MUTATION_FIELD_NAME, mutation));
         }
 
         Map<String, Object> subscriptionType = (Map<String, Object>) schema.get("subscriptionType");

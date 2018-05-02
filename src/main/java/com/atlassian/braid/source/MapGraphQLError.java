@@ -1,15 +1,14 @@
 package com.atlassian.braid.source;
 
+import com.atlassian.braid.java.util.BraidObjects;
 import graphql.ErrorType;
 import graphql.GraphQLError;
 import graphql.language.SourceLocation;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
-
-import static com.atlassian.braid.source.OptionalHelper.castNullable;
-import static com.atlassian.braid.source.OptionalHelper.castNullableList;
 
 /**
  * Turns a map representing the data of a GraphQL error into a real GraphQLError
@@ -24,8 +23,9 @@ public class MapGraphQLError implements GraphQLError {
     private final List<Object> path;
 
     public MapGraphQLError(Map<String, Object> error) {
-        this.message = castNullable(error.get("message"), String.class).orElse("Unknown error");
-        this.locations = castNullableList(error.get("locations"), Map.class)
+        this.message = Optional.ofNullable(error.get("message")).map(String.class::cast).orElse("Unknown error");
+        this.locations = Optional.ofNullable(error.get("locations"))
+                .map(BraidObjects::<List<Map>>cast)
                 .map(errors ->
                         errors.stream()
                                 .filter(err -> err.containsKey("line") && err.containsKey("column"))
@@ -33,7 +33,7 @@ public class MapGraphQLError implements GraphQLError {
                                 .collect(Collectors.toList()))
                 .orElse(null);
         this.errorType = ErrorType.DataFetchingException;
-        this.path = castNullableList(error.get("path"), Object.class).orElse(null);
+        this.path = Optional.ofNullable(error.get("path")).map(BraidObjects::<List<Object>>cast).orElse(null);
     }
 
     @Override
