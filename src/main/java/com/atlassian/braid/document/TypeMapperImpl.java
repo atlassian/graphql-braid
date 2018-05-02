@@ -3,7 +3,6 @@ package com.atlassian.braid.document;
 import com.atlassian.braid.document.SelectionOperation.OperationResult;
 import com.atlassian.braid.mapper.MapperOperation;
 import com.atlassian.braid.mapper.MapperOperations;
-import com.atlassian.braid.source.OptionalHelper;
 import graphql.language.ObjectTypeDefinition;
 import graphql.language.Selection;
 import graphql.language.SelectionSet;
@@ -18,6 +17,7 @@ import static com.atlassian.braid.java.util.BraidLists.concat;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Stream.empty;
 
 /**
  * <strong>Internal</strong> implementation of the {@link TypeMapper}
@@ -83,7 +83,7 @@ final class TypeMapperImpl implements TypeMapper {
     private List<OperationResult> applyOperations(MappingContext mappingContext, List<Selection> selections) {
         return selections.stream()
                 .map(selection -> applyOperation(mappingContext, selection))
-                .flatMap(OptionalHelper::toStream)
+                .flatMap(maybeOperationResult -> maybeOperationResult.map(Stream::of).orElse(empty()))
                 .collect(toList());
     }
 

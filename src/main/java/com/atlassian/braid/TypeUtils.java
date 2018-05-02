@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import static com.atlassian.braid.java.util.BraidOptionals.firstNonEmpty;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
@@ -20,13 +21,16 @@ import static java.util.stream.Collectors.toList;
 /**
  * Utils for helping to navigate types
  */
-public class TypeUtils {
+public final class TypeUtils {
 
-    private static final String QUERY_FIELD_NAME = "query";
-    private static final String MUTATION_FIELD_NAME = "mutation";
+    public static final String QUERY_FIELD_NAME = "query";
+    public static final String MUTATION_FIELD_NAME = "mutation";
 
-    private static final String DEFAULT_QUERY_TYPE_NAME = "Query";
-    private static final String DEFAULT_MUTATION_TYPE_NAME = "Mutation";
+    public static final String DEFAULT_QUERY_TYPE_NAME = "Query";
+    public static final String DEFAULT_MUTATION_TYPE_NAME = "Mutation";
+
+    private TypeUtils() {
+    }
 
     /**
      * Creates an <em>emtpy</em> schema definition if the registry doesn't have one already
@@ -94,12 +98,11 @@ public class TypeUtils {
      */
 
     static Optional<ObjectTypeDefinition> findQueryType(TypeDefinitionRegistry registry) throws IllegalArgumentException {
-        Optional<ObjectTypeDefinition> result = findOperationType(registry, TypeUtils::isQueryOperation);
-        if (result.isPresent()) {
-            return result;
-        }
-        return registry.getType("Query").map(ObjectTypeDefinition.class::cast);
+        return firstNonEmpty(
+                () -> findOperationType(registry, TypeUtils::isQueryOperation),
+                () -> getObjectTypeDefinitionByName(registry, DEFAULT_QUERY_TYPE_NAME));
     }
+
 
     /**
      * Finds the query type definition.
@@ -109,11 +112,9 @@ public class TypeUtils {
      */
 
     static Optional<ObjectTypeDefinition> findMutationType(TypeDefinitionRegistry registry) throws IllegalArgumentException {
-        Optional<ObjectTypeDefinition> result = findOperationType(registry, TypeUtils::isMutationOperation);
-        if (result.isPresent()) {
-            return result;
-        }
-        return registry.getType("Mutation").map(ObjectTypeDefinition.class::cast);
+        return firstNonEmpty(
+                () -> findOperationType(registry, TypeUtils::isMutationOperation),
+                () -> getObjectTypeDefinitionByName(registry, DEFAULT_MUTATION_TYPE_NAME));
     }
 
     private static Optional<ObjectTypeDefinition> findOperationType(TypeDefinitionRegistry registry, Predicate<OperationTypeDefinition> isQueryOperation) {
@@ -176,5 +177,9 @@ public class TypeUtils {
     private static Function<OperationTypeDefinition, Optional<ObjectTypeDefinition>> getObjectTypeDefinition(
             TypeDefinitionRegistry registry) {
         return otd -> registry.getType(otd.getType()).map(ObjectTypeDefinition.class::cast);
+    }
+
+    private static Optional<ObjectTypeDefinition> getObjectTypeDefinitionByName(TypeDefinitionRegistry registry, String typeName) {
+        return registry.getType(typeName).map(ObjectTypeDefinition.class::cast);
     }
 }

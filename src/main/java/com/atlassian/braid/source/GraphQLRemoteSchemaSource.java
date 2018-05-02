@@ -5,6 +5,7 @@ import com.atlassian.braid.SchemaNamespace;
 import com.atlassian.braid.SchemaSource;
 import com.atlassian.braid.document.DocumentMapperFactory;
 import com.atlassian.braid.document.DocumentMappers;
+import com.atlassian.braid.java.util.BraidObjects;
 import graphql.ExecutionInput;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
@@ -14,12 +15,11 @@ import java.io.Reader;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static com.atlassian.braid.source.OptionalHelper.castNullableList;
-import static com.atlassian.braid.source.OptionalHelper.castNullableMap;
 import static com.atlassian.braid.source.SchemaUtils.loadPublicSchema;
 import static com.atlassian.braid.source.SchemaUtils.loadSchema;
 import static java.util.Objects.requireNonNull;
@@ -79,14 +79,18 @@ public final class GraphQLRemoteSchemaSource<C> extends ForwardingSchemaSource i
     public CompletableFuture<DataFetcherResult<Map<String, Object>>> query(ExecutionInput query, C context) {
         return graphQLRemoteRetriever.queryGraphQL(query, context).thenApply(response -> {
 
-            Map<String, Object> data = castNullableMap(response.get("data"), String.class, Object.class)
+            Map<String, Object> data = Optional.ofNullable(response.get("data"))
+                    .map(BraidObjects::<Map<String, Object>>cast)
                     .orElse(Collections.emptyMap());
-            final List<Map> errorsMap = castNullableList(response.get("errors"), Map.class)
+            final List<Map> errorsMap = Optional.ofNullable(response.get("errors"))
+                    .map(BraidObjects::<List<Map>>cast)
                     .orElse(Collections.emptyList());
 
             List<GraphQLError> errors = errorsMap.stream()
-                    .map(val -> (GraphQLError) new MapGraphQLError(
-                            castNullableMap(val, String.class, Object.class).orElseThrow(IllegalArgumentException::new)))
+                    .map(val -> Optional.ofNullable(val)
+                            .map(BraidObjects::<Map<String, Object>>cast)
+                            .orElseThrow(IllegalArgumentException::new))
+                    .map(MapGraphQLError::new)
                     .collect(Collectors.toList());
             return new DataFetcherResult<>(data, errors);
         });
