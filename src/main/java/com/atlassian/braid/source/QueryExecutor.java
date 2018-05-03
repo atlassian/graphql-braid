@@ -134,8 +134,7 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                 List<FieldRequest> fields = new ArrayList<>();
                 List<Integer> usedCounterIds = new ArrayList<>();
 
-                Document queryDoc = getQuery(environment);
-                OperationDefinition operationDefinition = findSingleOperationDefinition(queryDoc);
+                final OperationDefinition operationDefinition = getOperationDefinition(environment);
 
                 // add variable and argument for linked field identifier
                 if (link != null) {
@@ -274,8 +273,8 @@ class QueryExecutor<C> implements BatchLoaderFactory {
         }
     }
 
-    private static Document getQuery(DataFetchingEnvironment environment) {
-        return environment.<BraidContext>getContext().getExecutionContext().getDocument();
+    private static OperationDefinition getOperationDefinition(DataFetchingEnvironment environment) {
+        return environment.<BraidContext>getContext().getExecutionContext().getOperationDefinition();
     }
 
     private static boolean isTargetIdNullAndCannotQueryLinkWithNull(Object targetId, Link link) {
@@ -379,13 +378,6 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                         || fields.contains(new FieldKey(String.valueOf(e.getPath().get(0)))))
                 .map(RelativeGraphQLError::new)
                 .collect(toList());
-    }
-
-    private static OperationDefinition findSingleOperationDefinition(Document queryDoc) {
-        return queryDoc.getDefinitions().stream()
-                .filter(d -> d instanceof OperationDefinition)
-                .map(OperationDefinition.class::cast)
-                .collect(singleton());
     }
 
     private static Type findArgumentType(SchemaSource schemaSource, Link link) {

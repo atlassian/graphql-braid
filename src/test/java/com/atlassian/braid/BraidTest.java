@@ -201,4 +201,8 @@ public class BraidTest {
     @Test
     public void testBraidWithDocumentMapperWithFragmentsAndInterfacesAndInlineFragmentsAndLinks() {
     }
+
+    @Test
+    public void testBraidWithMultipleQueryAndOperationName(){
+    }
 }
