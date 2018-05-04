@@ -35,6 +35,7 @@ import static com.atlassian.braid.source.yaml.YamlRemoteSchemaSourceFactory.getR
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Suppliers.memoize;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
@@ -325,7 +326,7 @@ public class YamlBraidExecutionRule implements MethodRule {
 
         private QueryAssertion(String query, Map<String, Object> variables, String operationName) {
             this.query = query;
-            this.variables = variables;
+            this.variables = variables == null ? emptyMap() : variables;
             this.operationName = operationName;
         }
 
