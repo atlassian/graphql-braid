@@ -62,6 +62,7 @@ import static com.atlassian.braid.BatchLoaderUtils.getTargetIdsFromEnvironment;
 import static com.atlassian.braid.TypeUtils.findQueryFieldDefinitions;
 import static com.atlassian.braid.graphql.language.GraphQLNodes.printNode;
 import static com.atlassian.braid.java.util.BraidCollectors.SingletonCharacteristics.ALLOW_MULTIPLE_OCCURRENCES;
+import static com.atlassian.braid.java.util.BraidCollectors.nullSafeToMap;
 import static com.atlassian.braid.java.util.BraidCollectors.singleton;
 import static graphql.introspection.Introspection.TypeNameMetaFieldDef;
 import static graphql.language.OperationDefinition.Operation.MUTATION;
@@ -175,9 +176,7 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                     .thenApply(result -> {
                         final HashMap<FieldKey, Object> data = new HashMap<>();
                         Map<FieldKey, Object> dataByKey = result.getData().entrySet().stream()
-                                .collect(toMap(
-                                        e -> new FieldKey(e.getKey()),
-                                        Map.Entry::getValue));
+                                .collect(nullSafeToMap(e -> new FieldKey(e.getKey()), Map.Entry::getValue));
                         data.putAll(dataByKey);
                         data.putAll(shortCircuitedData);
                         return new DataFetcherResult<Map<FieldKey, Object>>(data, result.getErrors());

@@ -2,10 +2,16 @@ package com.atlassian.braid.java.util;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.stream.Collector;
 
 import static com.atlassian.braid.java.util.BraidCollectors.SingletonCharacteristics.ALLOW_MULTIPLE_OCCURRENCES;
+import static java.lang.String.format;
 import static java.util.Arrays.asList;
 
 /**
@@ -43,13 +49,43 @@ public final class BraidCollectors {
                 },
                 collection -> {
                     if (collection.size() != 1) {
-                        throw new IllegalStateException(String.format(msg, args));
+                        throw new IllegalStateException(format(msg, args));
                     }
                     return collection.iterator().next();
                 }
         );
     }
 
+
+    /**
+     * Collects elements into a map, {@code null} values are allowed.
+     */
+    public static <T, K, V> Collector<T, Map<K, V>, Map<K, V>> nullSafeToMap(Function<T, K> keyMapper,
+                                                                             Function<T, V> valueMapper) {
+        return Collector.of(HashMap::new, mergeEntry(keyMapper, valueMapper), BraidCollectors::mergeMaps);
+    }
+
+    private static <K, V> Map<K, V> mergeMaps(Map<K, V> map1, Map<K, V> map2) {
+        final Map<K, V> newMap = new HashMap<>(map1);
+        map2.forEach(mergeEntry(newMap));
+        return newMap;
+    }
+
+    private static <T, K, V> BiConsumer<Map<K, V>, T> mergeEntry(Function<T, K> key, Function<T, V> value) {
+        return (map, t) -> mergeEntry(map, key.apply(t), value.apply(t));
+    }
+
+    private static <K, V> BiConsumer<K, V> mergeEntry(Map<K, V> map) {
+        return (k, v) -> mergeEntry(map, k, v);
+    }
+
+    private static <K, V> void mergeEntry(Map<K, V> map, K key, V value) {
+        final V existingValue = map.putIfAbsent(key, value);
+        if (existingValue != null && !Objects.equals(value, existingValue)) {
+            throw new IllegalStateException(
+                    format("Error merging {%s:%s} in map, existing value is: %s", key, value, existingValue));
+        }
+    }
 
     public enum SingletonCharacteristics {
         /**
