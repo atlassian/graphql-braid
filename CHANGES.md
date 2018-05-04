@@ -4,6 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- 
+
+0.10.5 (2018-05-04)
+-------------------
+
 - Use null-safe `toMap` to collect results 
 
 0.10.4 (2018-05-04)
