@@ -41,12 +41,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.graphql-java</groupId>
-            <artifactId>java-dataloader</artifactId>
-            <version>${graphql-dataloader.version}</version>
-        </dependency>
-
-        <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-expression</artifactId>
             <version>4.3.11.RELEASE</version>
@@ -152,7 +146,6 @@
         <maven.compiler.target>8</maven.compiler.target>
 
         <graphql.version>8.0</graphql.version>
-        <graphql-dataloader.version>2.0.2</graphql-dataloader.version>
     </properties>
 
     <distributionManagement>
