@@ -1,5 +1,6 @@
 package com.atlassian.braid.graphql.language;
 
+import graphql.language.AstPrinter;
 import graphql.language.Node;
 
 /**
@@ -10,6 +11,6 @@ public final class GraphQLNodes {
     }
 
     public static String printNode(Node node) {
-        return new GraphQLQueryPrinter().print(node);
+        return AstPrinter.printAst(node);
     }
 }
