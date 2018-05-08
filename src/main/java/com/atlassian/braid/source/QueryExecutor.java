@@ -13,6 +13,7 @@ import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
 import graphql.language.AbstractNode;
 import graphql.language.Argument;
+import graphql.language.ArrayValue;
 import graphql.language.Definition;
 import graphql.language.Document;
 import graphql.language.Field;
@@ -583,6 +584,8 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                 transformedValue = maybeNamespaceReference((VariableReference) value);
             } else if (value instanceof ObjectValue) {
                 transformedValue = namespaceReferencesForObjectValue((ObjectValue) value);
+            } else if (value instanceof ArrayValue) {
+                transformedValue = namespaceReferencesForArrayValue((ArrayValue) value);
             } else {
                 transformedValue = value;
             }
@@ -594,6 +597,14 @@ class QueryExecutor<C> implements BatchLoaderFactory {
                     value.getChildren().stream()
                             .map(ObjectField.class::cast)
                             .map(o -> new ObjectField(o.getName(), namespaceReferences(o.getValue())))
+                            .collect(toList()));
+        }
+
+        private ArrayValue namespaceReferencesForArrayValue(ArrayValue value) {
+            return new ArrayValue(
+                    value.getChildren().stream()
+                            .map(Value.class::cast)
+                            .map(this::namespaceReferences)
                             .collect(toList()));
         }
 
