@@ -65,11 +65,11 @@ public class BraidSchemaConsumerTest {
 
         ExecutionInput fooInput = newExecutionInput()
                 .query("query Bulk_Foo {\n" +
-                        "    foo100: foo(id: \"fooid\") {\n" +
-                        "        id\n" +
-                        "        name\n" +
-                        "    }\n" +
-                        "}\n\n\n")
+                        "  foo100: foo(id: \"fooid\") {\n" +
+                        "    id\n" +
+                        "    name\n" +
+                        "  }\n" +
+                        "}\n")
                 .operationName("Bulk_Foo")
                 .context(context)
                 .build();
