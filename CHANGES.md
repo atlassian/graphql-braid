@@ -4,6 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- 
+
+0.10.6 (2018-05-08)
+-------------------
+
 - Fix support for array arguments for top level fields
 
 0.10.5 (2018-05-04)
