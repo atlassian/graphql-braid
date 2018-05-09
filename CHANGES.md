@@ -4,7 +4,7 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Change default property DataFetcher to be aware of aliases when source is a Map
 
 0.10.6 (2018-05-08)
 -------------------

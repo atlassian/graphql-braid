@@ -1,5 +1,6 @@
 package com.atlassian.braid;
 
+import com.atlassian.braid.graphql.language.AliasablePropertyDataFetcher;
 import graphql.execution.DataFetcherResult;
 import graphql.language.FieldDefinition;
 import graphql.language.ListType;
@@ -84,7 +85,7 @@ final class BraidSchema {
                                                            RuntimeWiring.Builder runtimeWiringBuilder,
                                                            ObjectTypeDefinition queryObjectTypeDefinition,
                                                            ObjectTypeDefinition mutationObjectTypeDefinition) {
-        addAllNonOperationTypes(dataSources, registry);
+        addAllNonOperationTypes(dataSources, registry, runtimeWiringBuilder);
 
         final List<FieldDataLoaderRegistration> linkedTypesBatchLoaders = linkTypes(dataSources,
                 queryObjectTypeDefinition, mutationObjectTypeDefinition);
@@ -157,8 +158,20 @@ final class BraidSchema {
     }
 
 
-    private static void addAllNonOperationTypes(Map<SchemaNamespace, BraidSchemaSource> dataSources, TypeDefinitionRegistry registry) {
-        dataSources.values().forEach(source -> source.getNonOperationTypes().forEach(registry::add));
+    private static void addAllNonOperationTypes(Map<SchemaNamespace, BraidSchemaSource> dataSources,
+                                                TypeDefinitionRegistry registry,
+                                                RuntimeWiring.Builder runtimeWiringBuilder) {
+        dataSources.values().forEach(source -> {
+            source.getNonOperationTypes().forEach(type -> {
+                registry.add(type);
+                if (type instanceof ObjectTypeDefinition) {
+                    ((ObjectTypeDefinition) type).getFieldDefinitions().forEach(fd -> {
+                        runtimeWiringBuilder.type(type.getName(), wiring -> wiring.dataFetcher(fd.getName(),
+                                new AliasablePropertyDataFetcher(fd.getName())));
+                    });
+                }
+            });
+        });
     }
 
     private static List<FieldDataLoaderRegistration> addSchemaSourcesTopLevelFieldsToOperation(Map<SchemaNamespace, BraidSchemaSource> dataSources,
