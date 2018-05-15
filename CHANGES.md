@@ -4,7 +4,7 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
-- 
+- Adding in some null safety to AliasablePropertyDataFetcher, just in case
 
 0.10.7 (2018-05-15)
 -------------------
