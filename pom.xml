@@ -9,7 +9,7 @@
 
     <groupId>com.atlassian.braid</groupId>
     <artifactId>graphql-braid</artifactId>
-    <version>0.10.7-SNAPSHOT</version>
+    <version>0.10.7</version>
     <name>GraphQL Braid</name>
 
     <issueManagement>
@@ -21,7 +21,7 @@
         <url>https://bitbucket.org/atlassian/graphql-braid</url>
         <connection>scm:git:git@bitbucket.org:atlassian/graphql-braid.git</connection>
         <developerConnection>scm:git:git@bitbucket.org:atlassian/graphql-braid.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>graphql-braid-0.10.7</tag>
     </scm>
 
     <licenses>
