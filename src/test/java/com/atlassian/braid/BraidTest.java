@@ -206,6 +206,10 @@ public class BraidTest {
     }
 
     @Test
-    public void testBraidWithMultipleQueryAndOperationName(){
+    public void testBraidWithMultipleQueryAndOperationName() {
+    }
+
+    @Test
+    public void testBraidWithAliasedVariable() {
     }
 }
