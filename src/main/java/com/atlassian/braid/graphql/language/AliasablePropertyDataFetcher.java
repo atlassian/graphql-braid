@@ -37,8 +37,8 @@ public class AliasablePropertyDataFetcher implements DataFetcher {
         Field field = env.getField();
         if (field != null) {
             String alias = field.getAlias();
-            // if an alias was provided then the map will only know about the field by its alias
-            if (alias != null && !alias.isEmpty()) {
+            // if an alias was provided then the map should know about the field by its alias
+            if (alias != null && !alias.isEmpty() && source.containsKey(alias)) {
                 return source.get(alias);
             }
         }
