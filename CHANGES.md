@@ -9,7 +9,7 @@ Changelog for graphql-braid
 0.10.9 (2018-05-17)
 -------------------
 
-- 
+- Fix for AliasablePropertyDataFetcher to deal with maps keyed by proeprtyName even when property is aliased
 
 0.10.8 (2018-05-15)
 -------------------
