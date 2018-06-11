@@ -212,4 +212,8 @@ public class BraidTest {
     @Test
     public void testBraidWithAliasedVariable() {
     }
+
+    @Test
+    public void testBraidWithVariableInDirective() {
+    }
 }

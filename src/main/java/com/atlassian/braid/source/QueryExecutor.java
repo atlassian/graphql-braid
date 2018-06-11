@@ -15,6 +15,7 @@ import graphql.language.AbstractNode;
 import graphql.language.Argument;
 import graphql.language.ArrayValue;
 import graphql.language.Definition;
+import graphql.language.Directive;
 import graphql.language.Document;
 import graphql.language.Field;
 import graphql.language.FragmentDefinition;
@@ -75,7 +76,6 @@ import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 
 /**
  * Executes a query against the data source
@@ -571,11 +571,16 @@ class QueryExecutor<C> implements BatchLoaderFactory {
         @Override
         protected void visitField(Field node) {
             node.setArguments(node.getArguments().stream().map(this::namespaceReferences).collect(toList()));
+            node.setDirectives(node.getDirectives().stream().map(this::namespaceReferences).collect(toList()));
             super.visitField(node);
         }
 
         private Argument namespaceReferences(Argument arg) {
             return new Argument(arg.getName(), namespaceReferences(arg.getValue()));
+        }
+
+        private Directive namespaceReferences(Directive original) {
+            return new Directive(original.getName(), original.getArguments().stream().map(this::namespaceReferences).collect(toList()));
         }
 
         private Value namespaceReferences(Value value) {
