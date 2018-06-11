@@ -4,6 +4,11 @@ Changelog for graphql-braid
 (Unreleased)
 -------------------
 
+- 
+
+0.10.10 (2018-06-11)
+-------------------
+
 - Fix missing support for variables in directives
 
 0.10.9 (2018-05-17)
