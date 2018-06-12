@@ -148,6 +148,14 @@
         <graphql.version>8.0</graphql.version>
     </properties>
 
+    <repositories>
+        <repository>
+            <id>maven-atlassian-com</id>
+            <name>Atlassian Public Repository</name>
+            <url>https://packages.atlassian.com/maven/public</url>
+        </repository>
+    </repositories>
+
     <distributionManagement>
         <repository>
             <id>maven-atlassian-com</id>
