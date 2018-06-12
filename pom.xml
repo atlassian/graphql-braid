@@ -153,7 +153,7 @@
         <repository>
             <id>maven-atlassian-com</id>
             <name>Atlassian Public Repository</name>
-            <url>https://packages.atlassian.com/maven/public</url>
+            <url>https://packages.atlassian.com/maven</url>
         </repository>
     </repositories>
 
@@ -161,7 +161,7 @@
         <pluginRepository>
             <id>maven-atlassian-com</id>
             <name>Atlassian Public Repository</name>
-            <url>https://packages.atlassian.com/maven/public</url>
+            <url>https://packages.atlassian.com/maven</url>
         </pluginRepository>
     </pluginRepositories>
 
@@ -170,7 +170,7 @@
         <repository>
             <id>maven-atlassian-com</id>
             <name>Atlassian Public Repository</name>
-            <url>https://packages.atlassian.com/maven/public</url>
+            <url>https://packages.atlassian.com/maven</url>
         </repository>
         <snapshotRepository>
             <id>maven-atlassian-com</id>
